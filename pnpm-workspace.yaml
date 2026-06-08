@@ -1,4 +1,8 @@
+allowBuilds:
+  esbuild: true
+
 minimumReleaseAge: 10080
 
 onlyBuiltDependencies:
+  - esbuild
   - rolldown

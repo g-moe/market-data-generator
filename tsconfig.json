@@ -10,6 +10,7 @@
 		"outDir": "dist",
 		"resolveJsonModule": true,
 		"rootDir": "src",
+		"rewriteRelativeImportExtensions": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
