@@ -10,8 +10,8 @@ describe('csv output', () => {
 	it('serializes candles with the expected header and central time columns', () => {
 		expect(serializeCandlesToCsv([candle()])).toBe(
 			[
-				'Date,Time,Open,High,Low,Close,Volume,Bid Volume,Ask Volume',
-				'2026-06-08,17:00:00,100,101,99,100.5,15,7,8'
+				'Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume',
+				'2026-06-08,17:00:00,100,101,99,100.5,15,3,7,8'
 			].join('\n')
 		);
 	});
@@ -41,6 +41,7 @@ function candle(overrides: Partial<Candle> = {}): Candle {
 		high: 101,
 		isNewTradingDay: false,
 		low: 99,
+		transactions: 3,
 		open: 100,
 		time: new Date('2026-06-08T17:00:00.000-05:00'),
 		volume: 15,

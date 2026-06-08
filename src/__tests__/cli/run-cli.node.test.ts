@@ -35,7 +35,7 @@ describe('runCli', () => {
 				'stop:Wrote 20000 candles to data/ESM26-CME.csv'
 			);
 			expect(await readFile(result.filePath, 'utf8')).toContain(
-				'Date,Time,Open,High,Low,Close,Volume,Bid Volume,Ask Volume'
+				'Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume'
 			);
 		} finally {
 			await rm('data', { force: true, recursive: true });

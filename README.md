@@ -44,10 +44,10 @@ data/es_1minute.csv
 
 ## CSV Output
 
-Generated CSV files use this header:
+Generated CSV files use this Sierra-compatible header:
 
 ```text
-Date,Time,Open,High,Low,Close,Volume,Bid Volume,Ask Volume
+Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume
 ```
 
 Dates and times are formatted in `America/Chicago`.

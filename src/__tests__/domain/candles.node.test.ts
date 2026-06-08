@@ -35,6 +35,7 @@ describe('buildCandles', () => {
 			expect(candle.low).toBeLessThanOrEqual(candle.open);
 			expect(candle.low).toBeLessThanOrEqual(candle.close);
 			expect(candle.volume).toBe(candle.bidVolume + candle.askVolume);
+			expect(candle.transactions).toBe(inputs.ticksPerCandle);
 		}
 	});
 

@@ -28,6 +28,7 @@ export function buildCandles(ticks: Tick[], inputs: GeneratorInputs): Candle[] {
 			high: Math.max(...prices),
 			isNewTradingDay,
 			low: Math.min(...prices),
+			transactions: candleTicks.length,
 			open,
 			time,
 			volume: bidVolume + askVolume

@@ -43,6 +43,7 @@ export type Candle = {
 	low: number;
 	close: number;
 	volume: number;
+	transactions: number;
 	bidVolume: number;
 	askVolume: number;
 	isNewTradingDay: boolean;
