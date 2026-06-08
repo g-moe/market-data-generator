@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { serializeCandlesToCsv, writeCandlesCsv } from '../../io/csv.ts';
-import type { Candle } from '../../domain/types.ts';
+import type { Candle } from '../../contracts/types.ts';
 
 describe('csv output', () => {
 	it('serializes candles with the expected header and central time columns', () => {
@@ -35,15 +35,15 @@ describe('csv output', () => {
 
 function candle(overrides: Partial<Candle> = {}): Candle {
 	return {
-		time: new Date('2026-06-08T17:00:00.000-05:00'),
-		open: 100,
-		high: 101,
-		low: 99,
-		close: 100.5,
-		volume: 15,
-		bidVolume: 7,
 		askVolume: 8,
+		bidVolume: 7,
+		close: 100.5,
+		high: 101,
 		isNewTradingDay: false,
+		low: 99,
+		open: 100,
+		time: new Date('2026-06-08T17:00:00.000-05:00'),
+		volume: 15,
 		...overrides
 	};
 }

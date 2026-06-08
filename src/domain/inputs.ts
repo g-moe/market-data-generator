@@ -1,17 +1,19 @@
 import {
-	ALLOWED_SYMBOLS,
 	DEFAULT_CANDLES,
 	DEFAULT_OUTPUT_DIR,
 	DEFAULT_SEED,
 	DEFAULT_START_ISO,
-	DEFAULT_TICKS_PER_CANDLE,
+	DEFAULT_TICKS_PER_CANDLE
+} from '../contracts/defaults.ts';
+import {
+	ALLOWED_SYMBOLS,
 	getSymbolConfig,
 	isAllowedSymbol
-} from '../contracts/index.ts';
+} from '../contracts/symbols.ts';
 import type {
 	GeneratorInputs,
 	RawGeneratorInputs
-} from '../contracts/index.ts';
+} from '../contracts/types.ts';
 
 export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 	const symbol = raw.symbol?.trim().toUpperCase() ?? '';
@@ -32,24 +34,24 @@ export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 	const symbolConfig = getSymbolConfig(symbol);
 
 	return {
-		symbol,
+		candleInterval,
+		candleType,
+		candles: DEFAULT_CANDLES,
 		minTickSize: readOptionalPositiveNumber(
 			raw.minTickSize,
 			'minTickSize',
 			symbolConfig.tickSize
 		),
-		candles: DEFAULT_CANDLES,
-		candleType,
-		candleInterval,
+		outputDir: DEFAULT_OUTPUT_DIR,
+		seed: DEFAULT_SEED,
 		startIso: DEFAULT_START_ISO,
 		startPrice: readOptionalPositiveNumber(
 			raw.startPrice,
 			'startPrice',
 			symbolConfig.defaultStartPrice
 		),
-		seed: DEFAULT_SEED,
-		ticksPerCandle: DEFAULT_TICKS_PER_CANDLE,
-		outputDir: DEFAULT_OUTPUT_DIR
+		symbol,
+		ticksPerCandle: DEFAULT_TICKS_PER_CANDLE
 	};
 }
 

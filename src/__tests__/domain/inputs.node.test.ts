@@ -6,48 +6,48 @@ describe('normalizeInputs', () => {
 	it('normalizes valid CLI inputs', () => {
 		expect(
 			normalizeInputs({
-				symbol: ' /es:xcme ',
+				candleInterval: '5',
 				candleType: 'minute',
-				candleInterval: '5'
+				symbol: ' /es:xcme '
 			})
 		).toEqual({
-			symbol: '/ES:XCME',
-			minTickSize: 0.25,
-			candles: 20_000,
-			candleType: 'minute',
 			candleInterval: 5,
+			candleType: 'minute',
+			candles: 20_000,
+			minTickSize: 0.25,
+			outputDir: 'data',
+			seed: 1,
 			startIso: '2026-06-08T17:00:00.000-05:00',
 			startPrice: 6000,
-			seed: 1,
-			ticksPerCandle: 12,
-			outputDir: 'data'
+			symbol: '/ES:XCME',
+			ticksPerCandle: 12
 		});
 	});
 
 	it('applies defaults for optional inputs', () => {
 		expect(
 			normalizeInputs({
-				symbol: '/NQ:XCME',
+				candleInterval: 1,
 				candleType: 'daily',
-				candleInterval: 1
+				symbol: '/NQ:XCME'
 			})
 		).toMatchObject({
+			outputDir: 'data',
+			seed: 1,
 			startIso: '2026-06-08T17:00:00.000-05:00',
 			startPrice: 22_000,
-			seed: 1,
-			ticksPerCandle: 12,
-			outputDir: 'data'
+			ticksPerCandle: 12
 		});
 	});
 
 	it('uses explicit price inputs when provided', () => {
 		expect(
 			normalizeInputs({
-				symbol: '/ES:XCME',
-				candleType: 'minute',
 				candleInterval: 5,
+				candleType: 'minute',
 				minTickSize: '0.5',
-				startPrice: '6123.5'
+				startPrice: '6123.5',
+				symbol: '/ES:XCME'
 			})
 		).toMatchObject({
 			minTickSize: 0.5,
@@ -58,34 +58,34 @@ describe('normalizeInputs', () => {
 	it.each([
 		[
 			{
-				symbol: '/YM:XCBT',
+				candleInterval: 1,
 				candleType: 'minute',
-				candleInterval: 1
+				symbol: '/YM:XCBT'
 			},
 			/symbol/i
 		],
 		[
 			{
-				symbol: '/ES:XCME',
+				candleInterval: 1,
 				candleType: 'weekly',
-				candleInterval: 1
+				symbol: '/ES:XCME'
 			},
 			/candleType/i
 		],
 		[
 			{
-				symbol: '/ES:XCME',
+				candleInterval: 0,
 				candleType: 'minute',
-				candleInterval: 0
+				symbol: '/ES:XCME'
 			},
 			/candleInterval/i
 		],
 		[
 			{
-				symbol: '/ES:XCME',
-				candleType: 'minute',
 				candleInterval: 1,
-				startPrice: 0
+				candleType: 'minute',
+				startPrice: 0,
+				symbol: '/ES:XCME'
 			},
 			/startPrice/i
 		]

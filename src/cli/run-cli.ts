@@ -4,13 +4,13 @@ import { Worker } from 'node:worker_threads';
 
 import { isCancel, outro, select, text } from '@clack/prompts';
 
-import {
-	type CandleType,
-	type GenerationResult,
-	type GeneratorInputs,
-	normalizeInputs,
-	SYMBOL_OPTIONS
-} from '../index.ts';
+import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
+import type {
+	CandleType,
+	GenerationResult,
+	GeneratorInputs
+} from '../contracts/types.ts';
+import { normalizeInputs } from '../domain/inputs.ts';
 
 type Choice = {
 	label: string;
@@ -66,7 +66,7 @@ export async function runCli(
 				: undefined
 	);
 
-	const inputs = normalizeInputs({ symbol, candleType, candleInterval });
+	const inputs = normalizeInputs({ candleInterval, candleType, symbol });
 	const task = ports.spinner();
 	const message = `Generating market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`;
 

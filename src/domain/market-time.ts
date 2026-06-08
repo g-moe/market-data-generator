@@ -1,5 +1,5 @@
-import { CENTRAL_TIMEZONE } from '../contracts/index.ts';
-import type { GeneratorInputs } from '../contracts/index.ts';
+import { CENTRAL_TIMEZONE } from '../contracts/market-time.ts';
+import type { GeneratorInputs } from '../contracts/types.ts';
 
 export { CENTRAL_TIMEZONE };
 
@@ -50,14 +50,14 @@ export function getTimeWeight(time: Date, kind: 'volume' | 'volatility') {
 
 export function getCentralParts(time: Date) {
 	const parts = new Intl.DateTimeFormat('en-US', {
-		timeZone: CENTRAL_TIMEZONE,
-		year: 'numeric',
-		month: '2-digit',
 		day: '2-digit',
 		hour: '2-digit',
+		hour12: false,
 		minute: '2-digit',
+		month: '2-digit',
 		second: '2-digit',
-		hour12: false
+		timeZone: CENTRAL_TIMEZONE,
+		year: 'numeric'
 	}).formatToParts(time);
 	const value = (type: string) => {
 		return parts.find((part) => part.type === type)?.value ?? '';
@@ -68,12 +68,12 @@ export function getCentralParts(time: Date) {
 
 	return {
 		date: `${value('year')}-${value('month')}-${value('day')}`,
+		hour,
+		minute,
+		second,
 		time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(
 			2,
 			'0'
-		)}:${String(second).padStart(2, '0')}`,
-		hour,
-		minute,
-		second
+		)}:${String(second).padStart(2, '0')}`
 	};
 }

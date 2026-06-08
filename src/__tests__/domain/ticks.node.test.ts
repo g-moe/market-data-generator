@@ -6,9 +6,9 @@ import { buildTicks } from '../../domain/ticks.ts';
 describe('buildTicks', () => {
 	it('generates the requested number of deterministic ticks', () => {
 		const inputs = normalizeInputs({
-			symbol: '/NQ:XCME',
+			candleInterval: '5',
 			candleType: 'minute',
-			candleInterval: '5'
+			symbol: '/NQ:XCME'
 		});
 		inputs.candles = 3;
 		inputs.startPrice = 19_000;
@@ -21,9 +21,9 @@ describe('buildTicks', () => {
 
 	it('keeps tick prices on the configured tick size', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '1',
 			candleType: 'minute',
-			candleInterval: '1'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 10;
 		inputs.ticksPerCandle = 6;
@@ -35,9 +35,9 @@ describe('buildTicks', () => {
 
 	it('creates higher aggregate volume during regular trading hours', () => {
 		const inputs = normalizeInputs({
-			symbol: '/NQ:XCME',
+			candleInterval: '1',
 			candleType: 'minute',
-			candleInterval: '1'
+			symbol: '/NQ:XCME'
 		});
 		inputs.candles = 1_100;
 		inputs.startPrice = 19_000;
@@ -59,9 +59,9 @@ describe('buildTicks', () => {
 function centralHour(time: Date) {
 	return Number(
 		new Intl.DateTimeFormat('en-US', {
-			timeZone: 'America/Chicago',
 			hour: '2-digit',
-			hour12: false
+			hour12: false,
+			timeZone: 'America/Chicago'
 		}).format(time)
 	);
 }

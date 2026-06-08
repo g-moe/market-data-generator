@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import type { Candle } from '../contracts/index.ts';
+import type { Candle } from '../contracts/types.ts';
 import { getCentralParts } from '../domain/market-time.ts';
 
 export function serializeCandlesToCsv(candles: Candle[]) {

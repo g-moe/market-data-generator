@@ -55,11 +55,9 @@ Dates and times are formatted in `America/Chicago`.
 ## Library Usage
 
 ```ts
-import {
-	generateMarketData,
-	normalizeInputs,
-	writeCandlesCsv
-} from './src/index.ts';
+import { generateMarketData } from './src/domain/generate-market-data.ts';
+import { normalizeInputs } from './src/domain/inputs.ts';
+import { writeCandlesCsv } from './src/io/csv.ts';
 
 const result = generateMarketData(
 	normalizeInputs({

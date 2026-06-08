@@ -1,5 +1,5 @@
 import { getCandleStart, isTradingDayStart } from './market-time.ts';
-import type { Candle, GeneratorInputs, Tick } from '../contracts/index.ts';
+import type { Candle, GeneratorInputs, Tick } from '../contracts/types.ts';
 
 export function buildCandles(ticks: Tick[], inputs: GeneratorInputs): Candle[] {
 	const candles: Candle[] = [];
@@ -22,15 +22,15 @@ export function buildCandles(ticks: Tick[], inputs: GeneratorInputs): Candle[] {
 		const askVolume = sumTickVolume(candleTicks, 'ask');
 
 		candles.push({
-			time,
-			open,
-			high: Math.max(...prices),
-			low: Math.min(...prices),
-			close: candleTicks.at(-1)?.price ?? open,
-			volume: bidVolume + askVolume,
-			bidVolume,
 			askVolume,
-			isNewTradingDay
+			bidVolume,
+			close: candleTicks.at(-1)?.price ?? open,
+			high: Math.max(...prices),
+			isNewTradingDay,
+			low: Math.min(...prices),
+			open,
+			time,
+			volume: bidVolume + askVolume
 		});
 	}
 

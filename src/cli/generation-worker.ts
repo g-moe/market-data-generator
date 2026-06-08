@@ -1,11 +1,8 @@
 import { parentPort, workerData } from 'node:worker_threads';
 
-import {
-	type GenerationResult,
-	type GeneratorInputs,
-	generateMarketData,
-	writeCandlesCsv
-} from '../index.ts';
+import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
+import { generateMarketData } from '../domain/generate-market-data.ts';
+import { writeCandlesCsv } from '../io/csv.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }

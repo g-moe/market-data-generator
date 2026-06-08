@@ -7,11 +7,11 @@ import {
 	getTimeWeight,
 	isTradingDayStart
 } from '../../domain/market-time.ts';
-import type { GeneratorInputs } from '../../domain/types.ts';
+import type { GeneratorInputs } from '../../contracts/types.ts';
 
 describe('market time', () => {
 	it('advances minute candles through 23-hour trading sessions', () => {
-		const inputs = input({ candleType: 'minute', candleInterval: 30 });
+		const inputs = input({ candleInterval: 30, candleType: 'minute' });
 
 		expect(getCentralParts(getCandleStart(inputs, 0)).time).toBe('17:00:00');
 		expect(getCentralParts(getCandleStart(inputs, 45)).time).toBe('15:30:00');
@@ -20,7 +20,7 @@ describe('market time', () => {
 	});
 
 	it('advances daily candles by whole day intervals', () => {
-		const inputs = input({ candleType: 'daily', candleInterval: 2 });
+		const inputs = input({ candleInterval: 2, candleType: 'daily' });
 
 		expect(
 			getCandleStart(inputs, 1).getTime() - getCandleStart(inputs, 0).getTime()
@@ -43,16 +43,16 @@ describe('market time', () => {
 
 function input(overrides: Partial<GeneratorInputs>): GeneratorInputs {
 	return {
-		symbol: '/ES:XCME',
-		minTickSize: 0.25,
-		candles: 1,
-		candleType: 'minute',
 		candleInterval: 1,
+		candleType: 'minute',
+		candles: 1,
+		minTickSize: 0.25,
+		outputDir: 'data',
+		seed: 1,
 		startIso: '2026-06-08T17:00:00.000-05:00',
 		startPrice: 100,
-		seed: 1,
+		symbol: '/ES:XCME',
 		ticksPerCandle: 4,
-		outputDir: 'data',
 		...overrides
 	};
 }

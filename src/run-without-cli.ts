@@ -1,13 +1,11 @@
-import {
-	generateMarketData,
-	normalizeInputs,
-	writeCandlesCsv
-} from './index.ts';
+import { generateMarketData } from './domain/generate-market-data.ts';
+import { normalizeInputs } from './domain/inputs.ts';
+import { writeCandlesCsv } from './io/csv.ts';
 
 const inputs = normalizeInputs({
-	symbol: '/ES:XCME',
+	candleInterval: 5,
 	candleType: 'minute',
-	candleInterval: 5
+	symbol: '/ES:XCME'
 });
 
 console.log(

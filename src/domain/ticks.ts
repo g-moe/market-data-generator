@@ -6,7 +6,7 @@ import {
 } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
-import type { GeneratorInputs, Tick } from '../contracts/index.ts';
+import type { GeneratorInputs, Tick } from '../contracts/types.ts';
 
 export function buildTicks(inputs: GeneratorInputs): Tick[] {
 	const random = createRandom(inputs.seed);
@@ -42,11 +42,11 @@ export function buildTicks(inputs: GeneratorInputs): Tick[] {
 				Math.round((1 + random() * 9) * volumeMultiplier)
 			);
 			ticks.push({
-				time: new Date(candleStart.getTime() + offsetMs),
+				candleIndex,
 				price,
-				volume,
 				side: random() > 0.5 ? 'ask' : 'bid',
-				candleIndex
+				time: new Date(candleStart.getTime() + offsetMs),
+				volume
 			});
 		}
 

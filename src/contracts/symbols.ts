@@ -1,21 +1,23 @@
 export const SYMBOL_CONFIG = {
 	'/ES:XCME': {
+		defaultStartPrice: 6000,
 		id: '/ES:XCME',
-		symbolId: 'ES',
 		name: 'E-mini S&P 500',
+		symbolId: 'ES',
+		symbolSierra: 'ESM26-CME',
 		tickDecimals: 2,
 		tickSize: 0.25,
-		tickValue: 12.5,
-		defaultStartPrice: 6000
+		tickValue: 12.5
 	},
 	'/NQ:XCME': {
+		defaultStartPrice: 22_000,
 		id: '/NQ:XCME',
-		symbolId: 'NQ',
 		name: 'E-mini NASDAQ-100',
+		symbolId: 'NQ',
+		symbolSierra: 'NQM26-CME',
 		tickDecimals: 2,
 		tickSize: 0.25,
-		tickValue: 5,
-		defaultStartPrice: 22_000
+		tickValue: 5
 	}
 } as const;
 

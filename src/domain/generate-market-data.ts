@@ -1,21 +1,19 @@
 import { join } from 'node:path';
 
-import { getSymbolConfig } from '../contracts/index.ts';
-import type { GenerationResult, GeneratorInputs } from '../contracts/index.ts';
+import { getSymbolConfig } from '../contracts/symbols.ts';
+import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
 import { buildCandles } from './candles.ts';
 import { buildTicks } from './ticks.ts';
 
 export function generateMarketData(inputs: GeneratorInputs): GenerationResult {
 	const ticks = buildTicks(inputs);
 	const candles = buildCandles(ticks, inputs);
+	const symbolConfig = getSymbolConfig(inputs.symbol);
 
 	return {
-		inputs,
-		ticks,
 		candles,
-		filePath: join(
-			inputs.outputDir,
-			`${getSymbolConfig(inputs.symbol).symbolId}_${inputs.candleInterval}${inputs.candleType}.csv`.toLowerCase()
-		)
+		filePath: join(inputs.outputDir, `${symbolConfig.symbolSierra}.csv`),
+		inputs,
+		ticks
 	};
 }

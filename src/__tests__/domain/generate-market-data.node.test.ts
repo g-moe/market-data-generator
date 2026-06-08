@@ -7,9 +7,9 @@ import { normalizeInputs } from '../../domain/inputs.ts';
 describe('generateMarketData', () => {
 	it('returns inputs, ticks, candles, and the expected output path', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '5',
 			candleType: 'minute',
-			candleInterval: '5'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 3;
 		inputs.ticksPerCandle = 4;
@@ -18,6 +18,6 @@ describe('generateMarketData', () => {
 		expect(result.inputs).toBe(inputs);
 		expect(result.ticks).toHaveLength(12);
 		expect(result.candles).toHaveLength(3);
-		expect(result.filePath).toBe(join('data', 'es_5minute.csv'));
+		expect(result.filePath).toBe(join('data', 'ESM26-CME.csv'));
 	});
 });

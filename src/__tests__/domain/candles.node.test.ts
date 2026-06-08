@@ -7,9 +7,9 @@ import { buildTicks } from '../../domain/ticks.ts';
 describe('buildCandles', () => {
 	it('builds one candle per requested interval', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '1',
 			candleType: 'minute',
-			candleInterval: '1'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 5;
 		inputs.seed = 11;
@@ -20,9 +20,9 @@ describe('buildCandles', () => {
 
 	it('keeps candles internally consistent', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '30',
 			candleType: 'minute',
-			candleInterval: '30'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 80;
 		inputs.seed = 11;
@@ -40,9 +40,9 @@ describe('buildCandles', () => {
 
 	it('continues opens from previous closes except at a new trading day', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '30',
 			candleType: 'minute',
-			candleInterval: '30'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 80;
 		inputs.seed = 11;
@@ -63,9 +63,9 @@ describe('buildCandles', () => {
 
 	it('throws when ticks are missing for a candle', () => {
 		const inputs = normalizeInputs({
-			symbol: '/ES:XCME',
+			candleInterval: '1',
 			candleType: 'minute',
-			candleInterval: '1'
+			symbol: '/ES:XCME'
 		});
 		inputs.candles = 2;
 
