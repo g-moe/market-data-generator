@@ -1,0 +1,27 @@
+{
+	"name": "market-data-generator",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "tsc --project ./tsconfig.build.json",
+		"test": "vitest",
+		"check": "tsgo --noEmit --project ./tsconfig.json",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check"
+	},
+	"devDependencies": {
+		"@types/node": "24.12.4",
+		"@typescript/native-preview": "7.0.0-dev.20260527.2",
+		"oxfmt": "0.52.0",
+		"oxlint": "1.67.0",
+		"typescript": "6.0.3",
+		"vitest": "4.1.7"
+	},
+	"engines": {
+		"node": "24.16.0"
+	},
+	"packageManager": "pnpm@11.5.2"
+}

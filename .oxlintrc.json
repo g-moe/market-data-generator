@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"ignorePatterns": ["dist/**", "node_modules/**"],
+	"plugins": ["typescript", "unicorn", "oxc", "import", "vitest"],
+	"rules": {
+		"no-debugger": "error",
+		"no-unused-vars": [
+			"warn",
+			{
+				"varsIgnorePattern": "^_"
+			}
+		]
+	}
+}
