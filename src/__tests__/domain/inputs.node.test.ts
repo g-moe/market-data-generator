@@ -17,7 +17,7 @@ describe('normalizeInputs', () => {
 			candleType: 'minute',
 			candleInterval: 5,
 			startIso: '2026-06-08T17:00:00.000-05:00',
-			startPrice: 100,
+			startPrice: 6000,
 			seed: 1,
 			ticksPerCandle: 12,
 			outputDir: 'data'
@@ -33,10 +33,25 @@ describe('normalizeInputs', () => {
 			})
 		).toMatchObject({
 			startIso: '2026-06-08T17:00:00.000-05:00',
-			startPrice: 100,
+			startPrice: 22_000,
 			seed: 1,
 			ticksPerCandle: 12,
 			outputDir: 'data'
+		});
+	});
+
+	it('uses explicit price inputs when provided', () => {
+		expect(
+			normalizeInputs({
+				symbol: '/ES:XCME',
+				candleType: 'minute',
+				candleInterval: 5,
+				minTickSize: '0.5',
+				startPrice: '6123.5'
+			})
+		).toMatchObject({
+			minTickSize: 0.5,
+			startPrice: 6123.5
 		});
 	});
 
@@ -64,6 +79,15 @@ describe('normalizeInputs', () => {
 				candleInterval: 0
 			},
 			/candleInterval/i
+		],
+		[
+			{
+				symbol: '/ES:XCME',
+				candleType: 'minute',
+				candleInterval: 1,
+				startPrice: 0
+			},
+			/startPrice/i
 		]
 	])('rejects invalid input %#', (raw, error) => {
 		expect(() => normalizeInputs(raw)).toThrow(error);

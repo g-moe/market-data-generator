@@ -4,8 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"cli": "tsx src/cli.ts",
-		"dev": "tsx watch src/cli.ts",
+		"generate": "tsx src/run.ts",
+		"generate:without": "tsx src/run-without-cli.ts",
+		"dev": "tsx watch src/run.ts",
 		"build": "tsc --project ./tsconfig.build.json",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",

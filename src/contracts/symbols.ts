@@ -5,7 +5,8 @@ export const SYMBOL_CONFIG = {
 		name: 'E-mini S&P 500',
 		tickDecimals: 2,
 		tickSize: 0.25,
-		tickValue: 12.5
+		tickValue: 12.5,
+		defaultStartPrice: 6000
 	},
 	'/NQ:XCME': {
 		id: '/NQ:XCME',
@@ -13,7 +14,8 @@ export const SYMBOL_CONFIG = {
 		name: 'E-mini NASDAQ-100',
 		tickDecimals: 2,
 		tickSize: 0.25,
-		tickValue: 5
+		tickValue: 5,
+		defaultStartPrice: 22_000
 	}
 } as const;
 

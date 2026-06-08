@@ -21,7 +21,7 @@ corepack pnpm install
 ## Run the CLI
 
 ```sh
-corepack pnpm cli
+corepack pnpm generate
 ```
 
 The CLI prompts for:
@@ -33,7 +33,7 @@ The CLI prompts for:
 Example non-interactive run:
 
 ```sh
-printf "/ES:XCME\nminute\n1\n" | corepack pnpm cli
+printf "/ES:XCME\nminute\n1\n" | corepack pnpm generate
 ```
 
 That writes a file like:
@@ -85,7 +85,8 @@ corepack pnpm build
 
 Useful scripts:
 
-- `cli`: run the generator once.
+- `generate`: run the interactive generator once.
+- `generate:without`: generate ES 5-minute candles without prompts.
 - `dev`: run the CLI in watch mode.
 - `check`: type-check with the configured TypeScript project.
 - `test`: run Vitest.

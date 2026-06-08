@@ -11,7 +11,6 @@ export {
 	DEFAULT_OUTPUT_DIR,
 	DEFAULT_SEED,
 	DEFAULT_START_ISO,
-	DEFAULT_START_PRICE,
 	DEFAULT_TICKS_PER_CANDLE
 } from './defaults.ts';
 export { CENTRAL_TIMEZONE } from './market-time.ts';
