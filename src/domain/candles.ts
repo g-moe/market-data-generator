@@ -28,9 +28,9 @@ export function buildCandles(ticks: Tick[], inputs: GeneratorInputs): Candle[] {
 			high: Math.max(...prices),
 			isNewTradingDay,
 			low: Math.min(...prices),
-			transactions: candleTicks.length,
 			open,
 			time,
+			transactions: candleTicks.length,
 			volume: bidVolume + askVolume
 		});
 	}

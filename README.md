@@ -4,7 +4,7 @@ Generate deterministic market candle data and write it to CSV.
 
 This is a small TypeScript CLI and library for producing synthetic OHLCV
 candles from generated tick data. It supports minute and daily candles,
-deterministic output, Central Time CSV timestamps, and bid/ask volume totals.
+deterministic output, UTC CSV timestamps, and bid/ask volume totals.
 
 ## Requirements
 
@@ -50,7 +50,8 @@ Generated CSV files use this Sierra-compatible header:
 Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume
 ```
 
-Dates and times are formatted in `America/Chicago`.
+Dates and times are formatted in UTC. Market session volume and volatility
+weighting still follows `America/Chicago` trading hours.
 
 ## Library Usage
 

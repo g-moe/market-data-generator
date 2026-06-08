@@ -17,7 +17,7 @@ describe('normalizeInputs', () => {
 			minTickSize: 0.25,
 			outputDir: 'data',
 			seed: 1,
-			startIso: '2026-06-08T17:00:00.000-05:00',
+			startIso: '2026-06-08T22:00:00.000Z',
 			startPrice: 6000,
 			symbol: '/ES:XCME',
 			ticksPerCandle: 12
@@ -34,7 +34,7 @@ describe('normalizeInputs', () => {
 		).toMatchObject({
 			outputDir: 'data',
 			seed: 1,
-			startIso: '2026-06-08T17:00:00.000-05:00',
+			startIso: '2026-06-08T22:00:00.000Z',
 			startPrice: 22_000,
 			ticksPerCandle: 12
 		});

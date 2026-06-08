@@ -5,6 +5,7 @@ import {
 	getCandleStart,
 	getCentralParts,
 	getTimeWeight,
+	getUtcParts,
 	isTradingDayStart
 } from '../../domain/market-time.ts';
 import type { GeneratorInputs } from '../../contracts/types.ts';
@@ -38,6 +39,28 @@ describe('market time', () => {
 		expect(
 			getTimeWeight(new Date('2026-06-09T18:00:00.000-05:00'), 'volume')
 		).toBe(1);
+	});
+
+	it('uses declarative central time boundaries for weighted windows', () => {
+		expect(
+			getTimeWeight(new Date('2026-06-09T08:29:59.000-05:00'), 'volume')
+		).toBe(1);
+		expect(
+			getTimeWeight(new Date('2026-06-09T08:30:00.000-05:00'), 'volume')
+		).toBe(8);
+		expect(
+			getTimeWeight(new Date('2026-06-09T10:29:59.000-05:00'), 'volatility')
+		).toBe(4);
+		expect(
+			getTimeWeight(new Date('2026-06-09T10:30:00.000-05:00'), 'volatility')
+		).toBe(1);
+	});
+
+	it('formats UTC date and time parts', () => {
+		expect(getUtcParts(new Date('2026-06-08T17:00:00.000-05:00'))).toEqual({
+			date: '2026-06-08',
+			time: '22:00:00'
+		});
 	});
 });
 

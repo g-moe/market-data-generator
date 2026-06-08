@@ -3,15 +3,25 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { serializeCandlesToCsv, writeCandlesCsv } from '../../io/csv.ts';
+import {
+	hashOutput,
+	serializeCandlesToCsv,
+	writeCandlesCsv
+} from '../../io/csv.ts';
 import type { Candle } from '../../contracts/types.ts';
 
 describe('csv output', () => {
-	it('serializes candles with the expected header and central time columns', () => {
+	it('hashes output with SHA-256', () => {
+		expect(hashOutput('market data')).toBe(
+			'5f7e8ca30872aaf3fee9af26ace3e12277a5083b53a91e6ea2c451a83b552701'
+		);
+	});
+
+	it('serializes candles with the expected header and UTC time columns', () => {
 		expect(serializeCandlesToCsv([candle()])).toBe(
 			[
 				'Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume',
-				'2026-06-08,17:00:00,100,101,99,100.5,15,3,7,8'
+				'2026-06-08,22:00:00,100,101,99,100.5,15,3,7,8'
 			].join('\n')
 		);
 	});
@@ -41,9 +51,9 @@ function candle(overrides: Partial<Candle> = {}): Candle {
 		high: 101,
 		isNewTradingDay: false,
 		low: 99,
-		transactions: 3,
 		open: 100,
 		time: new Date('2026-06-08T17:00:00.000-05:00'),
+		transactions: 3,
 		volume: 15,
 		...overrides
 	};

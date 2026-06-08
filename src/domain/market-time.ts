@@ -1,11 +1,24 @@
 import { CENTRAL_TIMEZONE } from '../contracts/market-time.ts';
 import type { GeneratorInputs } from '../contracts/types.ts';
 
-export { CENTRAL_TIMEZONE };
-
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 const SESSION_MINUTES = 23 * 60;
+
+const TIME_WEIGHT_WINDOWS = [
+	{
+		end: '10:30:00',
+		start: '08:30:00',
+		volatility: 4,
+		volume: 8
+	},
+	{
+		end: '15:00:00',
+		start: '14:00:00',
+		volatility: 3,
+		volume: 5
+	}
+] as const;
 
 export function getCandleStart(inputs: GeneratorInputs, candleIndex: number) {
 	const start = new Date(inputs.startIso);
@@ -38,12 +51,15 @@ export function isTradingDayStart(time: Date) {
 
 export function getTimeWeight(time: Date, kind: 'volume' | 'volatility') {
 	const parts = getCentralParts(time);
-	const seconds = parts.hour * 3600 + parts.minute * 60 + parts.second;
-	const rthMorning = seconds >= 8.5 * 3600 && seconds < 10.5 * 3600;
-	const rthAfternoon = seconds >= 14 * 3600 && seconds < 15 * 3600;
+	const timeValue = toTimeValue(parts.time);
+	const matchingWindow = TIME_WEIGHT_WINDOWS.find((window) => {
+		return (
+			timeValue >= toTimeValue(window.start) &&
+			timeValue < toTimeValue(window.end)
+		);
+	});
 
-	if (rthMorning) return kind === 'volume' ? 8 : 4;
-	if (rthAfternoon) return kind === 'volume' ? 5 : 3;
+	if (matchingWindow) return matchingWindow[kind];
 
 	return 1;
 }
@@ -76,4 +92,23 @@ export function getCentralParts(time: Date) {
 			'0'
 		)}:${String(second).padStart(2, '0')}`
 	};
+}
+
+export function getUtcParts(time: Date) {
+	return {
+		date: [
+			time.getUTCFullYear(),
+			String(time.getUTCMonth() + 1).padStart(2, '0'),
+			String(time.getUTCDate()).padStart(2, '0')
+		].join('-'),
+		time: [
+			String(time.getUTCHours()).padStart(2, '0'),
+			String(time.getUTCMinutes()).padStart(2, '0'),
+			String(time.getUTCSeconds()).padStart(2, '0')
+		].join(':')
+	};
+}
+
+function toTimeValue(time: string) {
+	return Number(time.replaceAll(':', ''));
 }
