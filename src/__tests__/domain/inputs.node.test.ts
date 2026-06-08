@@ -55,6 +55,19 @@ describe('normalizeInputs', () => {
 		});
 	});
 
+	it('uses explicit output directory when provided', () => {
+		expect(
+			normalizeInputs({
+				candleInterval: 5,
+				candleType: 'minute',
+				outputDir: 'tmp/generated',
+				symbol: '/ES:XCME'
+			})
+		).toMatchObject({
+			outputDir: 'tmp/generated'
+		});
+	});
+
 	it.each([
 		[
 			{
@@ -88,6 +101,15 @@ describe('normalizeInputs', () => {
 				symbol: '/ES:XCME'
 			},
 			/startPrice/i
+		],
+		[
+			{
+				candleInterval: 1,
+				candleType: 'minute',
+				outputDir: ' ',
+				symbol: '/ES:XCME'
+			},
+			/outputDir/i
 		]
 	])('rejects invalid input %#', (raw, error) => {
 		expect(() => normalizeInputs(raw)).toThrow(error);

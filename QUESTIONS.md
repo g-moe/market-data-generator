@@ -39,3 +39,11 @@ Yes. Put the 20-period SMA on a separate daily chart, then have the 5-minute ACS
 ## Can we write generated bars directly to Sierra Chart `.scid` instead of CSV?
 
 Yes. Generated intraday bars can be written directly to Sierra Chart's binary `.scid` format if the header and `s_IntradayRecord` structures are correct. This avoids CSV import, but requires exact file-format handling.
+
+## Can a custom Sierra Chart symbol use existing symbol settings like tick size?
+
+Yes. Add or duplicate a Global Symbol Settings entry for the custom symbol, or create a matching symbol pattern. Set Tick Size, Price Display Format, Currency Value Per Tick, and session times to match the real Sierra symbol.
+
+## Can Sierra Chart custom studies run headless or through a CLI without opening Sierra Chart?
+
+No documented headless ACSIL runtime exists. Custom studies run inside Sierra Chart on charts/chartbooks. You can automate some actions from ACSIL, hide charts, or control replay from a study, but Sierra Chart still needs to be running.

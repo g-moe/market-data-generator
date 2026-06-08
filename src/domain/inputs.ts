@@ -32,6 +32,10 @@ export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 	}
 
 	const symbolConfig = getSymbolConfig(symbol);
+	const outputDir = raw.outputDir?.trim() ?? DEFAULT_OUTPUT_DIR;
+	if (outputDir === '') {
+		throw new Error('outputDir must not be empty');
+	}
 
 	return {
 		candleInterval,
@@ -42,7 +46,7 @@ export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 			'minTickSize',
 			symbolConfig.tickSize
 		),
-		outputDir: DEFAULT_OUTPUT_DIR,
+		outputDir,
 		seed: DEFAULT_SEED,
 		startIso: DEFAULT_START_ISO,
 		startPrice: readOptionalPositiveNumber(

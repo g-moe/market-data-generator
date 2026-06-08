@@ -1,10 +1,10 @@
 # market-data-generator
 
-Generate deterministic market candle data and write it to CSV.
+Generate deterministic market candle data and write it to Sierra Chart SCID.
 
 This is a small TypeScript CLI and library for producing synthetic OHLCV
 candles from generated tick data. It supports minute and daily candles,
-deterministic output, UTC CSV timestamps, and bid/ask volume totals.
+deterministic output, Sierra Chart `.scid` files, and bid/ask volume totals.
 
 ## Requirements
 
@@ -39,26 +39,22 @@ printf "/ES:XCME\nminute\n1\n" | corepack pnpm generate
 That writes a file like:
 
 ```text
-data/es_1minute.csv
+data/tradester_ES.scid
 ```
 
-## CSV Output
+## Output
 
-Generated CSV files use this Sierra-compatible header:
-
-```text
-Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume
-```
-
-Dates and times are formatted in UTC. Market session volume and volatility
-weighting still follows `America/Chicago` trading hours.
+Generated `.scid` files use Sierra Chart's intraday binary format: one
+56-byte `s_IntradayHeader` followed by 40-byte `s_IntradayRecord` records.
+For this milestone, each generated candle is written as one intraday record.
+Files are named `tradester_${symbol.symbolId}.scid`.
 
 ## Library Usage
 
 ```ts
 import { generateMarketData } from './src/domain/generate-market-data.ts';
 import { normalizeInputs } from './src/domain/inputs.ts';
-import { writeCandlesCsv } from './src/io/csv.ts';
+import { writeCandlesScid } from './src/io/scid.ts';
 
 const result = generateMarketData(
 	normalizeInputs({
@@ -68,7 +64,7 @@ const result = generateMarketData(
 	})
 );
 
-await writeCandlesCsv(result.filePath, result.candles);
+await writeCandlesScid(result.filePath, result.candles);
 ```
 
 ## Development

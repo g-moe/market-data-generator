@@ -4,7 +4,6 @@ export const SYMBOL_CONFIG = {
 		id: '/ES:XCME',
 		name: 'E-mini S&P 500',
 		symbolId: 'ES',
-		symbolSierra: 'ESM26-CME',
 		tickDecimals: 2,
 		tickSize: 0.25,
 		tickValue: 12.5
@@ -14,7 +13,6 @@ export const SYMBOL_CONFIG = {
 		id: '/NQ:XCME',
 		name: 'E-mini NASDAQ-100',
 		symbolId: 'NQ',
-		symbolSierra: 'NQM26-CME',
 		tickDecimals: 2,
 		tickSize: 0.25,
 		tickValue: 5

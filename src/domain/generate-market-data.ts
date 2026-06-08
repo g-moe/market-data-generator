@@ -12,7 +12,7 @@ export function generateMarketData(inputs: GeneratorInputs): GenerationResult {
 
 	return {
 		candles,
-		filePath: join(inputs.outputDir, `${symbolConfig.symbolSierra}.csv`),
+		filePath: join(inputs.outputDir, `tradester_${symbolConfig.symbolId}.scid`),
 		inputs,
 		ticks
 	};

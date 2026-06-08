@@ -2,7 +2,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 
 import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
 import { generateMarketData } from '../domain/generate-market-data.ts';
-import { writeCandlesCsv } from '../io/csv.ts';
+import { writeCandlesScid } from '../io/scid.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }
@@ -10,7 +10,7 @@ type WorkerMessage =
 
 async function generateAndWrite(inputs: GeneratorInputs) {
 	const result = generateMarketData(inputs);
-	await writeCandlesCsv(result.filePath, result.candles);
+	await writeCandlesScid(result.filePath, result.candles);
 
 	return result;
 }

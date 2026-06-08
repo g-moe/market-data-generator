@@ -38,6 +38,10 @@ type NodePortsOptions = {
 	output?: typeof stdout;
 };
 
+type RunCliOptions = {
+	outputDir?: string;
+};
+
 const CANDLE_TYPE_OPTIONS: Choice[] = [
 	{ label: 'minute', value: 'minute' },
 	{ label: 'daily', value: 'daily' }
@@ -51,7 +55,8 @@ const SYMBOL_CHOICES: Choice[] = SYMBOL_OPTIONS.map((symbol) => ({
 const SPINNER_FRAMES = ['⣾⡇', '⣽⡇', '⣻⡇', '⢿⡇', '⡿⠇', '⣟⡃', '⣯⡅', '⣷⡆'];
 
 export async function runCli(
-	ports = createNodePorts()
+	ports = createNodePorts(),
+	options: RunCliOptions = {}
 ): Promise<GenerationResult> {
 	const symbol = await ports.select('Choose symbol', SYMBOL_CHOICES);
 	const candleType = (await ports.select(
@@ -65,10 +70,14 @@ export async function runCli(
 				? 'Please enter a value.'
 				: undefined
 	);
-
-	const inputs = normalizeInputs({ candleInterval, candleType, symbol });
+	const inputs = normalizeInputs({
+		candleInterval,
+		candleType,
+		outputDir: options.outputDir,
+		symbol
+	});
 	const task = ports.spinner();
-	const message = `Generating market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`;
+	const message = `Generating SCID market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`;
 
 	task.start(message);
 	try {

@@ -1,4 +1,5 @@
-import { readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,8 +12,9 @@ afterEach(() => {
 });
 
 describe('runCli', () => {
-	it('collects inputs, shows progress, and writes the CSV', async () => {
+	it('collects inputs, shows progress, and writes the SCID file', async () => {
 		const events: string[] = [];
+		const outputDir = await mkdtemp(join(tmpdir(), 'market-data-cli-'));
 
 		try {
 			const result = await runCli(
@@ -20,25 +22,26 @@ describe('runCli', () => {
 					events,
 					selectAnswers: ['/ES:XCME', 'minute'],
 					textAnswers: ['5']
-				})
+				}),
+				{ outputDir }
 			);
 
 			expect(result.candles).toHaveLength(20_000);
-			expect(result.filePath).toBe(join('data', 'ESM26-CME.csv'));
+			expect(result.filePath).toBe(join(outputDir, 'tradester_ES.scid'));
 			expect(events).toContain('select:Choose symbol');
 			expect(events).toContain('select:Choose candle type');
 			expect(events).toContain('text:Candle interval (minute)');
 			expect(events).toContain(
-				'start:Generating market data for /ES:XCME 5 minute...'
+				'start:Generating SCID market data for /ES:XCME 5 minute...'
 			);
 			expect(events).toContain(
-				'stop:Wrote 20000 candles to data/ESM26-CME.csv'
+				`stop:Wrote 20000 candles to ${join(outputDir, 'tradester_ES.scid')}`
 			);
-			expect(await readFile(result.filePath, 'utf8')).toContain(
-				'Date,Time,Open,High,Low,Close,Volume,Number of Trades,Bid Volume,Ask Volume'
+			expect((await readFile(result.filePath)).toString('ascii', 0, 4)).toBe(
+				'SCID'
 			);
 		} finally {
-			await rm('data', { force: true, recursive: true });
+			await rm(outputDir, { force: true, recursive: true });
 		}
 	}, 15_000);
 
@@ -69,7 +72,7 @@ describe('runCli', () => {
 			)
 		).rejects.toThrow(/symbol/i);
 		expect(events).not.toContain(
-			'start:Generating market data for bad-symbol 5 minute...'
+			'start:Generating SCID market data for bad-symbol 5 minute...'
 		);
 	});
 });

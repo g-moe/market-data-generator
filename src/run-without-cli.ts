@@ -1,6 +1,6 @@
 import { generateMarketData } from './domain/generate-market-data.ts';
 import { normalizeInputs } from './domain/inputs.ts';
-import { writeCandlesCsv } from './io/csv.ts';
+import { writeCandlesScid } from './io/scid.ts';
 
 const inputs = normalizeInputs({
 	candleInterval: 5,
@@ -9,11 +9,11 @@ const inputs = normalizeInputs({
 });
 
 console.log(
-	`Generating market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`
+	`Generating SCID market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`
 );
 
 const result = generateMarketData(inputs);
 
-await writeCandlesCsv(result.filePath, result.candles);
+await writeCandlesScid(result.filePath, result.candles);
 
 console.log(`Wrote ${result.candles.length} candles to ${result.filePath}`);
