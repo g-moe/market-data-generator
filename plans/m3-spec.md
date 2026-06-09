@@ -1,89 +1,191 @@
-We have the generation running in windows. in this windows vm we have sierra chart running. We are now going to implement milestone 3.
+﻿# Milestone 3: Sierra Sync Spec
 
-Milestone 3 End Goal Flow:
-1. run generation script.
-2. after generation we tell sierra to reload charts
-3. sierra reloads the charts and exports bar AND study data to csv file
-4. for each of our derived bars we calculated from the 1t data, we loop through the sierra bars until we get to the start of our derived bars...then we compare the `Open, High, Low, Close, Volume` of our derived bars to sierras output bars. We ignore the study data that will be used in another context and is not relevant...we only look at the columns I defined.
-TLDR: our bars OHLCV === sierra bars OHLCV
-5. If any of the bars do not match we must throw an error
-6. Grab the sierra .txt files from the sierra data folder and transform to write to `data-out`...we need toi canonicalize the sierra bar data to OUR shape we just append the columns with `tradester_` prefix to our data...it is probably best to do this step within step4 when we are validating that way we dont need to loop through twice. Sample tradester_ columns being `tradester_indicatorId1, tradester_indicatorId2`. Canonicalize probably isnt the right word, we just use OUR bar data and append the sierra columns with tradester_ prefix if the sierra bars and our bars OHLCV are equal.
+## Plain-English Goal
 
-Mile stone 3 In-depth:
-1. run sierra-sync
-- uses current generation code (composed+decoupled)
-- uses same args / code for cli entry + without-cli entry
-- does not replace current generation package.json commands
+Run our market data generation on the Windows VM, make Sierra Chart reload the generated `.scid` files, read Sierra's exported chart data, and prove that Sierra's bars match our generated bars.
 
-2. ensure sierra reloads its charts with the new .scid file
-- details not clear: rough sketch below
-- after generation we recursively check for 60seconds if sierra has written new .txt files based on the files last modified date. we make sure that we have an output file for each of our csv files (1sec, 15sec, 5min, 500v, 1d).
-- if we have all files we can move on; otherwise we hard fail
+The pass condition is simple: for every generated bar file we validate, our `open`, `high`, `low`, `close`, and `volume` values must match Sierra's `Open`, `High`, `Low`, `Last`, and `Volume` values for the same bar sequence.
 
-3. For each file we need to loop through the sierra .txt output and compare to our .csv file
-Sample Loop for file1:
-- idx 0 check if the sierra timestamp is the first bar in our .csv data. If no we continue, If yes we start comparing and set a flag that we are now in compare mode.
-Comparing:
-- We compare only `Open, High, Low, Close, Volume` values, if sierra !== ours we hard fail with a good descriptive message of the two files we compared and the unixMs in our bars and the date time in siera
-- Hard fail:
-  - we never reach compare mode
-  - a bar mismatch
+After validation passes, write our generated rows to `data-out/<symbol>/${user-cli-arg}` with Sierra study columns appended using a `tradester_` prefix.
 
-4. Writing to `data-output/${user-cli-arg}`
+## Milestone Checkpoints
 
+These checkpoints are the main control points for the milestone. An agent may mark a checkpoint as ready for review only after implementation and verification are complete, but the checkpoint is not complete until a human reviews and accepts it.
 
+1. Running `sierra-sync` generates data and forces Sierra to reload.
+2. After reload, the sync detects fresh Sierra `.txt` exports.
+3. 1-second OHLCV bars match Sierra's OHLCV bars.
+4. 15-second, 5-minute, 500-volume, and 1-day bars match Sierra's OHLCV bars.
+5. Validated output is written to `data-out/<symbol>/${user-cli-arg}` with `tradester_` study columns appended.
 
+## End-to-End Flow
 
-Requirements:
-- **New flow should be isolate and not affect our candle-generation. Keep the sierra-specific stuff in its own files. We should be able to run generation in isolation. This means the sierra-specific stuff consumes the generation function.**
-  - New file structure:
-  - src/
-     - /md-generation (currently domain)
-     - /sierra-sync (not written yet)
-     - /shared
-       - /cli
-       - /io
-     - /contracts (mirrors /src, so md-generation specific go in contracts/md-generation, sierra-sync specific go in contracts/sierra-sync, shared go in contracts/shared
-  - We should have with and without cli for...both should have the same args and can share code
-    1. md-generation
-    2. sierra-sync 
+1. Run the new `sierra-sync` flow from the Windows VM.
+2. `sierra-sync` runs the existing generation code and writes normal generated inputs to `data-in`.
+3. Sierra Chart reloads the charts that consume the newly generated `.scid` data.
+4. Sierra exports chart bars and study data to `.txt` files in its Data directory.
+5. `sierra-sync` waits until Sierra has written a fresh export file for every generated timeframe we need to validate.
+6. For each generated CSV, find the matching Sierra export and skip Sierra rows until the first generated bar timestamp is found.
+7. Starting at that timestamp, compare each generated bar to the matching Sierra bar in order.
+8. If all compared bars match, write merged output to `data-out/<symbol>/${user-cli-arg}`.
+9. If any required file is missing, the start timestamp is never found, or any bar does not match, hard fail with a descriptive error.
 
-- ** This is a major milestone; rewrites encouraged, removing debt encouraged, maintain DRY principles required; testing high-signal+covered
+## Data Directories
 
-- **Use TDD; our testing strategy should follow our sample flow/checkpoints we have listed in this document. We test logic with unit tests, but we should build with an integration test that runs the full thing in a stepped manner. Follow the existing pattern for integration tests that we used for the current generation stuff**
+- Generated input data: `data-in/<symbol>`
+- Validated merged output data: `data-out/<symbol>/${user-cli-arg}`
+- Sierra Chart data directory: `C:\Trading Software\DEV-Sierra-Chart\Sierra Chart\Data`
+- Sierra Chart development resources: `C:\Trading Software\DEV-Sierra-Chart\Sierra Chart\DEV - SC`
 
-- **Normal generation should write data to `data-in`**
+## Files To Validate
 
-- **Sierra-sync should write data to `data-out`**
+The sync should validate every generated bar file that has a Sierra chart export:
 
+- 1 second
+- 15 seconds
+- 5 minutes
+- 500 volume
+- 1 day
 
-Context:
-- sierra data directory: "C:\Trading Software\DEV-Sierra-Chart\Sierra Chart\Data"
-- dev sierra script stuff for simulated (HMR), there might be some good resource in here that help build towards our end goal so it is worth a sub-agent to search through while you are turning this spec into a plan: "C:\Trading Software\DEV-Sierra-Chart\Sierra Chart\DEV - SC"
+Sierra export filenames should follow the chart names shown in Sierra. Confirm the exact on-disk filenames during planning because Sierra may add suffixes such as study, region, or graph-data markers:
 
-Milestone checkpoints:
-1. running sierra-sync, generates data, and forces sierra to reload
-2. after reload we correctly identify when the sierra chart has written the new data to its .txt file
-3. we make sure our OHLCV bars for 1sec match sierra OHLCV bars
-4. make sure other bars match (15sec, 5min, 500v, 1d)
+| Our file | Sierra chart name | Expected Sierra export pattern | Bar type |
+| --- | --- | --- | --- |
+| `tradester_ES_1s_pl0.25.csv` | `tradester_ES 1 Sec #1 L:1` | `tradester_ES 1 Sec #1*_GraphData.txt` | 1 second |
+| `tradester_ES_15s_*.csv` | `tradester_ES 15 Sec #2 L:1` | `tradester_ES 15 Sec #2*_GraphData.txt` | 15 seconds |
+| `tradester_ES_500v.csv` | `tradester_ES 500 Volume #3 L:1` | `tradester_ES 500 Volume #3*_GraphData.txt` | 500 volume |
+| `tradester_ES_5m.csv` | `tradester_ES 5 Min #4 L:1` | `tradester_ES 5 Min #4*_GraphData.txt` | 5 minutes |
+| `tradester_ES_1d.csv` | `tradester_ES 1 Day #5 L:1` | `tradester_ES 1 Day #5*_GraphData.txt` | 1 day |
 
-Sample Sierra Data:
-filename example: `tradester_ES[M]  1 Sec  #1_GraphData.txt`
+## Sierra Export Shape
+
+Example Sierra export file:
+
 ```txt
-Header:Date, Time, Open, High, Low, Last, Volume, # of Trades, OHLC Avg, HLC Avg, HL Avg, Bid Volume, Ask Volume, tradester_indicatorId1, tradester_indicatorId2, tradester_inidcatorIdEtc...
-Row1:
-Row2:
-etc
+Date, Time, Open, High, Low, Last, Volume, # of Trades, OHLC Avg, HLC Avg, HL Avg, Bid Volume, Ask Volume, tradester_indicatorId1, tradester_indicatorId2, tradester_indicatorIdEtc
 ```
 
-Our Sample Data:
-filename example: `tradester_ES_1s_pl0.25.csv` | `tradester_ES_5m.csv`
+Rules:
+
+- Sierra `Last` maps to our `close`.
+- Sierra `Bid Volume` and `Ask Volume` are ignored for this milestone.
+- Study columns are kept for output and must be appended to our rows with their `tradester_` names preserved.
+- Only Sierra columns with a `tradester_` prefix are appended to final output. All other non-validation Sierra columns are ignored.
+
+## Our Generated CSV Shape
+
+Example generated file:
+
 ```csv
-Header: id, time, pos, open, high, low, close, volume, bidVolume, askVolume, vwap
-Row1:
-Row2:
-etc
+id,time,pos,open,high,low,close,volume,bidVolume,askVolume,vwap
 ```
 
-Again we only compare `Open, High, Low, Close, Volume` and the id or index if the timestamp used for comparison...basically as we are looping through the sierra bars...if we are before our sample data start, its just a noOp/skip. ONLY when we detect the start of our bars do we make sure bar for bar matches and is in order.
+Rules:
 
+- `time` is the generated bar timestamp used to find the starting Sierra row.
+- `id` and `pos` are our internal fields and are not compared to Sierra.
+- `bidVolume`, `askVolume`, and `vwap` are retained in our output, but they are not part of the Sierra equality check for this milestone.
+
+## Validation Rules
+
+For each file pair:
+
+1. Read Sierra rows in order.
+2. Skip rows until Sierra's timestamp equals the first timestamp in our generated CSV.
+3. Once the first matching timestamp is found, enter compare mode.
+4. Compare rows one-for-one in order.
+5. Validate only these fields:
+
+| Our field | Sierra field |
+| --- | --- |
+| `open` | `Open` |
+| `high` | `High` |
+| `low` | `Low` |
+| `close` | `Last` |
+| `volume` | `Volume` |
+
+Hard fail when:
+
+- A required Sierra export file is not found within the wait window.
+- A Sierra export file exists but was not freshly written for this run.
+- The first generated timestamp is never found in the Sierra file.
+- Sierra has fewer rows than our generated file after compare mode starts.
+- Any compared OHLCV value differs.
+
+Failure messages should include:
+
+- Our CSV path
+- Sierra export path
+- Our timestamp, preferably both raw `time` and formatted date/time if available
+- Sierra `Date` and `Time`
+- Field name
+- Expected value
+- Actual value
+
+## Output Rules
+
+When validation passes, write merged rows to `data-out/<symbol>/${user-cli-arg}`.
+
+The output row should start with our generated CSV columns, then append Sierra study columns:
+
+```csv
+id,time,pos,open,high,low,close,volume,bidVolume,askVolume,vwap,tradester_indicatorId1,tradester_indicatorId2
+```
+
+Do not write partially validated output. A file should only be written after its full bar sequence passes validation.
+
+## Code Organization Requirements
+
+The Sierra-specific flow must be isolated from normal generation.
+
+Normal generation should still run independently and should not depend on Sierra Chart, Sierra file paths, or Sierra export parsing.
+
+Expected structure:
+
+```txt
+src/
+  md-generation/
+  sierra-sync/
+  shared/
+    cli/
+    io/
+  contracts/
+    md-generation/
+    sierra-sync/
+    shared/
+```
+
+Both generation flows should support CLI and non-CLI entry points:
+
+1. `md-generation`
+2. `sierra-sync`
+
+The CLI and non-CLI versions should share the same argument model.
+
+## Testing Strategy
+
+Use TDD. Keep tests high-signal and focused on the milestone checkpoints.
+
+Test the logic with unit tests:
+
+- Sierra export parsing
+- File freshness detection
+- Generated-file to Sierra-file matching
+- Timestamp start detection
+- OHLCV comparison
+- Error messages for missing files, missing start timestamp, short Sierra files, and value mismatches
+- Output row construction with appended `tradester_` columns
+
+Add an integration test that follows the milestone flow in steps, using the existing generation integration-test pattern where possible.
+
+
+## Planning Decisions And Research Items
+
+These decisions replace the original open questions:
+
+1. Sierra export file mapping should be based on the Sierra chart names shown in the chartbook: `tradester_ES 1 Sec #1 L:1`, `tradester_ES 15 Sec #2 L:1`, `tradester_ES 500 Volume #3 L:1`, `tradester_ES 5 Min #4 L:1`, and `tradester_ES 1 Day #5 L:1`. Sierra writes bar and study data using similar names, so planning should confirm the exact exported `.txt` filenames from the Data directory.
+2. The Sierra reload trigger must be researched before implementation. Check the local Sierra development directory first, then verify against online Sierra Chart documentation or support resources. Local path: `C:\Trading Software\DEV-Sierra-Chart\Sierra Chart\DEV - SC`.
+3. Timestamp matching must be decided during planning. Sierra is expected to be using either UTC+0 or Chicago time; implementation should prove which one by comparing known generated bar times against Sierra `Date` + `Time` exports.
+4. OHLCV comparison should use exact precision by default. If exact comparison proves unreliable because of Sierra formatting or rounding, pause and re-evaluate the precision rule before loosening validation.
+5. Sierra `Bid Volume` and `Ask Volume` are ignored for this milestone.
+6. Final output appends only Sierra columns whose names start with `tradester_`. These columns are appended to our generated CSV rows after our existing columns.
