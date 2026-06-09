@@ -68,17 +68,17 @@ const scenarioArg = process.argv.find((arg) => arg.startsWith('--scenario='));
 const scenarioName =
 	scenarioArg === undefined ? undefined : scenarioArg.split('=')[1];
 
-if (isolated && scenarioName === undefined) {
-	await runIsolatedScenarios();
-	process.exit(0);
-}
-
 const selectedScenarios =
 	scenarioName === undefined
 		? SCENARIOS
 		: SCENARIOS.filter((scenario) => scenario.name === scenarioName);
 if (selectedScenarios.length === 0) {
 	throw new Error(`Unknown scenario: ${scenarioName}`);
+}
+
+if (isolated) {
+	await runIsolatedScenarios(selectedScenarios);
+	process.exit(0);
 }
 
 const warmupScenario = selectedScenarios[0];
@@ -99,9 +99,9 @@ for (const scenario of selectedScenarios) {
 	if (results.length > 1) console.log(JSON.stringify(summarize(results)));
 }
 
-async function runIsolatedScenarios() {
+async function runIsolatedScenarios(scenarios: Scenario[]) {
 	const scriptPath = fileURLToPath(import.meta.url);
-	for (const scenario of SCENARIOS) {
+	for (const scenario of scenarios) {
 		await new Promise<void>((resolve, reject) => {
 			const args = [
 				...process.execArgv,
