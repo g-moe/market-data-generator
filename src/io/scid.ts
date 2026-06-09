@@ -10,6 +10,7 @@ const DEFAULT_BUFFER_RECORDS = 16_384;
 const SCID_EPOCH_MS = Date.UTC(1899, 11, 30);
 const UINT32_SIZE = 0x1_0000_0000;
 const MICROSECONDS_PER_MILLISECOND = 1000n;
+export const SCID_EPOCH_OFFSET_MS = SCID_EPOCH_MS;
 
 export class ScidTickWriter {
 	private handle: FileHandle | undefined;
@@ -49,10 +50,24 @@ export class ScidTickWriter {
 	}
 
 	pushTickValues(time: number, price: number, volume: number, side: TradeSide) {
+		this.pushScDateTimeMsValue(
+			(time - SCID_EPOCH_MS) * 1000,
+			price,
+			volume,
+			side
+		);
+	}
+
+	pushScDateTimeMsValue(
+		scDateTimeMs: number,
+		price: number,
+		volume: number,
+		side: TradeSide
+	) {
 		writeTickValues(
 			this.outputView,
 			this.recordCount * RECORD_SIZE,
-			time,
+			scDateTimeMs,
 			price,
 			volume,
 			side
@@ -115,12 +130,13 @@ function writeHeader(output: Buffer) {
 function writeTickValues(
 	output: DataView,
 	offset: number,
-	time: number,
+	scDateTimeMs: number,
 	price: number,
 	volume: number,
 	side: TradeSide
 ) {
-	writeScDateTimeMsValue(output, offset, time);
+	output.setUint32(offset, scDateTimeMs % UINT32_SIZE, true);
+	output.setInt32(offset + 4, Math.floor(scDateTimeMs / UINT32_SIZE), true);
 	output.setFloat32(offset + 8, price, true);
 	output.setFloat32(offset + 12, price, true);
 	output.setFloat32(offset + 16, price, true);
@@ -133,14 +149,4 @@ function writeTickValues(
 
 export function toScDateTimeMs(date: Date) {
 	return BigInt(date.getTime() - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
-}
-
-function writeScDateTimeMsValue(
-	output: DataView,
-	offset: number,
-	time: number
-) {
-	const value = (time - SCID_EPOCH_MS) * 1000;
-	output.setUint32(offset, value % UINT32_SIZE, true);
-	output.setInt32(offset + 4, Math.floor(value / UINT32_SIZE), true);
 }

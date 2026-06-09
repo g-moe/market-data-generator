@@ -15,7 +15,7 @@ import {
 	toStoredCandleJson,
 	toStoredPriceLevelCandleJson
 } from '../io/json.ts';
-import { ScidTickWriter } from '../io/scid.ts';
+import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../io/scid.ts';
 import {
 	createBarId,
 	IntervalTimeAggregator,
@@ -270,7 +270,12 @@ function generateSessionTicksIntoOutputs(
 			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
 		}
 		const price = priceTicks * tickSize;
-		scid.pushTickValues(time, price, volume, side);
+		scid.pushScDateTimeMsValue(
+			(time - SCID_EPOCH_OFFSET_MS) * 1000,
+			price,
+			volume,
+			side
+		);
 		dailyAggregator.pushTickValuesForBucket(
 			time,
 			price,
