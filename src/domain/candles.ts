@@ -153,9 +153,11 @@ export class TimeAggregator {
 
 export class IntervalTimeAggregator {
 	private current: MutableCandle | undefined;
-	private pos = 0;
 
-	constructor(private readonly bucketMs: number) {}
+	constructor(
+		private readonly bucketMs: number,
+		private pos = 0
+	) {}
 
 	pushTickValues(
 		time: number,
@@ -189,7 +191,8 @@ export class IntervalTimeAggregator {
 
 export class FifteenSecondAggregator {
 	private current: MutableCandle | undefined;
-	private pos = 0;
+
+	constructor(private pos = 0) {}
 
 	pushTickValues(
 		time: number,

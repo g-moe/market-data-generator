@@ -40,6 +40,7 @@ import {
 
 const PRICE_LEVEL_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
+const SESSION_DURATION_MS = 23 * 60 * 60 * 1000;
 const UNIX_EPOCH_MS = 0;
 
 type CandleEmissions = {
@@ -60,10 +61,31 @@ export async function generateMarketData(
 ): Promise<GenerationResult> {
 	const symbolConfig = getSymbolConfig(inputs.symbol);
 	const files = getOutputFiles(inputs);
+	const seconds15BarsPerSession = countSessionBuckets(
+		inputs.ticksPerSession,
+		15_000
+	);
+	const minutes5BarsPerSession = countSessionBuckets(
+		inputs.ticksPerSession,
+		300_000
+	);
+	const seconds15StartSession = getRingRetainedSessionStart(
+		inputs.sessionCount,
+		seconds15BarsPerSession
+	);
+	const minutes5StartSession = getRingRetainedSessionStart(
+		inputs.sessionCount,
+		minutes5BarsPerSession
+	);
 	const priceLevelAggregator = new PriceLevelAggregator();
 	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
-	const seconds15Aggregator = new FifteenSecondAggregator();
-	const minutes5Aggregator = new IntervalTimeAggregator(300_000);
+	const seconds15Aggregator = new FifteenSecondAggregator(
+		seconds15StartSession * seconds15BarsPerSession
+	);
+	const minutes5Aggregator = new IntervalTimeAggregator(
+		300_000,
+		minutes5StartSession * minutes5BarsPerSession
+	);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const minutes5Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
@@ -127,6 +149,8 @@ export async function generateMarketData(
 					sessionStart,
 					sessionOpenPrice,
 					shouldEmitPriceLevel,
+					sessionIndex >= seconds15StartSession,
+					sessionIndex >= minutes5StartSession,
 					scid,
 					counts.daily,
 					seconds15Aggregator,
@@ -221,6 +245,8 @@ function generateSessionTicksIntoOutputs(
 	sessionStart: number,
 	sessionStartPrice: number,
 	shouldEmitPriceLevel: boolean,
+	shouldEmitSeconds15: boolean,
+	shouldEmitMinutes5: boolean,
 	scid: ScidTickWriter,
 	dailyPos: number,
 	seconds15Aggregator: FifteenSecondAggregator,
@@ -295,13 +321,22 @@ function generateSessionTicksIntoOutputs(
 			dailyClose = price;
 			dailyVolume += volume;
 			dailyPriceVolume += price * volume;
-			seconds15Aggregator.pushTickValues(
-				time,
-				price,
-				volume,
-				emitted.seconds15
-			);
-			minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
+			if (shouldEmitSeconds15) {
+				seconds15Aggregator.pushTickValues(
+					time,
+					price,
+					volume,
+					emitted.seconds15
+				);
+			}
+			if (shouldEmitMinutes5) {
+				minutes5Aggregator.pushTickValues(
+					time,
+					price,
+					volume,
+					emitted.minutes5
+				);
+			}
 			volume500Aggregator.pushTickValues(
 				time,
 				price,
@@ -371,8 +406,17 @@ function generateSessionTicksIntoOutputs(
 		dailyClose = price;
 		dailyVolume += volume;
 		dailyPriceVolume += price * volume;
-		seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15);
-		minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
+		if (shouldEmitSeconds15) {
+			seconds15Aggregator.pushTickValues(
+				time,
+				price,
+				volume,
+				emitted.seconds15
+			);
+		}
+		if (shouldEmitMinutes5) {
+			minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
+		}
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
 		priceLevelAggregator.pushTickValues(
 			time,
@@ -434,6 +478,27 @@ function isInLastSessions(
 	sessionWindow: number
 ) {
 	return sessionIndex >= Math.max(0, inputs.sessionCount - sessionWindow);
+}
+
+function getRingRetainedSessionStart(
+	sessionCount: number,
+	barsPerSession: number
+) {
+	return Math.max(
+		0,
+		sessionCount - Math.ceil(RING_BUFFER_BAR_COUNT / barsPerSession)
+	);
+}
+
+function countSessionBuckets(ticksPerSession: number, bucketMs: number) {
+	const buckets = new Set<number>();
+	const timeStep = (SESSION_DURATION_MS - 1) / ticksPerSession;
+	for (let index = 0; index < ticksPerSession; index++) {
+		const time = Math.floor(index * timeStep);
+		buckets.add(Math.floor(time / bucketMs) * bucketMs);
+	}
+
+	return buckets.size;
 }
 
 function createZeroDailyCandle(sequence: number): MdCandle {
