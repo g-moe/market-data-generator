@@ -319,7 +319,7 @@ async function writeRingBuffer(
 	const writer = new CandleJsonArrayWriter(filePath, toStoredCandleJson);
 	await writer.open();
 	try {
-		await writer.write(ringBuffer.values());
+		await writer.write(ringBuffer.iterate());
 	} finally {
 		await writer.close();
 	}

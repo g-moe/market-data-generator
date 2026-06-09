@@ -29,13 +29,17 @@ export class RingBuffer<T> {
 
 	values() {
 		const values: T[] = [];
+		for (const value of this.iterate()) values.push(value);
+
+		return values;
+	}
+
+	*iterate() {
 		const start = this.itemCount === this.capacity ? this.nextIndex : 0;
 
 		for (let offset = 0; offset < this.itemCount; offset++) {
 			const value = this.items[(start + offset) % this.capacity];
-			if (value !== undefined) values.push(value);
+			if (value !== undefined) yield value;
 		}
-
-		return values;
 	}
 }
