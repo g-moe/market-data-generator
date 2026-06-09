@@ -241,6 +241,70 @@ function generateSessionTicksIntoOutputs(
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
 	const tickSize = symbolConfig.tickSize;
 
+	if (!shouldEmitPriceLevel) {
+		for (let index = 0; index < ticksPerSession; index++) {
+			const time = Math.floor(sessionStart + index * timeStep);
+			const volatility =
+				index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			const signedMove = randomState * RANDOM_UNIT * 2 - 1;
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			const moveTicks = Math.round(
+				signedMove * volatility * (randomState * RANDOM_UNIT > 0.7 ? 2 : 1)
+			);
+			priceTicks += moveTicks;
+
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			const isAsk = randomState * RANDOM_UNIT > 0.5;
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			const volumeRoll = randomState * RANDOM_UNIT;
+			let volume: number;
+			if (volumeRoll > 0.995) {
+				randomState =
+					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				volume = 251 + Math.floor(randomState * RANDOM_UNIT * 750);
+			} else if (volumeRoll > 0.95) {
+				randomState =
+					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				volume = 26 + Math.floor(randomState * RANDOM_UNIT * 225);
+			} else {
+				randomState =
+					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
+			}
+			const price = priceTicks * tickSize;
+			scid.pushScDateTimeMsVolumeValues(
+				(time - SCID_EPOCH_OFFSET_MS) * 1000,
+				price,
+				volume,
+				isAsk ? 0 : volume,
+				isAsk ? volume : 0
+			);
+			dailyAggregator.pushTickValuesForBucket(
+				time,
+				price,
+				volume,
+				sessionStart,
+				emitted.daily
+			);
+			seconds15Aggregator.pushTickValues(
+				time,
+				price,
+				volume,
+				emitted.seconds15
+			);
+			minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
+			volume500Aggregator.pushTickValues(
+				time,
+				price,
+				volume,
+				emitted.volume500
+			);
+		}
+
+		return priceTicks * tickSize;
+	}
+
 	for (let index = 0; index < ticksPerSession; index++) {
 		const time = Math.floor(sessionStart + index * timeStep);
 		const volatility =
@@ -286,14 +350,12 @@ function generateSessionTicksIntoOutputs(
 		seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15);
 		minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
-		if (shouldEmitPriceLevel) {
-			priceLevelAggregator.pushTickValues(
-				time,
-				price,
-				volume,
-				emitted.priceLevel
-			);
-		}
+		priceLevelAggregator.pushTickValues(
+			time,
+			price,
+			volume,
+			emitted.priceLevel
+		);
 	}
 
 	return priceTicks * tickSize;
