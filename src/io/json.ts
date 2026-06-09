@@ -69,11 +69,12 @@ export function toStoredCandle(candle: MdCandle): StoredMdCandle {
 }
 
 export function toStoredPriceLevelCandleJson(candle: MdCandleVolumeByPrice) {
-	return `${toStoredCandleJson(candle).slice(0, -1)},"prices":[${[
-		...candle.prices.entries()
-	]
-		.map(([price, volume]) => `[${price},${volume}]`)
-		.join(',')}]}`;
+	let prices = '';
+	for (const [price, volume] of candle.prices) {
+		prices += `${prices.length === 0 ? '' : ','}[${price},${volume}]`;
+	}
+
+	return `${toStoredCandleJson(candle).slice(0, -1)},"prices":[${prices}]}`;
 }
 
 export function toStoredPriceLevelCandle(
