@@ -1,3 +1,4 @@
+import { writeSync } from 'node:fs';
 import { open, mkdir, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -5,14 +6,21 @@ import type { MarketTick, ScidRecord } from '../contracts/types.ts';
 
 const HEADER_SIZE = 56;
 const RECORD_SIZE = 40;
+const DEFAULT_BUFFER_RECORDS = 16_384;
 const SCID_EPOCH_MS = Date.UTC(1899, 11, 30);
 const MICROSECONDS_PER_MILLISECOND = 1000n;
 
 export class ScidTickWriter {
 	private handle: FileHandle | undefined;
-	private readonly ticks: MarketTick[] = [];
+	private readonly output: Buffer;
+	private recordCount = 0;
 
-	constructor(private readonly filePath: string) {}
+	constructor(
+		private readonly filePath: string,
+		bufferRecords = DEFAULT_BUFFER_RECORDS
+	) {
+		this.output = Buffer.alloc(bufferRecords * RECORD_SIZE);
+	}
 
 	async open() {
 		await mkdir(dirname(this.filePath), { recursive: true });
@@ -22,24 +30,23 @@ export class ScidTickWriter {
 		await this.handle.write(header);
 	}
 
-	private async writeTicks(ticks: MarketTick[]) {
-		if (ticks.length === 0) return;
+	private async writeBufferedTicks() {
+		if (this.recordCount === 0) return;
 		const handle = this.requireHandle();
-		const output = Buffer.alloc(ticks.length * RECORD_SIZE);
-		ticks.forEach((tick, index) => {
-			writeRecord(output, index * RECORD_SIZE, tickToScidRecord(tick));
-		});
-		await handle.write(output);
+		await handle.write(this.output, 0, this.recordCount * RECORD_SIZE);
+		this.recordCount = 0;
 	}
 
 	pushTick(tick: MarketTick) {
-		this.ticks.push(tick);
+		writeTick(this.output, this.recordCount * RECORD_SIZE, tick);
+		this.recordCount++;
+		if (this.recordCount * RECORD_SIZE === this.output.length) {
+			this.writeBufferedTicksSync();
+		}
 	}
 
 	async flush() {
-		if (this.ticks.length === 0) return;
-		const ticks = this.ticks.splice(0);
-		await this.writeTicks(ticks);
+		await this.writeBufferedTicks();
 	}
 
 	async close() {
@@ -54,6 +61,13 @@ export class ScidTickWriter {
 		}
 
 		return this.handle;
+	}
+
+	private writeBufferedTicksSync() {
+		if (this.recordCount === 0) return;
+		const handle = this.requireHandle();
+		writeSync(handle.fd, this.output, 0, this.recordCount * RECORD_SIZE);
+		this.recordCount = 0;
 	}
 }
 
@@ -80,18 +94,22 @@ function writeHeader(output: Buffer) {
 	output.writeUInt32LE(0, 16);
 }
 
-function writeRecord(output: Buffer, offset: number, record: ScidRecord) {
-	output.writeBigInt64LE(toScDateTimeMs(record.time), offset);
-	output.writeFloatLE(record.open, offset + 8);
-	output.writeFloatLE(record.high, offset + 12);
-	output.writeFloatLE(record.low, offset + 16);
-	output.writeFloatLE(record.close, offset + 20);
-	output.writeUInt32LE(record.transactions, offset + 24);
-	output.writeUInt32LE(record.volume, offset + 28);
-	output.writeUInt32LE(record.bidVolume, offset + 32);
-	output.writeUInt32LE(record.askVolume, offset + 36);
+function writeTick(output: Buffer, offset: number, tick: MarketTick) {
+	output.writeBigInt64LE(toScDateTimeMsValue(tick.time), offset);
+	output.writeFloatLE(tick.price, offset + 8);
+	output.writeFloatLE(tick.price, offset + 12);
+	output.writeFloatLE(tick.price, offset + 16);
+	output.writeFloatLE(tick.price, offset + 20);
+	output.writeUInt32LE(1, offset + 24);
+	output.writeUInt32LE(tick.volume, offset + 28);
+	output.writeUInt32LE(tick.side === 'bid' ? tick.volume : 0, offset + 32);
+	output.writeUInt32LE(tick.side === 'ask' ? tick.volume : 0, offset + 36);
 }
 
 export function toScDateTimeMs(date: Date) {
-	return BigInt(date.getTime() - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
+	return toScDateTimeMsValue(date.getTime());
+}
+
+function toScDateTimeMsValue(time: number) {
+	return BigInt(time - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
 }

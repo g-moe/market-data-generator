@@ -1,3 +1,5 @@
 export function roundToTick(price: number, minTickSize: number) {
-	return Number((Math.round(price / minTickSize) * minTickSize).toFixed(10));
+	return (
+		Math.round(Math.round(price / minTickSize) * minTickSize * 1e10) / 1e10
+	);
 }

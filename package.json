@@ -8,6 +8,7 @@
 		"generate:without": "tsx src/run-without-cli.ts",
 		"dev": "tsx watch src/run.ts",
 		"build": "tsc --project ./tsconfig.build.json",
+		"benchmark:generation": "node --expose-gc --import tsx scripts/benchmark-generation.ts",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",
 		"prepare": "husky",
