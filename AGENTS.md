@@ -7,6 +7,7 @@
 **Cleanup after yourself** - after completing a task, clean up after yourself by making sure tests pass, lints pass, documentation is up to date, junk is removed (`pnpm run knip`), etc. You do not need to cleanup work that did not come from your actions.
 **PIN ALL DEPENDENCIES** - pin all dependencies to the exact version in the package.json file.
 **OCD** - be obsessive about keeping the codebase clean and organized; keep naming consistent between files and directories; keep structure consistent; follow the same naming style for types functions, etc; ground rules in existing patterns;
+**TMUX ONLY** - assume there is a tmux session running either locally or we are ssh'd into a server; if you cannot find the correct tmux session, you must stop whatever you are currently doing and tell the user to create the tmux session;
 
 # Anti-patterns
 
