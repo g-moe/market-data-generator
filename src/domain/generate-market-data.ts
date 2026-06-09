@@ -12,8 +12,8 @@ import type {
 } from '../contracts/types.ts';
 import {
 	CandleJsonArrayWriter,
-	toStoredCandle,
-	toStoredPriceLevelCandle
+	toStoredCandleJson,
+	toStoredPriceLevelCandleJson
 } from '../io/json.ts';
 import { ScidTickWriter } from '../io/scid.ts';
 import {
@@ -59,9 +59,9 @@ export async function generateMarketData(
 	const scid = new ScidTickWriter(files.scid);
 	const priceLevel = new CandleJsonArrayWriter(
 		files.priceLevel,
-		toStoredPriceLevelCandle
+		toStoredPriceLevelCandleJson
 	);
-	const daily = new CandleJsonArrayWriter(files.daily, toStoredCandle);
+	const daily = new CandleJsonArrayWriter(files.daily, toStoredCandleJson);
 	const counts = {
 		daily: 0,
 		minutes5: 0,
@@ -228,7 +228,7 @@ async function writeRingBuffer(
 	filePath: string,
 	ringBuffer: RingBuffer<MdCandle>
 ) {
-	const writer = new CandleJsonArrayWriter(filePath, toStoredCandle);
+	const writer = new CandleJsonArrayWriter(filePath, toStoredCandleJson);
 	await writer.open();
 	try {
 		await writer.write(ringBuffer.values());

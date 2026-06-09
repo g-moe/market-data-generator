@@ -14,7 +14,7 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 
 	constructor(
 		private readonly filePath: string,
-		private readonly serializeCandle: (candle: TCandle) => unknown
+		private readonly serializeCandle: (candle: TCandle) => string | unknown
 	) {}
 
 	async open() {
@@ -28,7 +28,7 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 		const handle = this.requireHandle();
 		const prefix = this.hasItems ? ',' : '';
 		const output = `${prefix}${candles
-			.map((candle) => JSON.stringify(this.serializeCandle(candle)))
+			.map((candle) => serializeJsonValue(this.serializeCandle(candle)))
 			.join(',')}`;
 		this.hasItems = true;
 		await handle.write(output);
@@ -50,6 +50,10 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 	}
 }
 
+export function toStoredCandleJson(candle: MdCandle) {
+	return `{"close":${candle.close},"high":${candle.high},"id":"${candle.id.toString()}","low":${candle.low},"open":${candle.open},"pos":${candle.pos},"time":${candle.time},"volume":${candle.volume},"vwap":${candle.vwap}}`;
+}
+
 export function toStoredCandle(candle: MdCandle): StoredMdCandle {
 	return {
 		close: candle.close,
@@ -64,6 +68,14 @@ export function toStoredCandle(candle: MdCandle): StoredMdCandle {
 	};
 }
 
+export function toStoredPriceLevelCandleJson(candle: MdCandleVolumeByPrice) {
+	return `${toStoredCandleJson(candle).slice(0, -1)},"prices":[${[
+		...candle.prices.entries()
+	]
+		.map(([price, volume]) => `[${price},${volume}]`)
+		.join(',')}]}`;
+}
+
 export function toStoredPriceLevelCandle(
 	candle: MdCandleVolumeByPrice
 ): StoredMdCandleVolumeByPrice {
@@ -71,4 +83,8 @@ export function toStoredPriceLevelCandle(
 		...toStoredCandle(candle),
 		prices: [...candle.prices.entries()]
 	};
+}
+
+function serializeJsonValue(value: string | unknown) {
+	return typeof value === 'string' ? value : JSON.stringify(value);
 }
