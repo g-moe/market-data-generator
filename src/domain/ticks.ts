@@ -8,7 +8,8 @@ import { createRandom, randomSigned } from './random.ts';
 
 export const RANDOM_MULTIPLIER = 1_664_525;
 export const RANDOM_INCREMENT = 1_013_904_223;
-export const RANDOM_DIVISOR = 0x1_0000_0000;
+const RANDOM_DIVISOR = 0x1_0000_0000;
+export const RANDOM_UNIT = 1 / RANDOM_DIVISOR;
 
 export type OnTickValues = (
 	time: number,

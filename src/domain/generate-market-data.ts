@@ -33,9 +33,9 @@ import { RingBuffer } from './ring-buffer.ts';
 import {
 	deriveSessionSeed,
 	getSessionOpenPrice,
-	RANDOM_DIVISOR,
 	RANDOM_INCREMENT,
-	RANDOM_MULTIPLIER
+	RANDOM_MULTIPLIER,
+	RANDOM_UNIT
 } from './ticks.ts';
 
 const PRICE_LEVEL_SESSIONS = 30;
@@ -247,27 +247,27 @@ function generateSessionTicksIntoOutputs(
 		const volatility =
 			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-		const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
+		const signedMove = randomState * RANDOM_UNIT * 2 - 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const moveTicks = Math.round(
-			signedMove * volatility * (randomState / RANDOM_DIVISOR > 0.7 ? 2 : 1)
+			signedMove * volatility * (randomState * RANDOM_UNIT > 0.7 ? 2 : 1)
 		);
 		priceTicks += moveTicks;
 
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-		const side = randomState / RANDOM_DIVISOR > 0.5 ? 'ask' : 'bid';
+		const side = randomState * RANDOM_UNIT > 0.5 ? 'ask' : 'bid';
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-		const volumeRoll = randomState / RANDOM_DIVISOR;
+		const volumeRoll = randomState * RANDOM_UNIT;
 		let volume: number;
 		if (volumeRoll > 0.995) {
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-			volume = 251 + Math.floor((randomState / RANDOM_DIVISOR) * 750);
+			volume = 251 + Math.floor(randomState * RANDOM_UNIT * 750);
 		} else if (volumeRoll > 0.95) {
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-			volume = 26 + Math.floor((randomState / RANDOM_DIVISOR) * 225);
+			volume = 26 + Math.floor(randomState * RANDOM_UNIT * 225);
 		} else {
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
+			volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 		}
 		const price = priceTicks * tickSize;
 		scid.pushScDateTimeMsValue(
