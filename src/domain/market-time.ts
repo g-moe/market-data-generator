@@ -4,6 +4,22 @@ const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const SESSION_START_HOUR = 17;
 const SESSION_END_HOUR = 16;
+const CENTRAL_PARTS_FORMATTER = new Intl.DateTimeFormat('en-US', {
+	day: '2-digit',
+	hour: '2-digit',
+	hour12: false,
+	minute: '2-digit',
+	month: '2-digit',
+	second: '2-digit',
+	timeZone: CENTRAL_TIMEZONE,
+	timeZoneName: 'shortOffset',
+	weekday: 'short',
+	year: 'numeric'
+});
+const CENTRAL_OFFSET_FORMATTER = new Intl.DateTimeFormat('en-US', {
+	timeZone: CENTRAL_TIMEZONE,
+	timeZoneName: 'shortOffset'
+});
 
 export function getSessionStart(anchorIso: string, sessionsBack: number) {
 	let cursor = getSessionStartForTime(new Date(anchorIso).getTime());
@@ -45,27 +61,28 @@ export function floorTime(time: number, bucketMs: number) {
 }
 
 export function getCentralParts(time: Date) {
-	const parts = new Intl.DateTimeFormat('en-US', {
-		day: '2-digit',
-		hour: '2-digit',
-		hour12: false,
-		minute: '2-digit',
-		month: '2-digit',
-		second: '2-digit',
-		timeZone: CENTRAL_TIMEZONE,
-		timeZoneName: 'shortOffset',
-		weekday: 'short',
-		year: 'numeric'
-	}).formatToParts(time);
-	const value = (type: string) => {
-		return parts.find((part) => part.type === type)?.value ?? '';
-	};
-	const hour = Number(value('hour'));
-	const minute = Number(value('minute'));
-	const second = Number(value('second'));
+	let day = '';
+	let hourText = '';
+	let minuteText = '';
+	let month = '';
+	let secondText = '';
+	let weekday = '';
+	let year = '';
+	for (const part of CENTRAL_PARTS_FORMATTER.formatToParts(time)) {
+		if (part.type === 'day') day = part.value;
+		else if (part.type === 'hour') hourText = part.value;
+		else if (part.type === 'minute') minuteText = part.value;
+		else if (part.type === 'month') month = part.value;
+		else if (part.type === 'second') secondText = part.value;
+		else if (part.type === 'weekday') weekday = part.value;
+		else if (part.type === 'year') year = part.value;
+	}
+	const hour = Number(hourText);
+	const minute = Number(minuteText);
+	const second = Number(secondText);
 
 	return {
-		date: `${value('year')}-${value('month')}-${value('day')}`,
+		date: `${year}-${month}-${day}`,
 		hour,
 		minute,
 		second,
@@ -73,7 +90,7 @@ export function getCentralParts(time: Date) {
 			2,
 			'0'
 		)}:${String(second).padStart(2, '0')}`,
-		weekday: value('weekday')
+		weekday
 	};
 }
 
@@ -159,13 +176,13 @@ function centralDateTimeToUtcMs(
 }
 
 function getCentralOffsetMs(time: Date) {
-	const zoneName =
-		new Intl.DateTimeFormat('en-US', {
-			timeZone: CENTRAL_TIMEZONE,
-			timeZoneName: 'shortOffset'
-		})
-			.formatToParts(time)
-			.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT';
+	let zoneName = 'GMT';
+	for (const part of CENTRAL_OFFSET_FORMATTER.formatToParts(time)) {
+		if (part.type === 'timeZoneName') {
+			zoneName = part.value;
+			break;
+		}
+	}
 	const match =
 		/^GMT(?<sign>[+-])(?<hours>\d{1,2})(?::(?<minutes>\d{2}))?$/.exec(zoneName);
 	/* v8 ignore next -- Intl returns GMT offsets for the configured timezone in supported Node builds. */
