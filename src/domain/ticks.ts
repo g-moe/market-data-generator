@@ -14,8 +14,7 @@ export type OnTickValues = (
 	time: number,
 	price: number,
 	volume: number,
-	side: 'ask' | 'bid',
-	sessionIndex: number
+	side: 'ask' | 'bid'
 ) => void;
 
 export function generateSessionTicksForStart(
@@ -32,10 +31,10 @@ export function generateSessionTicksForStart(
 		sessionIndex,
 		sessionStart,
 		sessionStartPrice,
-		(time, price, volume, side, tickSessionIndex) =>
+		(time, price, volume, side) =>
 			onTick({
 				price,
-				sessionIndex: tickSessionIndex,
+				sessionIndex,
 				side,
 				time,
 				volume
@@ -88,7 +87,7 @@ export function generateSessionTickValuesForStart(
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
 		}
-		onTick(time, toPrice(priceTicks), volume, side, sessionIndex);
+		onTick(time, toPrice(priceTicks), volume, side);
 	}
 
 	return toPrice(priceTicks);
