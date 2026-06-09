@@ -83,7 +83,7 @@ export function toStoredCandle(candle: MdCandle): StoredMdCandle {
 
 export function toStoredPriceLevelCandleJson(candle: MdCandleVolumeByPrice) {
 	let prices = '';
-	for (const [price, volume] of candle.prices) {
+	for (const [price, volume] of candle.prices.entries()) {
 		prices += `${prices.length === 0 ? '' : ','}[${price},${volume}]`;
 	}
 
