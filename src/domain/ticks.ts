@@ -6,9 +6,9 @@ import { getSessionEnd } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
 
-const RANDOM_MULTIPLIER = 1_664_525;
-const RANDOM_INCREMENT = 1_013_904_223;
-const RANDOM_DIVISOR = 0x1_0000_0000;
+export const RANDOM_MULTIPLIER = 1_664_525;
+export const RANDOM_INCREMENT = 1_013_904_223;
+export const RANDOM_DIVISOR = 0x1_0000_0000;
 
 export type OnTickValues = (
 	time: number,
@@ -42,7 +42,7 @@ export function generateSessionTicksForStart(
 	);
 }
 
-export function generateSessionTickValuesForStart(
+function generateSessionTickValuesForStart(
 	inputs: GeneratorInputs,
 	symbolConfig: SymbolConfig,
 	sessionIndex: number,

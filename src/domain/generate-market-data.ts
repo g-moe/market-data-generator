@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
-import { getSymbolConfig } from '../contracts/symbols.ts';
+import { getSymbolConfig, type SymbolConfig } from '../contracts/symbols.ts';
 import type {
 	GenerationResult,
 	GenerationProgress,
@@ -25,18 +25,30 @@ import {
 } from './candles.ts';
 import {
 	getPreviousSessionStart,
+	getSessionEnd,
 	getSessionStart,
 	isTradingSessionStart
 } from './market-time.ts';
 import { RingBuffer } from './ring-buffer.ts';
 import {
-	generateSessionTickValuesForStart,
-	getSessionOpenPrice
+	deriveSessionSeed,
+	getSessionOpenPrice,
+	RANDOM_DIVISOR,
+	RANDOM_INCREMENT,
+	RANDOM_MULTIPLIER
 } from './ticks.ts';
 
 const PRICE_LEVEL_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
 const UNIX_EPOCH_MS = 0;
+
+type CandleEmissions = {
+	daily: MdCandle[];
+	priceLevel: MdCandleVolumeByPrice[];
+	seconds15: MdCandle[];
+	minutes5: MdCandle[];
+	volume500: MdCandle[];
+};
 
 type GenerateMarketDataOptions = {
 	onSessionComplete?: (progress: GenerationProgress) => void;
@@ -110,51 +122,23 @@ export async function generateMarketData(
 					symbolConfig,
 					sessionIndex
 				);
-				previousClose = generateSessionTickValuesForStart(
+				previousClose = generateSessionTicksIntoOutputs(
 					inputs,
 					symbolConfig,
 					sessionIndex,
 					sessionStart,
 					sessionOpenPrice,
-					(time, price, volume, side) => {
-						sessionTicks++;
-						counts.ticks++;
-						scid.pushTickValues(time, price, volume, side);
-						dailyAggregator.pushTickValuesForBucket(
-							time,
-							price,
-							volume,
-							sessionStart,
-							emitted.daily
-						);
-						seconds15Aggregator.pushTickValues(
-							time,
-							price,
-							volume,
-							emitted.seconds15
-						);
-						minutes5Aggregator.pushTickValues(
-							time,
-							price,
-							volume,
-							emitted.minutes5
-						);
-						volume500Aggregator.pushTickValues(
-							time,
-							price,
-							volume,
-							emitted.volume500
-						);
-						if (shouldEmitPriceLevel) {
-							priceLevelAggregator.pushTickValues(
-								time,
-								price,
-								volume,
-								emitted.priceLevel
-							);
-						}
-					}
+					shouldEmitPriceLevel,
+					scid,
+					dailyAggregator,
+					seconds15Aggregator,
+					minutes5Aggregator,
+					volume500Aggregator,
+					priceLevelAggregator,
+					emitted,
+					counts
 				);
+				sessionTicks = inputs.ticksPerSession;
 			}
 
 			await scid.flush();
@@ -231,6 +215,85 @@ export function getOutputFiles(inputs: GeneratorInputs): OutputFiles {
 		seconds15: join(inputs.outputDir, `${prefix}_15s.json`),
 		volume500: join(inputs.outputDir, `${prefix}_500v.json`)
 	};
+}
+
+function generateSessionTicksIntoOutputs(
+	inputs: GeneratorInputs,
+	symbolConfig: SymbolConfig,
+	sessionIndex: number,
+	sessionStart: number,
+	sessionStartPrice: number,
+	shouldEmitPriceLevel: boolean,
+	scid: ScidTickWriter,
+	dailyAggregator: TimeAggregator,
+	seconds15Aggregator: IntervalTimeAggregator,
+	minutes5Aggregator: IntervalTimeAggregator,
+	volume500Aggregator: VolumeAggregator,
+	priceLevelAggregator: PriceLevelAggregator,
+	emitted: CandleEmissions,
+	counts: GenerationResult['counts']
+) {
+	const sessionEnd = getSessionEnd(sessionStart);
+	const ticksPerSession = inputs.ticksPerSession;
+	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
+	const openVolatilityEnd = ticksPerSession * 0.1;
+	const closingVolatilityStart = ticksPerSession * 0.85;
+	let randomState =
+		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
+	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
+	const tickSize = symbolConfig.tickSize;
+
+	for (let index = 0; index < ticksPerSession; index++) {
+		const time = Math.floor(sessionStart + index * timeStep);
+		const volatility =
+			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const moveTicks = Math.round(
+			signedMove * volatility * (randomState / RANDOM_DIVISOR > 0.7 ? 2 : 1)
+		);
+		priceTicks += moveTicks;
+
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const side = randomState / RANDOM_DIVISOR > 0.5 ? 'ask' : 'bid';
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const volumeRoll = randomState / RANDOM_DIVISOR;
+		let volume: number;
+		if (volumeRoll > 0.995) {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 251 + Math.floor((randomState / RANDOM_DIVISOR) * 750);
+		} else if (volumeRoll > 0.95) {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 26 + Math.floor((randomState / RANDOM_DIVISOR) * 225);
+		} else {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
+		}
+		const price = priceTicks * tickSize;
+		counts.ticks++;
+		scid.pushTickValues(time, price, volume, side);
+		dailyAggregator.pushTickValuesForBucket(
+			time,
+			price,
+			volume,
+			sessionStart,
+			emitted.daily
+		);
+		seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15);
+		minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
+		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
+		if (shouldEmitPriceLevel) {
+			priceLevelAggregator.pushTickValues(
+				time,
+				price,
+				volume,
+				emitted.priceLevel
+			);
+		}
+	}
+
+	return priceTicks * tickSize;
 }
 
 function formatPriceLevelSuffix(tickSize: number) {
