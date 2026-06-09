@@ -12,6 +12,7 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 	private handle: FileHandle | undefined;
 	private hasItems = false;
 	private readonly iterableChunkSize = 1_024;
+	private readonly outputChunk: string[] = [];
 
 	constructor(
 		private readonly filePath: string,
@@ -26,7 +27,8 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 
 	async write(candles: Iterable<TCandle>) {
 		const handle = this.requireHandle();
-		let output: string[] = [];
+		const output = this.outputChunk;
+		output.length = 0;
 		for (const candle of candles) {
 			output.push(
 				`${this.hasItems || output.length > 0 ? ',' : ''}${serializeJsonValue(
@@ -36,7 +38,7 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 			if (output.length === this.iterableChunkSize) {
 				await handle.write(output.join(''));
 				this.hasItems = true;
-				output = [];
+				output.length = 0;
 			}
 		}
 		if (output.length === 0) return;
