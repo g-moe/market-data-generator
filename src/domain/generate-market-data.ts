@@ -276,6 +276,8 @@ function generateSessionTicksIntoOutputs(
 	let dailyLow = 0;
 	let dailyClose = 0;
 	let dailyVolume = 0;
+	let dailyBidVolume = 0;
+	let dailyAskVolume = 0;
 	let dailyPriceVolume = 0;
 
 	if (!shouldEmitPriceLevel) {
@@ -293,6 +295,7 @@ function generateSessionTicksIntoOutputs(
 
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 			const isAsk = randomState * RANDOM_UNIT > 0.5;
+			const side = isAsk ? 'ask' : 'bid';
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 			const volumeRoll = randomState * RANDOM_UNIT;
 			let volume: number;
@@ -327,13 +330,16 @@ function generateSessionTicksIntoOutputs(
 			}
 			dailyClose = price;
 			dailyVolume += volume;
+			dailyBidVolume += isAsk ? 0 : volume;
+			dailyAskVolume += isAsk ? volume : 0;
 			dailyPriceVolume += price * volume;
 			if (shouldEmitSeconds15) {
 				seconds15Aggregator.pushTickValues(
 					time,
 					price,
 					volume,
-					emitted.seconds15
+					emitted.seconds15,
+					side
 				);
 			}
 			if (shouldEmitMinutes5) {
@@ -341,18 +347,22 @@ function generateSessionTicksIntoOutputs(
 					time,
 					price,
 					volume,
-					emitted.minutes5
+					emitted.minutes5,
+					side
 				);
 			}
 			volume500Aggregator.pushTickValues(
 				time,
 				price,
 				volume,
-				emitted.volume500
+				emitted.volume500,
+				side
 			);
 		}
 
 		emitted.daily.push({
+			askVolume: dailyAskVolume,
+			bidVolume: dailyBidVolume,
 			close: dailyClose,
 			high: dailyHigh,
 			id: createBarId(sessionStart, 0),
@@ -381,6 +391,7 @@ function generateSessionTicksIntoOutputs(
 
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const isAsk = randomState * RANDOM_UNIT > 0.5;
+		const side = isAsk ? 'ask' : 'bid';
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const volumeRoll = randomState * RANDOM_UNIT;
 		let volume: number;
@@ -412,13 +423,16 @@ function generateSessionTicksIntoOutputs(
 		}
 		dailyClose = price;
 		dailyVolume += volume;
+		dailyBidVolume += isAsk ? 0 : volume;
+		dailyAskVolume += isAsk ? volume : 0;
 		dailyPriceVolume += price * volume;
 		if (shouldEmitSeconds15) {
 			seconds15Aggregator.pushTickValues(
 				time,
 				price,
 				volume,
-				emitted.seconds15
+				emitted.seconds15,
+				side
 			);
 		}
 		if (shouldEmitMinutes5) {
@@ -429,11 +443,14 @@ function generateSessionTicksIntoOutputs(
 			time,
 			price,
 			volume,
-			emitted.priceLevel
+			emitted.priceLevel,
+			side
 		);
 	}
 
 	emitted.daily.push({
+		askVolume: dailyAskVolume,
+		bidVolume: dailyBidVolume,
 		close: dailyClose,
 		high: dailyHigh,
 		id: createBarId(sessionStart, 0),
@@ -519,6 +536,8 @@ function countSessionBuckets(ticksPerSession: number, bucketMs: number) {
 
 function createZeroDailyCandle(sequence: number): MdCandle {
 	return {
+		askVolume: 0,
+		bidVolume: 0,
 		close: 0,
 		high: 0,
 		id: createBarId(UNIX_EPOCH_MS, sequence),

@@ -8,7 +8,8 @@ import type {
 	StoredMdCandleVolumeByPrice
 } from '../contracts/types.ts';
 
-export const CANDLE_ROW_HEADER = 'id,time,pos,open,high,low,close,volume,vwap';
+export const CANDLE_ROW_HEADER =
+	'id,time,pos,open,high,low,close,volume,bidVolume,askVolume,vwap';
 
 export const PRICE_LEVEL_CANDLE_ROW_HEADER = `${CANDLE_ROW_HEADER},prices`;
 
@@ -60,11 +61,13 @@ export class CandleRowWriter<TCandle extends MdCandle> {
 }
 
 export function toStoredCandleRow(candle: MdCandle) {
-	return `${candle.id.toString()},${candle.time},${candle.pos},${candle.open},${candle.high},${candle.low},${candle.close},${candle.volume},${candle.vwap}`;
+	return `${candle.id.toString()},${candle.time},${candle.pos},${candle.open},${candle.high},${candle.low},${candle.close},${candle.volume},${candle.bidVolume},${candle.askVolume},${candle.vwap}`;
 }
 
 export function toStoredCandle(candle: MdCandle): StoredMdCandle {
 	return {
+		askVolume: candle.askVolume,
+		bidVolume: candle.bidVolume,
 		close: candle.close,
 		high: candle.high,
 		id: candle.id.toString(),
@@ -119,6 +122,8 @@ export function parseCandleRowsFast(text: string): StoredMdCandle[] {
 		let low = 0;
 		let close = 0;
 		let volume = 0;
+		let bidVolume = 0;
+		let askVolume = 0;
 		let vwap = 0;
 
 		for (let j = 0; j <= line.length; j++) {
@@ -151,6 +156,12 @@ export function parseCandleRowsFast(text: string): StoredMdCandle[] {
 					volume = Number(value);
 					break;
 				case 8:
+					bidVolume = Number(value);
+					break;
+				case 9:
+					askVolume = Number(value);
+					break;
+				case 10:
 					vwap = Number(value);
 					break;
 				default:
@@ -161,11 +172,13 @@ export function parseCandleRowsFast(text: string): StoredMdCandle[] {
 			start = j + 1;
 		}
 
-		if (field !== 9) {
-			throw new Error(`Expected 9 candle row fields on line ${i + 1}`);
+		if (field !== 11) {
+			throw new Error(`Expected 11 candle row fields on line ${i + 1}`);
 		}
 
 		candles.push({
+			askVolume,
+			bidVolume,
 			close,
 			high,
 			id,

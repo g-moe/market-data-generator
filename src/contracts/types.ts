@@ -55,6 +55,8 @@ export type MdCandle = {
 	pos: number;
 	time: UnixMs;
 	volume: number;
+	bidVolume: number;
+	askVolume: number;
 	vwap: number;
 };
 
@@ -71,6 +73,8 @@ export type StoredMdCandle = {
 	pos: number;
 	time: UnixMs;
 	volume: number;
+	bidVolume: number;
+	askVolume: number;
 	vwap: number;
 };
 
@@ -83,6 +87,8 @@ export type StoredMdCandleVolumeByPrice = {
 	pos: number;
 	time: UnixMs;
 	volume: number;
+	bidVolume: number;
+	askVolume: number;
 	vwap: number;
 	prices: Array<[Price, Volume]>;
 };

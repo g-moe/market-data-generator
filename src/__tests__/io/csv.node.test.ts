@@ -2,7 +2,6 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-
 import type { MdCandle, MdCandleVolumeByPrice } from '../../contracts/types.ts';
 import {
 	CandleRowWriter,
@@ -14,10 +13,11 @@ import {
 	toStoredPriceLevelCandleRow,
 	toStoredPriceLevelCandle
 } from '../../io/csv.ts';
-
 describe('csv output', () => {
 	it('stores bigint candle ids as strings', () => {
 		expect(toStoredCandle(candle())).toEqual({
+			askVolume: 9,
+			bidVolume: 6,
 			close: 100.5,
 			high: 101,
 			id: '1700000000000000000',
@@ -29,9 +29,10 @@ describe('csv output', () => {
 			vwap: 100.25
 		});
 	});
-
 	it('stores price maps as entry arrays', () => {
 		expect(toStoredPriceLevelCandle(priceLevelCandle())).toEqual({
+			askVolume: 9,
+			bidVolume: 6,
 			close: 100.5,
 			high: 101,
 			id: '1700000000000000000',
@@ -47,11 +48,9 @@ describe('csv output', () => {
 			vwap: 100.25
 		});
 	});
-
 	it('streams candles to fixed-schema rows', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-rows-'));
 		const filePath = join(directory, 'nested', 'tradester_ES_5m.csv');
-
 		try {
 			const writer = new CandleRowWriter(
 				filePath,
@@ -62,46 +61,42 @@ describe('csv output', () => {
 			await writer.write([candle()]);
 			await writer.write([candle({ close: 102, id: 1n, pos: 1 })]);
 			await writer.close();
-
 			expect(await readFile(filePath, 'utf8')).toBe(`${CANDLE_ROW_HEADER}
-1700000000000000000,1700000000000,0,100,101,99,100.5,15,100.25
-1,1700000000000,1,100,101,99,102,15,100.25
+1700000000000000000,1700000000000,0,100,101,99,100.5,15,6,9,100.25
+1,1700000000000,1,100,101,99,102,15,6,9,100.25
 `);
 		} finally {
 			await rm(directory, { force: true, recursive: true });
 		}
 	});
-
 	it('rejects candle row writes before opening the file', async () => {
 		const writer = new CandleRowWriter(
 			'/tmp/not-open.csv',
 			CANDLE_ROW_HEADER,
 			toStoredCandleRow
 		);
-
 		await expect(writer.write([candle()])).rejects.toThrow(
 			'candle row writer is not open'
 		);
 		await expect(writer.close()).resolves.toBeUndefined();
 	});
-
 	it('serializes price levels as a single fixed-schema row field', () => {
 		expect(toStoredPriceLevelCandleRow(priceLevelCandle())).toBe(
-			'1700000000000000000,1700000000000,0,100,101,99,100.5,15,100.25,100:5;100.25:10'
+			'1700000000000000000,1700000000000,0,100,101,99,100.5,15,6,9,100.25,100:5;100.25:10'
 		);
 		expect(PRICE_LEVEL_CANDLE_ROW_HEADER).toBe(`${CANDLE_ROW_HEADER},prices`);
 	});
-
 	it('parses fixed-schema candle rows without row splitting', () => {
 		const text = `${CANDLE_ROW_HEADER}
-1700000000000000000,1700000000000,0,100,101,99,100.5,15,100.25
-1,1700000060000,1,100.5,102,100.25,101.75,20,101.125
+1700000000000000000,1700000000000,0,100,101,99,100.5,15,6,9,100.25
+1,1700000060000,1,100.5,102,100.25,101.75,20,8,12,101.125
 `;
-
 		expect(parseCandleRowsFast(text)).toEqual([
 			toStoredCandle(candle()),
 			toStoredCandle(
 				candle({
+					askVolume: 12,
+					bidVolume: 8,
 					close: 101.75,
 					high: 102,
 					id: 1n,
@@ -115,7 +110,6 @@ describe('csv output', () => {
 			)
 		]);
 	});
-
 	it('rejects unexpected candle row headers', () => {
 		expect(() =>
 			parseCandleRowsFast(
@@ -123,25 +117,23 @@ describe('csv output', () => {
 			)
 		).toThrow('Unexpected candle row header');
 	});
-
 	it('returns no candles when fixed-schema rows only contain a header', () => {
 		expect(parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n`)).toEqual([]);
 		expect(parseCandleRowsFast('')).toEqual([]);
 	});
-
 	it('rejects fixed-schema candle rows with missing or extra fields', () => {
 		expect(() =>
 			parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n1,2,3,4,5,6,7,8\n`)
-		).toThrow('Expected 9 candle row fields on line 2');
-
+		).toThrow('Expected 11 candle row fields on line 2');
 		expect(() =>
-			parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n1,2,3,4,5,6,7,8,9,10\n`)
+			parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n1,2,3,4,5,6,7,8,9,10,11,12\n`)
 		).toThrow('Unexpected extra candle row field on line 2');
 	});
 });
-
 function candle(overrides: Partial<MdCandle> = {}): MdCandle {
 	return {
+		askVolume: 9,
+		bidVolume: 6,
 		close: 100.5,
 		high: 101,
 		id: 1_700_000_000_000_000_000n,
@@ -154,7 +146,6 @@ function candle(overrides: Partial<MdCandle> = {}): MdCandle {
 		...overrides
 	};
 }
-
 function priceLevelCandle(): MdCandleVolumeByPrice {
 	return {
 		...candle(),

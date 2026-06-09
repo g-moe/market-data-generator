@@ -1,6 +1,7 @@
 import { ID_SEQUENCE_MULTIPLIER } from '../contracts/defaults.ts';
 import type {
 	MarketTick,
+	TradeSide,
 	MdCandle,
 	MdCandleVolumeByPrice
 } from '../contracts/types.ts';
@@ -14,6 +15,8 @@ type MutableCandle = {
 	priceVolume: number;
 	time: number;
 	volume: number;
+	bidVolume: number;
+	askVolume: number;
 };
 
 export class PriceLevelAggregator {
@@ -23,24 +26,25 @@ export class PriceLevelAggregator {
 	private pos = 0;
 
 	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
-		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted, tick.side);
 	}
 
 	pushTickValues(
 		time: number,
 		price: number,
 		volume: number,
-		emitted: MdCandleVolumeByPrice[]
+		emitted: MdCandleVolumeByPrice[],
+		side: TradeSide | undefined = undefined
 	) {
 		const bucket = floorTime(time, 1000);
 		if (this.current === undefined || this.current.candle.time !== bucket) {
 			this.emitCurrent(emitted);
 			this.current = {
-				candle: createMutableCandleForValues(price, bucket, volume),
+				candle: createMutableCandleForValues(price, bucket, volume, side),
 				prices: new Map()
 			};
 		} else {
-			addTickValues(this.current.candle, price, volume);
+			addTickValues(this.current.candle, price, volume, side);
 		}
 
 		this.current.prices.set(
@@ -87,7 +91,7 @@ export class TimeAggregator {
 	}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
-		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted, tick.side);
 	}
 
 	pushTickForBucket(tick: MarketTick, bucket: number, emitted: MdCandle[]) {
@@ -96,7 +100,8 @@ export class TimeAggregator {
 			tick.price,
 			tick.volume,
 			bucket,
-			emitted
+			emitted,
+			tick.side
 		);
 	}
 
@@ -104,13 +109,14 @@ export class TimeAggregator {
 		time: number,
 		price: number,
 		volume: number,
-		emitted: MdCandle[]
+		emitted: MdCandle[],
+		side: TradeSide | undefined = undefined
 	) {
 		const bucket =
 			this.bucketMs === undefined
 				? this.requireGetBucket()(time)
 				: Math.floor(time / this.bucketMs) * this.bucketMs;
-		this.pushTickValuesForBucket(time, price, volume, bucket, emitted);
+		this.pushTickValuesForBucket(time, price, volume, bucket, emitted, side);
 	}
 
 	pushTickValuesForBucket(
@@ -118,13 +124,14 @@ export class TimeAggregator {
 		price: number,
 		volume: number,
 		bucket: number,
-		emitted: MdCandle[]
+		emitted: MdCandle[],
+		side: TradeSide | undefined = undefined
 	) {
 		if (this.current === undefined || this.current.time !== bucket) {
 			this.emitCurrent(emitted);
-			this.current = createMutableCandleForValues(price, bucket, volume);
+			this.current = createMutableCandleForValues(price, bucket, volume, side);
 		} else {
-			addTickValues(this.current, price, volume);
+			addTickValues(this.current, price, volume, side);
 		}
 	}
 
@@ -163,14 +170,15 @@ export class IntervalTimeAggregator {
 		time: number,
 		price: number,
 		volume: number,
-		emitted: MdCandle[]
+		emitted: MdCandle[],
+		side: TradeSide | undefined = undefined
 	) {
 		const bucket = Math.floor(time / this.bucketMs) * this.bucketMs;
 		if (this.current === undefined || this.current.time !== bucket) {
 			this.emitCurrent(emitted);
-			this.current = createMutableCandleForValues(price, bucket, volume);
+			this.current = createMutableCandleForValues(price, bucket, volume, side);
 		} else {
-			addTickValues(this.current, price, volume);
+			addTickValues(this.current, price, volume, side);
 		}
 	}
 
@@ -198,14 +206,15 @@ export class VolumeAggregator {
 	constructor(private readonly targetVolume: number) {}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
-		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted, tick.side);
 	}
 
 	pushTickValues(
 		time: number,
 		price: number,
 		tickVolume: number,
-		emitted: MdCandle[]
+		emitted: MdCandle[],
+		side: TradeSide | undefined = undefined
 	) {
 		let remaining = tickVolume;
 		while (remaining > 0) {
@@ -214,7 +223,7 @@ export class VolumeAggregator {
 				this.targetVolume - (this.current?.volume ?? 0)
 			);
 			if (this.current === undefined) {
-				this.current = createMutableCandleForValues(price, time, volume);
+				this.current = createMutableCandleForValues(price, time, volume, side);
 			} else {
 				addTickValues(this.current, price, volume);
 			}
@@ -265,9 +274,14 @@ export class VolumeAggregator {
 function createMutableCandleForValues(
 	price: number,
 	time: number,
-	volume: number
+	volume: number,
+	side: TradeSide | undefined = undefined
 ): MutableCandle {
+	const { bidVolume, askVolume } = splitSideVolume(volume, side);
+
 	return {
+		askVolume,
+		bidVolume,
 		close: price,
 		high: price,
 		low: price,
@@ -278,12 +292,21 @@ function createMutableCandleForValues(
 	};
 }
 
-function addTickValues(candle: MutableCandle, price: number, volume: number) {
+function addTickValues(
+	candle: MutableCandle,
+	price: number,
+	volume: number,
+	side: TradeSide | undefined = undefined
+) {
+	const { bidVolume, askVolume } = splitSideVolume(volume, side);
+
 	candle.close = price;
 	candle.high = Math.max(candle.high, price);
 	candle.low = Math.min(candle.low, price);
 	candle.priceVolume += price * volume;
 	candle.volume += volume;
+	candle.bidVolume += bidVolume;
+	candle.askVolume += askVolume;
 }
 
 function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
@@ -296,6 +319,8 @@ function finalizeMutableCandleWithId(
 	id: bigint
 ): MdCandle {
 	return {
+		askVolume: candle.askVolume,
+		bidVolume: candle.bidVolume,
 		close: candle.close,
 		high: candle.high,
 		id,
@@ -314,6 +339,8 @@ function finalizeMutablePriceLevelCandle(
 	prices: Map<number, number>
 ): MdCandleVolumeByPrice {
 	return {
+		askVolume: candle.askVolume,
+		bidVolume: candle.bidVolume,
 		close: candle.close,
 		high: candle.high,
 		id: createBarId(candle.time, 0),
@@ -324,6 +351,13 @@ function finalizeMutablePriceLevelCandle(
 		time: candle.time,
 		volume: candle.volume,
 		vwap: candle.priceVolume / candle.volume
+	};
+}
+
+function splitSideVolume(volume: number, side: TradeSide | undefined) {
+	return {
+		askVolume: side === 'ask' ? volume : 0,
+		bidVolume: side === 'bid' ? volume : 0
 	};
 }
 
