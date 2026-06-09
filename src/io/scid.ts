@@ -153,7 +153,7 @@ function writeTickValues(
 	bidVolume: number,
 	askVolume: number
 ) {
-	output.setUint32(offset, scDateTimeMs % UINT32_SIZE, true);
+	output.setUint32(offset, scDateTimeMs >>> 0, true);
 	output.setInt32(offset + 4, Math.floor(scDateTimeMs / UINT32_SIZE), true);
 	output.setFloat32(offset + 8, price, true);
 	output.setFloat32(offset + 12, price, true);

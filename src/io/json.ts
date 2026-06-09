@@ -11,7 +11,7 @@ import type {
 export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 	private handle: FileHandle | undefined;
 	private hasItems = false;
-	private readonly iterableChunkSize = 1_024;
+	private readonly iterableChunkSize = 512;
 	private readonly outputChunk: string[] = [];
 
 	constructor(
