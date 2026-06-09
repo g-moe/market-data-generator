@@ -14,6 +14,7 @@ const MICROSECONDS_PER_MILLISECOND = 1000n;
 export class ScidTickWriter {
 	private handle: FileHandle | undefined;
 	private readonly output: Buffer;
+	private readonly outputView: DataView;
 	private recordCount = 0;
 
 	constructor(
@@ -21,6 +22,11 @@ export class ScidTickWriter {
 		bufferRecords = DEFAULT_BUFFER_RECORDS
 	) {
 		this.output = Buffer.alloc(bufferRecords * RECORD_SIZE);
+		this.outputView = new DataView(
+			this.output.buffer,
+			this.output.byteOffset,
+			this.output.byteLength
+		);
 	}
 
 	async open() {
@@ -44,7 +50,7 @@ export class ScidTickWriter {
 
 	pushTickValues(time: number, price: number, volume: number, side: TradeSide) {
 		writeTickValues(
-			this.output,
+			this.outputView,
 			this.recordCount * RECORD_SIZE,
 			time,
 			price,
@@ -107,7 +113,7 @@ function writeHeader(output: Buffer) {
 }
 
 function writeTickValues(
-	output: Buffer,
+	output: DataView,
 	offset: number,
 	time: number,
 	price: number,
@@ -115,22 +121,26 @@ function writeTickValues(
 	side: TradeSide
 ) {
 	writeScDateTimeMsValue(output, offset, time);
-	output.writeFloatLE(price, offset + 8);
-	output.writeFloatLE(price, offset + 12);
-	output.writeFloatLE(price, offset + 16);
-	output.writeFloatLE(price, offset + 20);
-	output.writeUInt32LE(1, offset + 24);
-	output.writeUInt32LE(volume, offset + 28);
-	output.writeUInt32LE(side === 'bid' ? volume : 0, offset + 32);
-	output.writeUInt32LE(side === 'ask' ? volume : 0, offset + 36);
+	output.setFloat32(offset + 8, price, true);
+	output.setFloat32(offset + 12, price, true);
+	output.setFloat32(offset + 16, price, true);
+	output.setFloat32(offset + 20, price, true);
+	output.setUint32(offset + 24, 1, true);
+	output.setUint32(offset + 28, volume, true);
+	output.setUint32(offset + 32, side === 'bid' ? volume : 0, true);
+	output.setUint32(offset + 36, side === 'ask' ? volume : 0, true);
 }
 
 export function toScDateTimeMs(date: Date) {
 	return BigInt(date.getTime() - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
 }
 
-function writeScDateTimeMsValue(output: Buffer, offset: number, time: number) {
+function writeScDateTimeMsValue(
+	output: DataView,
+	offset: number,
+	time: number
+) {
 	const value = (time - SCID_EPOCH_MS) * 1000;
-	output.writeUInt32LE(value % UINT32_SIZE, offset);
-	output.writeInt32LE(Math.floor(value / UINT32_SIZE), offset + 4);
+	output.setUint32(offset, value % UINT32_SIZE, true);
+	output.setInt32(offset + 4, Math.floor(value / UINT32_SIZE), true);
 }
