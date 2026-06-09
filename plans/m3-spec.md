@@ -1,4 +1,4 @@
-﻿# Milestone 3: Sierra Sync Spec
+# Milestone 3: Sierra Sync Spec
 
 ## Plain-English Goal
 
@@ -12,7 +12,7 @@ After validation passes, write our generated rows to `data-out/<symbol>/${user-c
 
 These checkpoints are the main control points for the milestone. An agent may mark a checkpoint as ready for review only after implementation and verification are complete, but the checkpoint is not complete until a human reviews and accepts it.
 
-1. Running `sierra-sync` generates data and forces Sierra to reload.
+1. Running `generate:sierra` generates data and forces Sierra to reload.
 2. After reload, the sync detects fresh Sierra `.txt` exports.
 3. 1-second OHLCV bars match Sierra's OHLCV bars.
 4. 15-second, 5-minute, 500-volume, and 1-day bars match Sierra's OHLCV bars.
@@ -20,11 +20,11 @@ These checkpoints are the main control points for the milestone. An agent may ma
 
 ## End-to-End Flow
 
-1. Run the new `sierra-sync` flow from the Windows VM.
-2. `sierra-sync` runs the existing generation code and writes normal generated inputs to `data-in`.
+1. Run the new `generate:sierra` flow from the Windows VM.
+2. `generate:sierra` runs the existing generation code and writes normal generated inputs to `data-in`.
 3. Sierra Chart reloads the charts that consume the newly generated `.scid` data.
 4. Sierra exports chart bars and study data to `.txt` files in its Data directory.
-5. `sierra-sync` waits until Sierra has written a fresh export file for every generated timeframe we need to validate.
+5. `generate:sierra` waits until Sierra has written a fresh export file for every generated timeframe we need to validate.
 6. For each generated CSV, find the matching Sierra export and skip Sierra rows until the first generated bar timestamp is found.
 7. Starting at that timestamp, compare each generated bar to the matching Sierra bar in order.
 8. If all compared bars match, write merged output to `data-out/<symbol>/${user-cli-arg}`.
@@ -49,13 +49,13 @@ The sync should validate every generated bar file that has a Sierra chart export
 
 Sierra export filenames should follow the chart names shown in Sierra. Confirm the exact on-disk filenames during planning because Sierra may add suffixes such as study, region, or graph-data markers:
 
-| Our file | Sierra chart name | Expected Sierra export pattern | Bar type |
-| --- | --- | --- | --- |
-| `tradester_ES_1s_pl0.25.csv` | `tradester_ES 1 Sec #1 L:1` | `tradester_ES 1 Sec #1*_GraphData.txt` | 1 second |
-| `tradester_ES_15s_*.csv` | `tradester_ES 15 Sec #2 L:1` | `tradester_ES 15 Sec #2*_GraphData.txt` | 15 seconds |
-| `tradester_ES_500v.csv` | `tradester_ES 500 Volume #3 L:1` | `tradester_ES 500 Volume #3*_GraphData.txt` | 500 volume |
-| `tradester_ES_5m.csv` | `tradester_ES 5 Min #4 L:1` | `tradester_ES 5 Min #4*_GraphData.txt` | 5 minutes |
-| `tradester_ES_1d.csv` | `tradester_ES 1 Day #5 L:1` | `tradester_ES 1 Day #5*_GraphData.txt` | 1 day |
+| Our file                     | Sierra chart name                | Expected Sierra export pattern              | Bar type   |
+| ---------------------------- | -------------------------------- | ------------------------------------------- | ---------- |
+| `tradester_ES_1s_pl0.25.csv` | `tradester_ES 1 Sec #1 L:1`      | `tradester_ES 1 Sec #1*_GraphData.txt`      | 1 second   |
+| `tradester_ES_15s_*.csv`     | `tradester_ES 15 Sec #2 L:1`     | `tradester_ES 15 Sec #2*_GraphData.txt`     | 15 seconds |
+| `tradester_ES_500v.csv`      | `tradester_ES 500 Volume #3 L:1` | `tradester_ES 500 Volume #3*_GraphData.txt` | 500 volume |
+| `tradester_ES_5m.csv`        | `tradester_ES 5 Min #4 L:1`      | `tradester_ES 5 Min #4*_GraphData.txt`      | 5 minutes  |
+| `tradester_ES_1d.csv`        | `tradester_ES 1 Day #5 L:1`      | `tradester_ES 1 Day #5*_GraphData.txt`      | 1 day      |
 
 ## Sierra Export Shape
 
@@ -97,12 +97,12 @@ For each file pair:
 5. Validate only these fields:
 
 | Our field | Sierra field |
-| --- | --- |
-| `open` | `Open` |
-| `high` | `High` |
-| `low` | `Low` |
-| `close` | `Last` |
-| `volume` | `Volume` |
+| --------- | ------------ |
+| `open`    | `Open`       |
+| `high`    | `High`       |
+| `low`     | `Low`        |
+| `close`   | `Last`       |
+| `volume`  | `Volume`     |
 
 Hard fail when:
 
@@ -145,20 +145,20 @@ Expected structure:
 ```txt
 src/
   md-generation/
-  sierra-sync/
+  generate:sierra/
   shared/
     cli/
     io/
   contracts/
     md-generation/
-    sierra-sync/
+    generate:sierra/
     shared/
 ```
 
 Both generation flows should support CLI and non-CLI entry points:
 
 1. `md-generation`
-2. `sierra-sync`
+2. `generate:sierra`
 
 The CLI and non-CLI versions should share the same argument model.
 
@@ -177,7 +177,6 @@ Test the logic with unit tests:
 - Output row construction with appended `tradester_` columns
 
 Add an integration test that follows the milestone flow in steps, using the existing generation integration-test pattern where possible.
-
 
 ## Planning Decisions And Research Items
 

@@ -16,8 +16,11 @@ import {
 	PRICE_LEVEL_CANDLE_ROW_HEADER,
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow
-} from '../io/csv.ts';
-import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../io/scid.ts';
+} from '../shared/file-ops/csv.ts';
+import {
+	SCID_EPOCH_OFFSET_MS,
+	ScidTickWriter
+} from '../shared/file-ops/scid.ts';
 import {
 	createBarId,
 	IntervalTimeAggregator,

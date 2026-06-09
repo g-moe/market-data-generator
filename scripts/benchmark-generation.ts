@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_ANCHOR_ISO, DEFAULT_SEED } from '../src/contracts/defaults.ts';
 import type { GeneratorInputs } from '../src/contracts/types.ts';
-import { generateMarketData } from '../src/domain/generate-market-data.ts';
+import { generateMarketData } from '../src/md-generation/generate-market-data.ts';
 
 type Scenario = {
 	name: string;

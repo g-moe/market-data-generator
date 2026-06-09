@@ -6,7 +6,7 @@ import type {
 	MdCandleVolumeByPrice,
 	StoredMdCandle,
 	StoredMdCandleVolumeByPrice
-} from '../contracts/types.ts';
+} from '../../contracts/types.ts';
 
 export const CANDLE_ROW_HEADER =
 	'id,time,pos,open,high,low,close,volume,bidVolume,askVolume,vwap';

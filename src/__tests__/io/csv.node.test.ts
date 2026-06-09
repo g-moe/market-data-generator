@@ -12,7 +12,7 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow,
 	toStoredPriceLevelCandle
-} from '../../io/csv.ts';
+} from '../../shared/file-ops/csv.ts';
 describe('csv output', () => {
 	it('stores bigint candle ids as strings', () => {
 		expect(toStoredCandle(candle())).toEqual({

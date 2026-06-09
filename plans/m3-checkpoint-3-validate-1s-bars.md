@@ -1,4 +1,4 @@
-﻿# M3 Checkpoint 3 Plan: Validate 1-Second Bars
+# M3 Checkpoint 3 Plan: Validate 1-Second Bars
 
 ## Checkpoint
 

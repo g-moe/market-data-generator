@@ -18,7 +18,9 @@
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",
-		"format:check": "oxfmt --check"
+		"format:check": "oxfmt --check",
+		"generate:sierra": "tsx src/run-sierra-sync.ts",
+		"generate:sierra:without": "tsx src/run-sierra-sync-without-cli.ts"
 	},
 	"devDependencies": {
 		"@types/node": "24.12.4",

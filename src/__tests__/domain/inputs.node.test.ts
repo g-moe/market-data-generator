@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { normalizeInputs } from '../../domain/inputs.ts';
+import { normalizeInputs } from '../../md-generation/inputs.ts';
 
 describe('normalizeInputs', () => {
 	it('normalizes valid symbol-only inputs', () => {

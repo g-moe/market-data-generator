@@ -4,8 +4,8 @@ import type {
 	GenerationProgress,
 	GenerationResult,
 	GeneratorInputs
-} from '../contracts/types.ts';
-import { generateMarketData } from '../domain/generate-market-data.ts';
+} from '../../contracts/types.ts';
+import { generateMarketData } from '../../md-generation/generate-market-data.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }

@@ -1,6 +1,6 @@
-import { generateMarketData } from './domain/generate-market-data.ts';
-import { normalizeInputs } from './domain/inputs.ts';
-import { formatProgressMessage } from './cli/progress.ts';
+import { generateMarketData } from './md-generation/generate-market-data.ts';
+import { normalizeInputs } from './md-generation/inputs.ts';
+import { formatProgressMessage } from './shared/cli/progress.ts';
 
 const inputs = normalizeInputs({
 	symbol: 'ES'

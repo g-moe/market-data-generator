@@ -7,7 +7,7 @@ import {
 	getSessionStart,
 	getUtcParts,
 	isMarketOpen
-} from '../../domain/market-time.ts';
+} from '../../md-generation/market-time.ts';
 
 describe('futures market time', () => {
 	it('detects equity-index futures open and maintenance periods in Central time', () => {

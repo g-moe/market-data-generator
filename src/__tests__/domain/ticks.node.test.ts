@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { getSymbolConfig } from '../../contracts/symbols.ts';
 import type { GeneratorInputs, MarketTick } from '../../contracts/types.ts';
-import { normalizeInputs } from '../../domain/inputs.ts';
-import { getSessionStart } from '../../domain/market-time.ts';
+import { normalizeInputs } from '../../md-generation/inputs.ts';
+import { getSessionStart } from '../../md-generation/market-time.ts';
 import {
 	deriveSessionSeed,
 	generateSessionTicksForStart,
 	getSessionOpenPrice
-} from '../../domain/ticks.ts';
+} from '../../md-generation/ticks.ts';
 
 describe('generateSessionTicksForStart', () => {
 	it('generates deterministic ES ticks for a session', () => {

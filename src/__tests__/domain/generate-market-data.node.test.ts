@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	generateMarketData,
 	getOutputFiles
-} from '../../domain/generate-market-data.ts';
-import { normalizeInputs } from '../../domain/inputs.ts';
-import { CANDLE_ROW_HEADER } from '../../io/csv.ts';
+} from '../../md-generation/generate-market-data.ts';
+import { normalizeInputs } from '../../md-generation/inputs.ts';
+import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
 
 describe('generateMarketData', () => {
 	it('writes all tick-first outputs for ES', async () => {

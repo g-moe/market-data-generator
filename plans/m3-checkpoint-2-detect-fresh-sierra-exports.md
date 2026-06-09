@@ -1,4 +1,4 @@
-﻿# M3 Checkpoint 2 Plan: Detect Fresh Sierra Exports
+# M3 Checkpoint 2 Plan: Detect Fresh Sierra Exports
 
 ## Checkpoint
 
@@ -8,7 +8,7 @@ An agent can mark this checkpoint ready for review after implementation and veri
 
 ## Plain-English Outcome
 
-After Sierra reloads, `sierra-sync` waits until every required Sierra export file exists, was written for the current run, and contains readable bar/study data.
+After Sierra reloads, `generate:sierra` waits until every required Sierra export file exists, was written for the current run, and contains readable bar/study data.
 
 ## Researched Facts
 
@@ -24,13 +24,13 @@ After Sierra reloads, `sierra-sync` waits until every required Sierra export fil
 
 Use the chart names from the hard spec as the logical mapping, but discover exact files by current run metadata whenever possible.
 
-| Bar type | Our generated CSV | Sierra chart name | Current/expected Sierra export |
-| --- | --- | --- | --- |
-| 1 second | `tradester_ES_1s_pl0.25.csv` | `tradester_ES 1 Sec #1 L:1` | currently observed as `tradester_ES[M]  1 Sec  #1_GraphData.txt` |
-| 15 seconds | `tradester_ES_15s.csv` | `tradester_ES 15 Sec #2 L:1` | expected `*15 Sec*#2*_GraphData.txt` |
-| 500 volume | `tradester_ES_500v.csv` | `tradester_ES 500 Volume #3 L:1` | expected `*500 Volume*#3*_GraphData.txt` |
-| 5 minutes | `tradester_ES_5m.csv` | `tradester_ES 5 Min #4 L:1` | expected `*5 Min*#4*_GraphData.txt` |
-| 1 day | `tradester_ES_1d.csv` | `tradester_ES 1 Day #5 L:1` | expected `*1 Day*#5*_GraphData.txt` |
+| Bar type   | Our generated CSV            | Sierra chart name                | Current/expected Sierra export                                   |
+| ---------- | ---------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| 1 second   | `tradester_ES_1s_pl0.25.csv` | `tradester_ES 1 Sec #1 L:1`      | currently observed as `tradester_ES[M]  1 Sec  #1_GraphData.txt` |
+| 15 seconds | `tradester_ES_15s.csv`       | `tradester_ES 15 Sec #2 L:1`     | expected `*15 Sec*#2*_GraphData.txt`                             |
+| 500 volume | `tradester_ES_500v.csv`      | `tradester_ES 500 Volume #3 L:1` | expected `*500 Volume*#3*_GraphData.txt`                         |
+| 5 minutes  | `tradester_ES_5m.csv`        | `tradester_ES 5 Min #4 L:1`      | expected `*5 Min*#4*_GraphData.txt`                              |
+| 1 day      | `tradester_ES_1d.csv`        | `tradester_ES 1 Day #5 L:1`      | expected `*1 Day*#5*_GraphData.txt`                              |
 
 Gut decision: if the ACSIL bridge controls `OutputPathAndFileName`, use deterministic filenames instead of globbing Sierra's generated names: `tradester_ES_1s_GraphData.txt`, `tradester_ES_15s_GraphData.txt`, `tradester_ES_500v_GraphData.txt`, `tradester_ES_5m_GraphData.txt`, and `tradester_ES_1d_GraphData.txt`.
 
@@ -41,7 +41,7 @@ If we cannot control filenames yet, use strict glob patterns plus chart-number m
 A file is fresh only when all are true:
 
 - It exists.
-- Its last write time is greater than or equal to the `sierra-sync` reload request timestamp.
+- Its last write time is greater than or equal to the `generate:sierra` reload request timestamp.
 - Its size is greater than the header-only minimum.
 - Its header contains `Date`, `Time`, `Open`, `High`, `Low`, `Last`, and `Volume`.
 - Its header can include zero or more `tradester_` columns.
@@ -77,7 +77,7 @@ Default preference:
 
 ## Done Criteria
 
-- `sierra-sync` can identify all five required export files or fail with a clear missing-file message.
+- `generate:sierra` can identify all five required export files or fail with a clear missing-file message.
 - The detected files are fresh for the current run.
 - The detected files expose required OHLCV columns and any `tradester_` study columns.
 - The timestamp mode is proven or explicitly recorded as unresolved with a blocking reason.

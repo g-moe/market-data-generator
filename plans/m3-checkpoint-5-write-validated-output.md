@@ -1,4 +1,4 @@
-﻿# M3 Checkpoint 5 Plan: Write Validated Output
+# M3 Checkpoint 5 Plan: Write Validated Output
 
 ## Checkpoint
 

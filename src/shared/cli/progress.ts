@@ -1,4 +1,4 @@
-import type { GenerationProgress } from '../contracts/types.ts';
+import type { GenerationProgress } from '../../contracts/types.ts';
 
 export function formatProgressMessage(progress: GenerationProgress) {
 	if (progress.completed % 100 !== 0 && progress.completed !== progress.total) {

@@ -3,13 +3,13 @@ import { createInterface } from 'node:readline/promises';
 import { styleText } from 'node:util';
 import { Worker } from 'node:worker_threads';
 
-import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
+import { SYMBOL_OPTIONS } from '../../contracts/symbols.ts';
 import type {
 	GenerationProgress,
 	GenerationResult,
 	GeneratorInputs
-} from '../contracts/types.ts';
-import { normalizeInputs } from '../domain/inputs.ts';
+} from '../../contracts/types.ts';
+import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { formatProgressMessage } from './progress.ts';
 
 type Choice = {

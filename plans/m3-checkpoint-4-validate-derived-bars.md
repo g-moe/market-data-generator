@@ -1,4 +1,4 @@
-﻿# M3 Checkpoint 4 Plan: Validate Derived Bars
+# M3 Checkpoint 4 Plan: Validate Derived Bars
 
 ## Checkpoint
 
@@ -12,12 +12,12 @@ After 1-second validation works, use the same parser and comparison rules for ev
 
 ## Files
 
-| Bar type | Our generated CSV | Sierra chart name | Validation fields |
-| --- | --- | --- | --- |
-| 15 seconds | `tradester_ES_15s.csv` | `tradester_ES 15 Sec #2 L:1` | OHLCV |
-| 5 minutes | `tradester_ES_5m.csv` | `tradester_ES 5 Min #4 L:1` | OHLCV |
-| 500 volume | `tradester_ES_500v.csv` | `tradester_ES 500 Volume #3 L:1` | OHLCV |
-| 1 day | `tradester_ES_1d.csv` | `tradester_ES 1 Day #5 L:1` | OHLCV |
+| Bar type   | Our generated CSV       | Sierra chart name                | Validation fields |
+| ---------- | ----------------------- | -------------------------------- | ----------------- |
+| 15 seconds | `tradester_ES_15s.csv`  | `tradester_ES 15 Sec #2 L:1`     | OHLCV             |
+| 5 minutes  | `tradester_ES_5m.csv`   | `tradester_ES 5 Min #4 L:1`      | OHLCV             |
+| 500 volume | `tradester_ES_500v.csv` | `tradester_ES 500 Volume #3 L:1` | OHLCV             |
+| 1 day      | `tradester_ES_1d.csv`   | `tradester_ES 1 Day #5 L:1`      | OHLCV             |
 
 ## Researched Facts
 

@@ -8,7 +8,7 @@ import {
 	ScidTickWriter,
 	tickToScidRecord,
 	toScDateTimeMs
-} from '../../io/scid.ts';
+} from '../../shared/file-ops/scid.ts';
 
 describe('scid output', () => {
 	it('writes raw ticks as Sierra Chart intraday records', async () => {

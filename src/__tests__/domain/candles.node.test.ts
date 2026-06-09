@@ -10,8 +10,11 @@ import {
 	PriceLevelAggregator,
 	TimeAggregator,
 	VolumeAggregator
-} from '../../domain/candles.ts';
-import { floorTime, getDailySessionStart } from '../../domain/market-time.ts';
+} from '../../md-generation/candles.ts';
+import {
+	floorTime,
+	getDailySessionStart
+} from '../../md-generation/market-time.ts';
 
 describe('streaming candle aggregators', () => {
 	it('returns empty series without ticks', () => {
