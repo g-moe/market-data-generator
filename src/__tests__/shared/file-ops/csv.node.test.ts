@@ -2,7 +2,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { MdCandle, MdCandleVolumeByPrice } from '../../contracts/types.ts';
+import type {
+	MdCandle,
+	MdCandleVolumeByPrice
+} from '../../../contracts/types.ts';
 import {
 	CandleRowWriter,
 	CANDLE_ROW_HEADER,
@@ -12,7 +15,7 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow,
 	toStoredPriceLevelCandle
-} from '../../shared/file-ops/csv.ts';
+} from '../../../shared/file-ops/csv.ts';
 describe('csv output', () => {
 	it('stores bigint candle ids as strings', () => {
 		expect(toStoredCandle(candle())).toEqual({

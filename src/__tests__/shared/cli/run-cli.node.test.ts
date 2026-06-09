@@ -5,7 +5,7 @@ import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runCli, type CliPorts } from '../../shared/cli/run-cli.ts';
+import { runCli, type CliPorts } from '../../../shared/cli/run-cli.ts';
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -82,7 +82,7 @@ describe('runCli worker handling', () => {
 		}));
 
 		const { runCli: runCliWithMockWorker } =
-			await import('../../shared/cli/run-cli.ts');
+			await import('../../../shared/cli/run-cli.ts');
 
 		await expect(
 			runCliWithMockWorker(
@@ -110,7 +110,7 @@ describe('runCli worker handling', () => {
 		}));
 
 		const { runCli: runCliWithMockWorker } =
-			await import('../../shared/cli/run-cli.ts');
+			await import('../../../shared/cli/run-cli.ts');
 
 		await expect(
 			runCliWithMockWorker(
@@ -129,7 +129,7 @@ describe('createNodePorts', () => {
 		const input = readable('1\n');
 		const output = writable();
 
-		const { createNodePorts } = await import('../../shared/cli/run-cli.ts');
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
 		const promptPorts = createNodePorts({ input, output });
 
 		await expect(
@@ -155,11 +155,20 @@ describe('createNodePorts', () => {
 		expect(output.chunks.join('')).toContain('◇Done\n');
 		expect(output.chunks.join('')).toContain('■Failed\n');
 	});
+	it('reads text prompt input', async () => {
+		const input = readable('my-run\n');
+		const output = writable();
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
+		const promptPorts = createNodePorts({ input, output });
+
+		await expect(promptPorts.prompt('Run name')).resolves.toBe('my-run');
+		expect(output.chunks.join('')).toContain('Run name: ');
+	});
 
 	it('prompts again until a valid choice is entered', async () => {
 		const input = readable('\nbad\n2\n');
 		const output = writable();
-		const { createNodePorts } = await import('../../shared/cli/run-cli.ts');
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
 		const promptPorts = createNodePorts({ input, output });
 
 		await expect(
@@ -175,14 +184,21 @@ describe('createNodePorts', () => {
 
 function ports({
 	events,
-	selectAnswers
+	selectAnswers,
+	promptAnswers = []
 }: {
 	events: string[];
 	selectAnswers: string[];
+	promptAnswers?: string[];
 }): CliPorts {
 	return {
 		log: (message) => {
 			events.push(`log:${message}`);
+		},
+		prompt: async (message) => {
+			events.push(`prompt:${message}`);
+
+			return promptAnswers.shift() ?? '';
 		},
 		select: async (message) => {
 			events.push(`select:${message}`);

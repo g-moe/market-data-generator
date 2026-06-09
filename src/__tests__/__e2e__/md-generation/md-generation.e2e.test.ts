@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { generateMarketData } from '../../md-generation/generate-market-data.ts';
-import { normalizeInputs } from '../../md-generation/inputs.ts';
+import { generateMarketData } from '../../../md-generation/generate-market-data.ts';
+import { normalizeInputs } from '../../../md-generation/inputs.ts';
 
 const REQUESTED_DAILY_SESSIONS = 20_000;
 const GENERATED_TICK_SESSIONS = 14_721; // this is not 20k because session before Unix epoch are padded

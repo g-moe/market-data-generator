@@ -6,7 +6,7 @@
 	"scripts": {
 		"generate": "tsx src/run.ts",
 		"generate:without": "tsx src/run-without-cli.ts",
-        "generate:sierra": "tsx src/run-sierra-sync.ts",
+		"generate:sierra": "tsx src/run-sierra-sync.ts",
 		"generate:sierra:without": "tsx src/run-sierra-sync-without-cli.ts",
 		"dev": "tsx watch src/run.ts",
 		"build": "tsc --project ./tsconfig.build.json",
@@ -20,7 +20,9 @@
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",
-		"format:check": "oxfmt --check"
+		"format:check": "oxfmt --check",
+		"test:e2e:sierra": "vitest run --project e2e src/__tests__/__e2e__/sierra-sync/sierra-sync.e2e.test.ts",
+		"test:e2e:md-generation": "vitest run --project e2e src/__tests__/__e2e__/md-generation/md-generation.e2e.test.ts"
 	},
 	"devDependencies": {
 		"@types/node": "24.12.4",

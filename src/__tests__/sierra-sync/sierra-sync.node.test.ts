@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdtemp } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 import type { GenerationResult } from '../../contracts/types.ts';
@@ -25,14 +25,17 @@ const GENERATED_FILES = {
 describe('createSierraSyncRequest', () => {
 	it('builds the Sierra reload request from generation output', () => {
 		const request = createSierraSyncRequest({
+			bridgeDllPaths: [join('Data', 'tradester_sync_bridge_ARM64.dll')],
 			bridgeInstalledPath: join('ACS_Source', 'tradester_sync_bridge.cpp'),
 			bridgeSourcePath: join('src-sierra-cpp', 'tradester_sync_bridge.cpp'),
+			dataOutTempDir: join('data-out-temp', 'ES', 'run-1'),
 			generation: generationResult(),
 			requestedAt: new Date('2026-06-09T18:00:00.000Z'),
 			runId: 'run-1'
 		});
 
 		expect(request).toMatchObject({
+			bridgeDllPaths: [join('Data', 'tradester_sync_bridge_ARM64.dll')],
 			generatedFiles: GENERATED_FILES,
 			requestedAt: '2026-06-09T18:00:00.000Z',
 			runId: 'run-1',
@@ -58,20 +61,37 @@ describe('createSierraSyncRequest', () => {
 });
 
 describe('runSierraSync', () => {
-	it('generates into data-in/symbol and writes the Sierra request file', async () => {
+	it('generates into data-in/symbol, builds the bridge DLLs, and writes the Sierra request file', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-sync-'));
-		const sierraDataDir = join(root, 'sierra-data');
+		const bridgeSourcePath = join(
+			root,
+			'src-sierra-cpp',
+			'tradester_sync_bridge.cpp'
+		);
+		const acsSourceDir = join(root, 'Sierra Chart', 'ACS_Source');
+		const sierraDataDir = join(root, 'Sierra Chart', 'Data');
+		const bridgeDllPaths = [
+			join(sierraDataDir, 'tradester_sync_bridge_ARM64.dll'),
+			join(sierraDataDir, 'tradester_sync_bridge_64.dll')
+		];
 
 		try {
+			await mkdir(join(root, 'src-sierra-cpp'), { recursive: true });
+			await writeFile(bridgeSourcePath, 'bridge source');
+
 			const result = await runSierraSync(
 				{
+					acsSourceDir,
+					bridgeSourcePath,
 					dataInRoot: join(root, 'data-in'),
 					dataOutRoot: join(root, 'data-out'),
+					dataOutTempRoot: join(root, 'data-out-temp'),
 					sierraDataDir,
 					symbol: 'ES',
 					syncRunId: 'review-run'
 				},
 				{
+					buildSierraBridge: async () => bridgeDllPaths,
 					generate: async (inputs) => generationResult(inputs.outputDir),
 					now: () => new Date('2026-06-09T18:00:00.000Z')
 				}
@@ -81,12 +101,21 @@ describe('runSierraSync', () => {
 				join(root, 'data-in', 'ES')
 			);
 			expect(result.outputDir).toBe(join(root, 'data-out', 'ES', 'review-run'));
+			expect(result.bridgeInstalledPath).toBe(
+				join(acsSourceDir, 'tradester_sync_bridge.cpp')
+			);
+			await expect(readFile(result.bridgeInstalledPath, 'utf8')).resolves.toBe(
+				'bridge source'
+			);
+			expect(result.bridgeDllPaths).toEqual(bridgeDllPaths);
 			expect(result.requestPath).toBe(
 				join(sierraDataDir, SIERRA_SYNC_REQUEST_FILE)
 			);
 			expect(
 				JSON.parse(await readFile(result.requestPath, 'utf8'))
 			).toMatchObject({
+				bridgeDllPaths,
+				dataOutTempDir: join(root, 'data-out-temp', 'ES', 'review-run'),
 				runId: 'review-run',
 				symbolId: 'ES'
 			});

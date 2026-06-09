@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { isMainModule } from '../../shared/cli/is-main-module.ts';
+import { isMainModule } from '../../../shared/cli/is-main-module.ts';
 
 describe('isMainModule', () => {
 	it('matches the current entrypoint path using file URL semantics', () => {

@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import type { MarketTick } from '../../contracts/types.ts';
+import type { MarketTick } from '../../../contracts/types.ts';
 import {
 	ScidTickWriter,
 	tickToScidRecord,
 	toScDateTimeMs
-} from '../../shared/file-ops/scid.ts';
+} from '../../../shared/file-ops/scid.ts';
 
 describe('scid output', () => {
 	it('writes raw ticks as Sierra Chart intraday records', async () => {
