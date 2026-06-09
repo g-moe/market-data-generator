@@ -87,6 +87,13 @@ export async function generateMarketData(
 
 	try {
 		const sessionStarts = getSessionStarts(inputs);
+		const emitted: CandleEmissions = {
+			daily: [],
+			minutes5: [],
+			priceLevel: [],
+			seconds15: [],
+			volume500: []
+		};
 		let previousClose = inputs.startPrice;
 		for (
 			let sessionIndex = 0;
@@ -95,19 +102,11 @@ export async function generateMarketData(
 		) {
 			const sessionStart = sessionStarts[sessionIndex];
 			let sessionTicks = 0;
-			const emitted: {
-				daily: MdCandle[];
-				priceLevel: MdCandleVolumeByPrice[];
-				seconds15: MdCandle[];
-				minutes5: MdCandle[];
-				volume500: MdCandle[];
-			} = {
-				daily: [],
-				minutes5: [],
-				priceLevel: [],
-				seconds15: [],
-				volume500: []
-			};
+			emitted.daily.length = 0;
+			emitted.minutes5.length = 0;
+			emitted.priceLevel.length = 0;
+			emitted.seconds15.length = 0;
+			emitted.volume500.length = 0;
 			if (sessionStart < UNIX_EPOCH_MS) {
 				emitted.daily.push(createZeroDailyCandle(counts.daily));
 			} else {
