@@ -64,13 +64,30 @@ export class ScidTickWriter {
 		volume: number,
 		side: TradeSide
 	) {
+		this.pushScDateTimeMsVolumeValues(
+			scDateTimeMs,
+			price,
+			volume,
+			side === 'bid' ? volume : 0,
+			side === 'ask' ? volume : 0
+		);
+	}
+
+	pushScDateTimeMsVolumeValues(
+		scDateTimeMs: number,
+		price: number,
+		volume: number,
+		bidVolume: number,
+		askVolume: number
+	) {
 		writeTickValues(
 			this.outputView,
 			this.recordCount * RECORD_SIZE,
 			scDateTimeMs,
 			price,
 			volume,
-			side
+			bidVolume,
+			askVolume
 		);
 		this.recordCount++;
 		if (this.recordCount * RECORD_SIZE === this.output.length) {
@@ -133,7 +150,8 @@ function writeTickValues(
 	scDateTimeMs: number,
 	price: number,
 	volume: number,
-	side: TradeSide
+	bidVolume: number,
+	askVolume: number
 ) {
 	output.setUint32(offset, scDateTimeMs % UINT32_SIZE, true);
 	output.setInt32(offset + 4, Math.floor(scDateTimeMs / UINT32_SIZE), true);
@@ -143,8 +161,8 @@ function writeTickValues(
 	output.setFloat32(offset + 20, price, true);
 	output.setUint32(offset + 24, 1, true);
 	output.setUint32(offset + 28, volume, true);
-	output.setUint32(offset + 32, side === 'bid' ? volume : 0, true);
-	output.setUint32(offset + 36, side === 'ask' ? volume : 0, true);
+	output.setUint32(offset + 32, bidVolume, true);
+	output.setUint32(offset + 36, askVolume, true);
 }
 
 export function toScDateTimeMs(date: Date) {

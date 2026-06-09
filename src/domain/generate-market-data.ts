@@ -254,7 +254,7 @@ function generateSessionTicksIntoOutputs(
 		priceTicks += moveTicks;
 
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
-		const side = randomState * RANDOM_UNIT > 0.5 ? 'ask' : 'bid';
+		const isAsk = randomState * RANDOM_UNIT > 0.5;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const volumeRoll = randomState * RANDOM_UNIT;
 		let volume: number;
@@ -269,11 +269,12 @@ function generateSessionTicksIntoOutputs(
 			volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 		}
 		const price = priceTicks * tickSize;
-		scid.pushScDateTimeMsValue(
+		scid.pushScDateTimeMsVolumeValues(
 			(time - SCID_EPOCH_OFFSET_MS) * 1000,
 			price,
 			volume,
-			side
+			isAsk ? 0 : volume,
+			isAsk ? volume : 0
 		);
 		dailyAggregator.pushTickValuesForBucket(
 			time,
