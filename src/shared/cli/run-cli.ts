@@ -30,6 +30,7 @@ type TerminalTaskSpinner = TaskSpinner & {
 
 export type CliPorts = {
 	log: (message: string) => void;
+	prompt: (message: string) => Promise<string>;
 	select: (message: string, choices: readonly Choice[]) => Promise<string>;
 	spinner: () => TaskSpinner;
 };
@@ -188,6 +189,21 @@ export function createNodePorts({
 	return {
 		log: (message) => {
 			spinner.log(message);
+		},
+		prompt: async (message) => {
+			const prompt = createInterface({
+				input,
+				output,
+				terminal: output.isTTY
+			});
+
+			try {
+				const answer = await prompt.question(`${message}: `);
+
+				return answer.trim();
+			} finally {
+				prompt.close();
+			}
 		},
 		select: async (message, choices) => {
 			const prompt = createInterface({

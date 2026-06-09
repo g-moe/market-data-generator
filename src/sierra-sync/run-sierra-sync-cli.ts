@@ -16,6 +16,8 @@ export async function runSierraSyncCli(
 	options: RunSierraSyncCliOptions = {}
 ) {
 	const symbol = await ports.select('Choose symbol', SYMBOL_CHOICES);
+	const syncRunId = options.syncRunId ?? (await ports.prompt('Run name'));
+	if (syncRunId.trim() === '') throw new Error('Run name is required');
 	const task = ports.spinner();
 
 	task.start(`Running Sierra sync for ${symbol}...`);
@@ -23,7 +25,8 @@ export async function runSierraSyncCli(
 		const result = await runSierraSync(
 			{
 				...options,
-				symbol
+				symbol,
+				syncRunId: syncRunId.trim()
 			},
 			{
 				onSessionComplete: (progress) => {
