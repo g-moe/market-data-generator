@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { normalizeInputs } from '../../domain/inputs.ts';
@@ -13,7 +14,7 @@ describe('normalizeInputs', () => {
 		});
 
 		expect(inputs).toMatchObject({
-			outputDir: 'tmp/data/ES',
+			outputDir: join('tmp', 'data', 'ES'),
 			outputRoot: 'tmp/data',
 			sessionCount: 3,
 			startPrice: 6100.25,
