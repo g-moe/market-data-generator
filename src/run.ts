@@ -1,8 +1,7 @@
+import { isMainModule } from './cli/is-main-module.ts';
 import { runCli } from './cli/run-cli.ts';
 
-export { runCli };
-
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
 	try {
 		await runCli();
 	} catch (error) {
