@@ -187,6 +187,40 @@ export class IntervalTimeAggregator {
 	}
 }
 
+export class FifteenSecondAggregator {
+	private current: MutableCandle | undefined;
+	private pos = 0;
+
+	pushTickValues(
+		time: number,
+		price: number,
+		volume: number,
+		emitted: MdCandle[]
+	) {
+		const bucket = Math.floor(time / 15_000) * 15_000;
+		if (this.current === undefined || this.current.time !== bucket) {
+			this.emitCurrent(emitted);
+			this.current = createMutableCandleForValues(price, bucket, volume);
+		} else {
+			addTickValues(this.current, price, volume);
+		}
+	}
+
+	finish() {
+		const emitted: MdCandle[] = [];
+		this.emitCurrent(emitted);
+
+		return emitted;
+	}
+
+	private emitCurrent(emitted: MdCandle[]) {
+		if (this.current === undefined) return;
+		emitted.push(finalizeMutableCandle(this.current, this.pos));
+		this.pos++;
+		this.current = undefined;
+	}
+}
+
 export class VolumeAggregator {
 	private current: MutableCandle | undefined;
 	private lastSequenceTime: number | undefined;

@@ -18,6 +18,7 @@ import {
 import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../io/scid.ts';
 import {
 	createBarId,
+	FifteenSecondAggregator,
 	IntervalTimeAggregator,
 	PriceLevelAggregator,
 	VolumeAggregator
@@ -61,7 +62,7 @@ export async function generateMarketData(
 	const files = getOutputFiles(inputs);
 	const priceLevelAggregator = new PriceLevelAggregator();
 	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
-	const seconds15Aggregator = new IntervalTimeAggregator(15_000);
+	const seconds15Aggregator = new FifteenSecondAggregator();
 	const minutes5Aggregator = new IntervalTimeAggregator(300_000);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
@@ -222,7 +223,7 @@ function generateSessionTicksIntoOutputs(
 	shouldEmitPriceLevel: boolean,
 	scid: ScidTickWriter,
 	dailyPos: number,
-	seconds15Aggregator: IntervalTimeAggregator,
+	seconds15Aggregator: FifteenSecondAggregator,
 	minutes5Aggregator: IntervalTimeAggregator,
 	volume500Aggregator: VolumeAggregator,
 	priceLevelAggregator: PriceLevelAggregator,
