@@ -108,11 +108,14 @@ export class VolumeAggregator {
 				remaining,
 				this.targetVolume - (this.current?.volume ?? 0)
 			);
-			const piece = { ...tick, volume };
 			if (this.current === undefined) {
-				this.current = createMutableCandle(piece, tick.time);
+				this.current = createMutableCandleForValues(
+					tick.price,
+					tick.time,
+					volume
+				);
 			} else {
-				addTick(this.current, piece);
+				addTickValues(this.current, tick.price, volume);
 			}
 			remaining -= volume;
 
@@ -142,23 +145,35 @@ export class VolumeAggregator {
 }
 
 function createMutableCandle(tick: MarketTick, time: number): MutableCandle {
+	return createMutableCandleForValues(tick.price, time, tick.volume);
+}
+
+function createMutableCandleForValues(
+	price: number,
+	time: number,
+	volume: number
+): MutableCandle {
 	return {
-		close: tick.price,
-		high: tick.price,
-		low: tick.price,
-		open: tick.price,
-		priceVolume: tick.price * tick.volume,
+		close: price,
+		high: price,
+		low: price,
+		open: price,
+		priceVolume: price * volume,
 		time,
-		volume: tick.volume
+		volume
 	};
 }
 
 function addTick(candle: MutableCandle, tick: MarketTick) {
-	candle.close = tick.price;
-	candle.high = Math.max(candle.high, tick.price);
-	candle.low = Math.min(candle.low, tick.price);
-	candle.priceVolume += tick.price * tick.volume;
-	candle.volume += tick.volume;
+	addTickValues(candle, tick.price, tick.volume);
+}
+
+function addTickValues(candle: MutableCandle, price: number, volume: number) {
+	candle.close = price;
+	candle.high = Math.max(candle.high, price);
+	candle.low = Math.min(candle.low, price);
+	candle.priceVolume += price * volume;
+	candle.volume += volume;
 }
 
 function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
