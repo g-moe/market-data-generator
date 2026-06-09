@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { MdCandle, MdCandleVolumeByPrice } from '../../contracts/types.ts';
 import {
-	CandleJsonArrayWriter,
 	CandleRowWriter,
 	CANDLE_ROW_HEADER,
 	PRICE_LEVEL_CANDLE_ROW_HEADER,
@@ -14,9 +13,9 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow,
 	toStoredPriceLevelCandle
-} from '../../io/json.ts';
+} from '../../io/csv.ts';
 
-describe('json output', () => {
+describe('csv output', () => {
 	it('stores bigint candle ids as strings', () => {
 		expect(toStoredCandle(candle())).toEqual({
 			close: 100.5,
@@ -49,26 +48,6 @@ describe('json output', () => {
 		});
 	});
 
-	it('streams candles to a JSON array file', async () => {
-		const directory = await mkdtemp(join(tmpdir(), 'market-data-json-'));
-		const filePath = join(directory, 'nested', 'tradester_ES_5m.json');
-
-		try {
-			const writer = new CandleJsonArrayWriter(filePath, toStoredCandle);
-			await writer.open();
-			await writer.write([candle()]);
-			await writer.write([candle({ close: 102, id: 1n, pos: 1 })]);
-			await writer.close();
-
-			expect(JSON.parse(await readFile(filePath, 'utf8'))).toEqual([
-				toStoredCandle(candle()),
-				toStoredCandle(candle({ close: 102, id: 1n, pos: 1 }))
-			]);
-		} finally {
-			await rm(directory, { force: true, recursive: true });
-		}
-	});
-
 	it('streams candles to fixed-schema rows', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-rows-'));
 		const filePath = join(directory, 'nested', 'tradester_ES_5m.csv');
@@ -91,6 +70,19 @@ describe('json output', () => {
 		} finally {
 			await rm(directory, { force: true, recursive: true });
 		}
+	});
+
+	it('rejects candle row writes before opening the file', async () => {
+		const writer = new CandleRowWriter(
+			'/tmp/not-open.csv',
+			CANDLE_ROW_HEADER,
+			toStoredCandleRow
+		);
+
+		await expect(writer.write([candle()])).rejects.toThrow(
+			'candle row writer is not open'
+		);
+		await expect(writer.close()).resolves.toBeUndefined();
 	});
 
 	it('serializes price levels as a single fixed-schema row field', () => {
@@ -130,6 +122,21 @@ describe('json output', () => {
 				'id,time,pos,open,high,low,close,volume\n1,2,3,4,5,6,7,8\n'
 			)
 		).toThrow('Unexpected candle row header');
+	});
+
+	it('returns no candles when fixed-schema rows only contain a header', () => {
+		expect(parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n`)).toEqual([]);
+		expect(parseCandleRowsFast('')).toEqual([]);
+	});
+
+	it('rejects fixed-schema candle rows with missing or extra fields', () => {
+		expect(() =>
+			parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n1,2,3,4,5,6,7,8\n`)
+		).toThrow('Expected 9 candle row fields on line 2');
+
+		expect(() =>
+			parseCandleRowsFast(`${CANDLE_ROW_HEADER}\n1,2,3,4,5,6,7,8,9,10\n`)
+		).toThrow('Unexpected extra candle row field on line 2');
 	});
 });
 

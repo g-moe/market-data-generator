@@ -12,60 +12,6 @@ export const CANDLE_ROW_HEADER = 'id,time,pos,open,high,low,close,volume,vwap';
 
 export const PRICE_LEVEL_CANDLE_ROW_HEADER = `${CANDLE_ROW_HEADER},prices`;
 
-export class CandleJsonArrayWriter<TCandle extends MdCandle> {
-	private handle: FileHandle | undefined;
-	private hasItems = false;
-	private readonly iterableChunkSize = 512;
-	private readonly outputChunk: string[] = [];
-
-	constructor(
-		private readonly filePath: string,
-		private readonly serializeCandle: (candle: TCandle) => string | unknown
-	) {}
-
-	async open() {
-		await mkdir(dirname(this.filePath), { recursive: true });
-		this.handle = await open(this.filePath, 'w');
-		await this.handle.write('[');
-	}
-
-	async write(candles: Iterable<TCandle>) {
-		const handle = this.requireHandle();
-		const output = this.outputChunk;
-		output.length = 0;
-		for (const candle of candles) {
-			output.push(
-				`${this.hasItems || output.length > 0 ? ',' : ''}${serializeJsonValue(
-					this.serializeCandle(candle)
-				)}`
-			);
-			if (output.length === this.iterableChunkSize) {
-				await handle.write(output.join(''));
-				this.hasItems = true;
-				output.length = 0;
-			}
-		}
-		if (output.length === 0) return;
-		this.hasItems = true;
-		await handle.write(output.join(''));
-	}
-
-	async close() {
-		if (this.handle === undefined) return;
-		await this.handle.write(']\n');
-		await this.handle.close();
-		this.handle = undefined;
-	}
-
-	private requireHandle() {
-		if (this.handle === undefined) {
-			throw new Error('JSON writer is not open');
-		}
-
-		return this.handle;
-	}
-}
-
 export class CandleRowWriter<TCandle extends MdCandle> {
 	private handle: FileHandle | undefined;
 	private readonly iterableChunkSize = 512;
@@ -233,8 +179,4 @@ export function parseCandleRowsFast(text: string): StoredMdCandle[] {
 	}
 
 	return candles;
-}
-
-function serializeJsonValue(value: string | unknown) {
-	return typeof value === 'string' ? value : JSON.stringify(value);
 }

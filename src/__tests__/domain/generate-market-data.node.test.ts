@@ -8,7 +8,7 @@ import {
 	getOutputFiles
 } from '../../domain/generate-market-data.ts';
 import { normalizeInputs } from '../../domain/inputs.ts';
-import { CANDLE_ROW_HEADER } from '../../io/json.ts';
+import { CANDLE_ROW_HEADER } from '../../io/csv.ts';
 
 describe('generateMarketData', () => {
 	it('writes all tick-first outputs for ES', async () => {

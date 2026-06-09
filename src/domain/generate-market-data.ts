@@ -16,7 +16,7 @@ import {
 	PRICE_LEVEL_CANDLE_ROW_HEADER,
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow
-} from '../io/json.ts';
+} from '../io/csv.ts';
 import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../io/scid.ts';
 import {
 	createBarId,
