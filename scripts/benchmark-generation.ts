@@ -60,6 +60,7 @@ const iterations =
 if (!Number.isInteger(iterations) || iterations < 1) {
 	throw new Error('--iterations must be a positive integer');
 }
+const sampleMemory = !process.argv.includes('--no-memory-sampling');
 
 const warmupScenario = SCENARIOS[0];
 await runScenario(warmupScenario, { keepOutput: false, warmup: true });
@@ -92,15 +93,17 @@ async function runScenario(
 		outputRoot
 	};
 	const startMemory = process.memoryUsage();
-	let peakHeapUsed = startMemory.heapUsed;
-	let peakRss = startMemory.rss;
+	let peakHeapUsed = sampleMemory ? startMemory.heapUsed : undefined;
+	let peakRss = sampleMemory ? startMemory.rss : undefined;
 	const start = performance.now();
 	const generation = await generateMarketData(inputs, {
-		onSessionComplete: () => {
-			const memory = process.memoryUsage();
-			peakHeapUsed = Math.max(peakHeapUsed, memory.heapUsed);
-			peakRss = Math.max(peakRss, memory.rss);
-		}
+		onSessionComplete: sampleMemory
+			? () => {
+					const memory = process.memoryUsage();
+					peakHeapUsed = Math.max(peakHeapUsed ?? 0, memory.heapUsed);
+					peakRss = Math.max(peakRss ?? 0, memory.rss);
+				}
+			: undefined
 	});
 	const elapsedMs = performance.now() - start;
 	if (globalThis.gc) globalThis.gc();
@@ -116,14 +119,14 @@ async function runScenario(
 		hash: output.hash,
 		heapUsedDeltaMb: toMb(endMemory.heapUsed - startMemory.heapUsed),
 		heapUsedMb: toMb(endMemory.heapUsed),
-		heapUsedPeakMb: toMb(peakHeapUsed),
+		heapUsedPeakMb: peakHeapUsed === undefined ? undefined : toMb(peakHeapUsed),
 		iteration: options.iteration,
 		name: scenario.name,
 		outputBytes: output.bytes,
 		outputRoot: options.keepOutput ? outputRoot : undefined,
 		rssDeltaMb: toMb(endMemory.rss - startMemory.rss),
 		rssMb: toMb(endMemory.rss),
-		rssPeakMb: toMb(peakRss),
+		rssPeakMb: peakRss === undefined ? undefined : toMb(peakRss),
 		ticks: generation.counts.ticks,
 		ticksPerSecond: Math.round(generation.counts.ticks / (elapsedMs / 1000)),
 		warmup: options.warmup || undefined
