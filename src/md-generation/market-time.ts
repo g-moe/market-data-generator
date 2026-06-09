@@ -27,7 +27,10 @@ export function getSessionStart(anchorIso: string, sessionsBack: number) {
 
 	while (remaining > 0) {
 		cursor = getPreviousSessionStart(cursor);
-		if (isTradingSessionStart(cursor)) remaining--;
+
+		if (isTradingSessionStart(cursor)) {
+			remaining--;
+		}
 	}
 
 	return cursor;
@@ -42,9 +45,17 @@ export function isMarketOpen(time: number) {
 	const day = parts.weekday;
 	const minuteOfDay = parts.hour * 60 + parts.minute;
 
-	if (day === 'Sat') return false;
-	if (day === 'Sun') return minuteOfDay >= SESSION_START_HOUR * 60;
-	if (day === 'Fri') return minuteOfDay < SESSION_END_HOUR * 60;
+	if (day === 'Sat') {
+		return false;
+	}
+
+	if (day === 'Sun') {
+		return minuteOfDay >= SESSION_START_HOUR * 60;
+	}
+
+	if (day === 'Fri') {
+		return minuteOfDay < SESSION_END_HOUR * 60;
+	}
 
 	return !(
 		minuteOfDay >= SESSION_END_HOUR * 60 &&
@@ -68,15 +79,25 @@ export function getCentralParts(time: Date) {
 	let secondText = '';
 	let weekday = '';
 	let year = '';
+
 	for (const part of CENTRAL_PARTS_FORMATTER.formatToParts(time)) {
-		if (part.type === 'day') day = part.value;
-		else if (part.type === 'hour') hourText = part.value;
-		else if (part.type === 'minute') minuteText = part.value;
-		else if (part.type === 'month') month = part.value;
-		else if (part.type === 'second') secondText = part.value;
-		else if (part.type === 'weekday') weekday = part.value;
-		else if (part.type === 'year') year = part.value;
+		if (part.type === 'day') {
+			day = part.value;
+		} else if (part.type === 'hour') {
+			hourText = part.value;
+		} else if (part.type === 'minute') {
+			minuteText = part.value;
+		} else if (part.type === 'month') {
+			month = part.value;
+		} else if (part.type === 'second') {
+			secondText = part.value;
+		} else if (part.type === 'weekday') {
+			weekday = part.value;
+		} else if (part.type === 'year') {
+			year = part.value;
+		}
 	}
+
 	const hour = Number(hourText);
 	const minute = Number(minuteText);
 	const second = Number(secondText);
@@ -183,10 +204,13 @@ function getCentralOffsetMs(time: Date) {
 			break;
 		}
 	}
+
 	const match =
 		/^GMT(?<sign>[+-])(?<hours>\d{1,2})(?::(?<minutes>\d{2}))?$/.exec(zoneName);
 	/* v8 ignore next -- Intl returns GMT offsets for the configured timezone in supported Node builds. */
-	if (!match?.groups) return 0;
+	if (!match?.groups) {
+		return 0;
+	}
 
 	const sign = match.groups.sign === '-' ? -1 : 1;
 	const hours = Number(match.groups.hours);

@@ -61,12 +61,14 @@ export async function buildSierraBridge({
 		}
 	];
 	try {
-		for (const build of builds)
+		for (const build of builds) {
 			await compileSierraBridge({ ...build, bridgeInstalledPath });
+		}
 	} finally {
 		await cleanSierraBridgeBuildArtifacts();
 		await sendSierraMessage('ALLOW_LOAD_ALL_DLLS');
 	}
+
 	return builds.map((build) => build.output);
 }
 

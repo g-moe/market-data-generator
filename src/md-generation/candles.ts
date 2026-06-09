@@ -61,7 +61,10 @@ export class PriceLevelAggregator {
 	}
 
 	private emitCurrent(emitted: MdCandleVolumeByPrice[]) {
-		if (this.current === undefined) return;
+		if (this.current === undefined) {
+			return;
+		}
+
 		emitted.push(
 			finalizeMutablePriceLevelCandle(
 				this.current.candle,
@@ -143,7 +146,10 @@ export class TimeAggregator {
 	}
 
 	private emitCurrent(emitted: MdCandle[]) {
-		if (this.current === undefined) return;
+		if (this.current === undefined) {
+			return;
+		}
+
 		emitted.push(finalizeMutableCandle(this.current, this.pos));
 		this.pos++;
 		this.current = undefined;
@@ -190,7 +196,10 @@ export class IntervalTimeAggregator {
 	}
 
 	private emitCurrent(emitted: MdCandle[]) {
-		if (this.current === undefined) return;
+		if (this.current === undefined) {
+			return;
+		}
+
 		emitted.push(finalizeMutableCandle(this.current, this.pos));
 		this.pos++;
 		this.current = undefined;
@@ -227,6 +236,7 @@ export class VolumeAggregator {
 			} else {
 				addTickValues(this.current, price, volume);
 			}
+
 			remaining -= volume;
 
 			if (this.current.volume === this.targetVolume) {
@@ -243,8 +253,12 @@ export class VolumeAggregator {
 	}
 
 	private emitCurrent(emitted: MdCandle[]) {
-		if (this.current === undefined) return;
+		if (this.current === undefined) {
+			return;
+		}
+
 		const time = this.current.time;
+
 		emitted.push(
 			finalizeMutableCandleWithId(
 				this.current,

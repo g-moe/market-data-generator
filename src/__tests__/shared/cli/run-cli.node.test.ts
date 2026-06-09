@@ -223,6 +223,7 @@ function writable() {
 	type TestOutput = typeof import('node:process').stdout & {
 		chunks: string[];
 	};
+
 	const chunks: string[] = [];
 
 	return {

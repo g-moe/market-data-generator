@@ -11,7 +11,10 @@ console.log(`Generating market data for ${inputs.symbol}...`);
 const result = await generateMarketData(inputs, {
 	onSessionComplete: (progress) => {
 		const message = formatProgressMessage(progress);
-		if (message !== undefined) console.log(message);
+
+		if (message !== undefined) {
+			console.log(message);
+		}
 	}
 });
 

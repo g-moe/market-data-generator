@@ -18,7 +18,11 @@ export async function runSierraSyncCli(
 ) {
 	const symbol = await ports.select('Choose symbol', SYMBOL_CHOICES);
 	const syncRunId = options.syncRunId ?? (await ports.prompt('Run name'));
-	if (syncRunId.trim() === '') throw new Error('Run name is required');
+
+	if (syncRunId.trim() === '') {
+		throw new Error('Run name is required');
+	}
+
 	const task = ports.spinner();
 
 	task.start(`Running Sierra sync for ${symbol}...`);
@@ -32,7 +36,10 @@ export async function runSierraSyncCli(
 			{
 				onSessionComplete: (progress) => {
 					const message = formatProgressMessage(progress);
-					if (message !== undefined) ports.log(message);
+
+					if (message !== undefined) {
+						ports.log(message);
+					}
 				}
 			}
 		);

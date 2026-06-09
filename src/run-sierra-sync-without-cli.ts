@@ -10,7 +10,10 @@ const result = await runSierraSync(
 	{
 		onSessionComplete: (progress) => {
 			const message = formatProgressMessage(progress);
-			if (message !== undefined) console.log(message);
+
+			if (message !== undefined) {
+				console.log(message);
+			}
 		}
 	}
 );

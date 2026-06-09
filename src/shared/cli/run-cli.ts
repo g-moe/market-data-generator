@@ -72,8 +72,12 @@ export async function runCli(
 	try {
 		const result = await generateAndWriteMarketData(inputs, (progress) => {
 			const message = formatProgressMessage(progress);
-			if (message !== undefined) ports.log(message);
+
+			if (message !== undefined) {
+				ports.log(message);
+			}
 		});
+
 		task.stop(
 			`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`
 		);
@@ -171,6 +175,7 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 		start: (nextMessage = '') => {
 			message = nextMessage;
 			isRunning = true;
+
 			render();
 			timer = setInterval(render, 100);
 		},
@@ -217,15 +222,19 @@ export function createNodePorts({
 				choices.forEach((choice, index) => {
 					output.write(formatChoiceLine(choice, index));
 				});
+
 				const lines = prompt[Symbol.asyncIterator]();
 				while (true) {
 					output.write('Enter choice: ');
+
 					const line = await lines.next();
 					if (line.done === true) {
 						throw new Error('No symbol selected');
 					}
+
 					const answer = line.value.trim();
 					const choice = findChoice(answer, choices);
+
 					if (choice !== undefined) {
 						return choice.value;
 					}

@@ -125,6 +125,7 @@ export async function generateMarketData(
 			seconds15: [],
 			volume500: []
 		};
+
 		let previousClose = inputs.startPrice;
 		for (
 			let sessionIndex = 0;
@@ -201,6 +202,7 @@ export async function generateMarketData(
 			seconds15: seconds15Aggregator.finish(),
 			volume500: volume500Aggregator.finish()
 		};
+
 		seconds15Ring.pushMany(final.seconds15);
 		minutes5Ring.pushMany(final.minutes5);
 		volume500Ring.pushMany(final.volume500);
@@ -315,6 +317,7 @@ function generateSessionTicksIntoOutputs(
 					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 				volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 			}
+
 			const price = priceTicks * tickSize;
 			scid.pushScDateTimeMsVolumeValues(
 				(time - SCID_EPOCH_OFFSET_MS) * 1000,
@@ -323,6 +326,7 @@ function generateSessionTicksIntoOutputs(
 				isAsk ? 0 : volume,
 				isAsk ? volume : 0
 			);
+
 			if (index === 0) {
 				dailyOpen = price;
 				dailyHigh = price;
@@ -331,11 +335,13 @@ function generateSessionTicksIntoOutputs(
 				dailyHigh = Math.max(dailyHigh, price);
 				dailyLow = Math.min(dailyLow, price);
 			}
+
 			dailyClose = price;
 			dailyVolume += volume;
 			dailyBidVolume += isAsk ? 0 : volume;
 			dailyAskVolume += isAsk ? volume : 0;
 			dailyPriceVolume += price * volume;
+
 			if (shouldEmitSeconds15) {
 				seconds15Aggregator.pushTickValues(
 					time,
@@ -345,6 +351,7 @@ function generateSessionTicksIntoOutputs(
 					side
 				);
 			}
+
 			if (shouldEmitMinutes5) {
 				minutes5Aggregator.pushTickValues(
 					time,
@@ -354,6 +361,7 @@ function generateSessionTicksIntoOutputs(
 					side
 				);
 			}
+
 			volume500Aggregator.pushTickValues(
 				time,
 				price,
@@ -408,6 +416,7 @@ function generateSessionTicksIntoOutputs(
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 			volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 		}
+
 		const price = priceTicks * tickSize;
 		scid.pushScDateTimeMsVolumeValues(
 			(time - SCID_EPOCH_OFFSET_MS) * 1000,
@@ -416,6 +425,7 @@ function generateSessionTicksIntoOutputs(
 			isAsk ? 0 : volume,
 			isAsk ? volume : 0
 		);
+
 		if (index === 0) {
 			dailyOpen = price;
 			dailyHigh = price;
@@ -424,11 +434,13 @@ function generateSessionTicksIntoOutputs(
 			dailyHigh = Math.max(dailyHigh, price);
 			dailyLow = Math.min(dailyLow, price);
 		}
+
 		dailyClose = price;
 		dailyVolume += volume;
 		dailyBidVolume += isAsk ? 0 : volume;
 		dailyAskVolume += isAsk ? volume : 0;
 		dailyPriceVolume += price * volume;
+
 		if (shouldEmitSeconds15) {
 			seconds15Aggregator.pushTickValues(
 				time,
@@ -438,9 +450,11 @@ function generateSessionTicksIntoOutputs(
 				side
 			);
 		}
+
 		if (shouldEmitMinutes5) {
 			minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
 		}
+
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
 		priceLevelAggregator.pushTickValues(
 			time,
@@ -525,6 +539,7 @@ function countSessionBuckets(ticksPerSession: number, bucketMs: number) {
 	const timeStep = (SESSION_DURATION_MS - 1) / ticksPerSession;
 	let count = 0;
 	let previousBucket: number | undefined;
+
 	for (let index = 0; index < ticksPerSession; index++) {
 		const time = Math.floor(index * timeStep);
 		const bucket = Math.floor(time / bucketMs) * bucketMs;

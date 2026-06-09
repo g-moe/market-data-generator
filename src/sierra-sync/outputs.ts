@@ -66,7 +66,11 @@ export async function waitForFreshSierraOutputs({
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() <= deadline) {
 		const staleOrMissing = await staleOrMissingFiles(filePaths, startedAt);
-		if (staleOrMissing.length === 0) return filePaths;
+
+		if (staleOrMissing.length === 0) {
+			return filePaths;
+		}
+
 		await sleep(pollIntervalMs);
 	}
 
@@ -88,32 +92,41 @@ export async function copySierraOutputsToRun({
 	await rm(toDir, { force: true, recursive: true });
 	await mkdir(toDir, { recursive: true });
 	const copied: SierraExportFiles = {} as SierraExportFiles;
+
 	for (const key of EXPORT_KEYS) {
 		const fileName = exportFiles[key];
 		const target = join(toDir, fileName);
 		await copyFile(join(fromDir, fileName), target);
 		copied[key] = target;
 	}
+
 	return copied;
 }
 
 async function staleOrMissingFiles(filePaths: string[], startedAt: number) {
 	const staleOrMissing: string[] = [];
+
 	for (const filePath of filePaths) {
 		try {
 			const file = await stat(filePath);
-			if (file.size <= 0 || file.mtimeMs < startedAt)
+			if (file.size <= 0 || file.mtimeMs < startedAt) {
 				staleOrMissing.push(filePath);
+			}
 		} catch {
 			staleOrMissing.push(filePath);
 		}
 	}
+
 	return staleOrMissing;
 }
 
 function resolveSymbol(symbol: string) {
 	const resolved = findSymbol(symbol);
-	if (resolved === undefined) throw new Error(`Unknown symbol ${symbol}`);
+
+	if (resolved === undefined) {
+		throw new Error(`Unknown symbol ${symbol}`);
+	}
+
 	return resolved;
 }
 

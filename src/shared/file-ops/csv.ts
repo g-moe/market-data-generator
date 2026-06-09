@@ -34,19 +34,28 @@ export class CandleRowWriter<TCandle extends MdCandle> {
 		const handle = this.requireHandle();
 		const output = this.outputChunk;
 		output.length = 0;
+
 		for (const candle of candles) {
 			output.push(`${this.serializeCandle(candle)}\n`);
+
 			if (output.length === this.iterableChunkSize) {
 				await handle.write(output.join(''));
 				output.length = 0;
 			}
 		}
-		if (output.length === 0) return;
+
+		if (output.length === 0) {
+			return;
+		}
+
 		await handle.write(output.join(''));
 	}
 
 	async close() {
-		if (this.handle === undefined) return;
+		if (this.handle === undefined) {
+			return;
+		}
+
 		await this.handle.close();
 		this.handle = undefined;
 	}

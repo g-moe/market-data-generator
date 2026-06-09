@@ -62,6 +62,7 @@ const iterations =
 if (!Number.isInteger(iterations) || iterations < 1) {
 	throw new Error('--iterations must be a positive integer');
 }
+
 const sampleMemory = !process.argv.includes('--no-memory-sampling');
 const isolated = process.argv.includes('--isolated');
 const scenarioArg = process.argv.find((arg) => arg.startsWith('--scenario='));
@@ -95,8 +96,14 @@ for (const scenario of selectedScenarios) {
 			})
 		);
 	}
-	for (const result of results) console.log(JSON.stringify(result));
-	if (results.length > 1) console.log(JSON.stringify(summarize(results)));
+
+	for (const result of results) {
+		console.log(JSON.stringify(result));
+	}
+
+	if (results.length > 1) {
+		console.log(JSON.stringify(summarize(results)));
+	}
 }
 
 async function runIsolatedScenarios(scenarios: Scenario[]) {
@@ -109,15 +116,28 @@ async function runIsolatedScenarios(scenarios: Scenario[]) {
 				`--iterations=${iterations}`,
 				`--scenario=${scenario.name}`
 			];
-			if (!sampleMemory) args.push('--no-memory-sampling');
-			if (process.argv.includes('--keep-output')) args.push('--keep-output');
+
+			if (!sampleMemory) {
+				args.push('--no-memory-sampling');
+			}
+
+			if (process.argv.includes('--keep-output')) {
+				args.push('--keep-output');
+			}
+
 			const child = spawn(process.execPath, args, {
 				stdio: ['ignore', 'inherit', 'inherit']
 			});
+
 			child.on('error', reject);
 			child.on('exit', (code) => {
-				if (code === 0) resolve();
-				else reject(new Error(`${scenario.name} exited with code ${code}`));
+				if (code === 0) {
+					resolve();
+
+					return;
+				}
+
+				reject(new Error(`${scenario.name} exited with code ${code}`));
 			});
 		});
 	}
@@ -127,7 +147,10 @@ async function runScenario(
 	scenario: Scenario,
 	options: { iteration?: number; keepOutput: boolean; warmup: boolean }
 ) {
-	if (globalThis.gc) globalThis.gc();
+	if (globalThis.gc) {
+		globalThis.gc();
+	}
+
 	const outputRoot = await mkdtemp(join(tmpdir(), 'mdg-bench-'));
 	const outputDir = join(outputRoot, scenario.name);
 	const inputs: GeneratorInputs = {
@@ -135,6 +158,7 @@ async function runScenario(
 		outputDir,
 		outputRoot
 	};
+
 	const startMemory = process.memoryUsage();
 	let peakHeapUsed = sampleMemory ? startMemory.heapUsed : undefined;
 	let peakRss = sampleMemory ? startMemory.rss : undefined;
@@ -149,7 +173,11 @@ async function runScenario(
 			: undefined
 	});
 	const elapsedMs = performance.now() - start;
-	if (globalThis.gc) globalThis.gc();
+
+	if (globalThis.gc) {
+		globalThis.gc();
+	}
+
 	const endMemory = process.memoryUsage();
 	const output = await fingerprintDirectory(outputDir);
 
@@ -234,7 +262,10 @@ function toMb(bytes: number) {
 function median(values: number[]) {
 	const sorted = [...values].sort((left, right) => left - right);
 	const middle = Math.floor(sorted.length / 2);
-	if (sorted.length % 2 === 1) return sorted[middle];
+
+	if (sorted.length % 2 === 1) {
+		return sorted[middle];
+	}
 
 	return Math.round(((sorted[middle - 1] + sorted[middle]) / 2) * 10) / 10;
 }

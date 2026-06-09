@@ -43,8 +43,12 @@ export class ScidTickWriter {
 	}
 
 	private async writeBufferedTicks() {
-		if (this.recordCount === 0) return;
+		if (this.recordCount === 0) {
+			return;
+		}
+
 		const handle = this.requireHandle();
+
 		await handle.write(this.output, 0, this.recordCount * RECORD_SIZE);
 		this.recordCount = 0;
 	}
@@ -94,6 +98,7 @@ export class ScidTickWriter {
 			askVolume
 		);
 		this.recordCount++;
+
 		if (this.recordCount * RECORD_SIZE === this.output.length) {
 			this.writeBufferedTicksSync();
 		}
@@ -118,8 +123,12 @@ export class ScidTickWriter {
 	}
 
 	private writeBufferedTicksSync() {
-		if (this.recordCount === 0) return;
+		if (this.recordCount === 0) {
+			return;
+		}
+
 		const handle = this.requireHandle();
+
 		writeSync(handle.fd, this.output, 0, this.recordCount * RECORD_SIZE);
 		this.recordCount = 0;
 	}
