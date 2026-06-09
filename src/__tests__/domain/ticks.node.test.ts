@@ -6,7 +6,8 @@ import { normalizeInputs } from '../../domain/inputs.ts';
 import { getSessionStart } from '../../domain/market-time.ts';
 import {
 	deriveSessionSeed,
-	generateSessionTicksForStart
+	generateSessionTicksForStart,
+	getSessionOpenPrice
 } from '../../domain/ticks.ts';
 
 describe('generateSessionTicksForStart', () => {
@@ -38,6 +39,43 @@ describe('generateSessionTicksForStart', () => {
 		).toBe(true);
 	});
 
+	it('carries the previous close into the next session open with a small deterministic gap', () => {
+		const inputs = normalizeInputs({
+			sessionCount: 2,
+			symbol: 'ES',
+			ticksPerSession: 5
+		});
+		const first = collectSessionTicks(inputs, 0);
+		const firstClose = first.at(-1)?.price;
+		expect(firstClose).toBeDefined();
+
+		const secondOpen = getSessionOpenPrice(
+			firstClose ?? inputs.startPrice,
+			inputs,
+			getSymbolConfig(inputs.symbol),
+			1
+		);
+		const second = collectSessionTicks(inputs, 1, secondOpen);
+
+		expect(Math.abs(second[0].price - (firstClose ?? 0))).toBeLessThanOrEqual(
+			1
+		);
+		expect(second).toEqual(collectSessionTicks(inputs, 1, secondOpen));
+	});
+
+	it('does not grow session gaps with session history length', () => {
+		const inputs = normalizeInputs({
+			sessionCount: 20_000,
+			symbol: 'ES',
+			ticksPerSession: 1
+		});
+		const symbol = getSymbolConfig(inputs.symbol);
+		const previousClose = 5800;
+		const nextOpen = getSessionOpenPrice(previousClose, inputs, symbol, 19_999);
+
+		expect(Math.abs(nextOpen - previousClose)).toBeLessThanOrEqual(4);
+	});
+
 	it('supports one-tick sessions and larger deterministic volume samples', () => {
 		const inputs = normalizeInputs({
 			sessionCount: 1,
@@ -67,7 +105,8 @@ describe('generateSessionTicksForStart', () => {
 
 function collectSessionTicks(
 	inputs: GeneratorInputs,
-	sessionIndex: number
+	sessionIndex: number,
+	sessionStartPrice = inputs.startPrice
 ): MarketTick[] {
 	const symbol = getSymbolConfig(inputs.symbol);
 	const sessionStart = getSessionStart(
@@ -80,6 +119,7 @@ function collectSessionTicks(
 		symbol,
 		sessionIndex,
 		sessionStart,
+		sessionStartPrice,
 		(tick) => ticks.push(tick)
 	);
 

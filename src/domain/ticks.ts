@@ -11,20 +11,14 @@ export function generateSessionTicksForStart(
 	symbolConfig: SymbolConfig,
 	sessionIndex: number,
 	sessionStart: number,
+	sessionStartPrice: number,
 	onTick: (tick: MarketTick) => void
 ) {
 	const sessionEnd = getSessionEnd(sessionStart);
 	const random = createRandom(
 		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
 	);
-	let price = roundToTick(
-		inputs.startPrice +
-			randomSigned(random) *
-				symbolConfig.tickSize *
-				100 *
-				Math.log2(sessionIndex + 2),
-		symbolConfig.tickSize
-	);
+	let price = roundToTick(sessionStartPrice, symbolConfig.tickSize);
 
 	for (let index = 0; index < inputs.ticksPerSession; index++) {
 		const progress =
@@ -48,6 +42,8 @@ export function generateSessionTicksForStart(
 			volume: nextTickVolume(random)
 		});
 	}
+
+	return price;
 }
 
 export function deriveSessionSeed(
@@ -67,6 +63,30 @@ function getIntradayVolatility(progress: number) {
 	if (progress > 0.85) return 3;
 
 	return 1;
+}
+
+export function getSessionOpenPrice(
+	previousClose: number,
+	inputs: GeneratorInputs,
+	symbolConfig: SymbolConfig,
+	sessionIndex: number
+) {
+	if (sessionIndex === 0)
+		return roundToTick(previousClose, symbolConfig.tickSize);
+
+	const random = createRandom(
+		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
+	);
+	const gap =
+		randomSigned(random) *
+		symbolConfig.tickSize *
+		getSessionGapTicks(sessionIndex);
+
+	return roundToTick(previousClose + gap, symbolConfig.tickSize);
+}
+
+function getSessionGapTicks(sessionIndex: number) {
+	return 1 + Math.floor(Math.log2(sessionIndex + 1));
 }
 
 function nextTickVolume(random: () => number) {

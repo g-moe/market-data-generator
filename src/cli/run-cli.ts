@@ -172,7 +172,7 @@ export function createNodePorts({
 }: NodePortsOptions = {}): CliPorts {
 	return {
 		log: (message) => {
-			output.write(`${message}\n`);
+			output.write(`\r\x1B[2K${message}\n`);
 		},
 		select: async (message, choices) => {
 			const prompt = createInterface({

@@ -28,7 +28,7 @@ import {
 	isTradingSessionStart
 } from './market-time.ts';
 import { RingBuffer } from './ring-buffer.ts';
-import { generateSessionTicksForStart } from './ticks.ts';
+import { generateSessionTicksForStart, getSessionOpenPrice } from './ticks.ts';
 
 const PRICE_LEVEL_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
@@ -75,6 +75,7 @@ export async function generateMarketData(
 
 	try {
 		const sessionStarts = getSessionStarts(inputs);
+		let previousClose = inputs.startPrice;
 		for (
 			let sessionIndex = 0;
 			sessionIndex < inputs.sessionCount;
@@ -98,11 +99,18 @@ export async function generateMarketData(
 			if (sessionStart < UNIX_EPOCH_MS) {
 				emitted.daily.push(createZeroDailyCandle(counts.daily));
 			} else {
-				generateSessionTicksForStart(
+				const sessionOpenPrice = getSessionOpenPrice(
+					previousClose,
+					inputs,
+					symbolConfig,
+					sessionIndex
+				);
+				previousClose = generateSessionTicksForStart(
 					inputs,
 					symbolConfig,
 					sessionIndex,
 					sessionStart,
+					sessionOpenPrice,
 					(tick) => {
 						sessionTicks++;
 						counts.ticks++;

@@ -140,6 +140,7 @@ describe('createNodePorts', () => {
 		vi.useFakeTimers();
 		try {
 			spinner.start('Working');
+			promptPorts.log('Progress');
 			vi.advanceTimersByTime(100);
 			spinner.stop('Done');
 			spinner.error('Failed');
@@ -150,6 +151,7 @@ describe('createNodePorts', () => {
 		expect(output.chunks.join('')).toContain('Choose symbol');
 		expect(output.chunks.join('')).toContain('1. ES');
 		expect(output.chunks.join('')).toContain('Working');
+		expect(output.chunks.join('')).toContain('\r\x1B[2KProgress\n');
 		expect(output.chunks.join('')).toContain('◇Done\n');
 		expect(output.chunks.join('')).toContain('■Failed\n');
 	});
