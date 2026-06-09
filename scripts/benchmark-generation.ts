@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_ANCHOR_ISO, DEFAULT_SEED } from '../src/contracts/defaults.ts';
 import type { GeneratorInputs } from '../src/contracts/types.ts';
@@ -61,11 +63,28 @@ if (!Number.isInteger(iterations) || iterations < 1) {
 	throw new Error('--iterations must be a positive integer');
 }
 const sampleMemory = !process.argv.includes('--no-memory-sampling');
+const isolated = process.argv.includes('--isolated');
+const scenarioArg = process.argv.find((arg) => arg.startsWith('--scenario='));
+const scenarioName =
+	scenarioArg === undefined ? undefined : scenarioArg.split('=')[1];
 
-const warmupScenario = SCENARIOS[0];
+if (isolated && scenarioName === undefined) {
+	await runIsolatedScenarios();
+	process.exit(0);
+}
+
+const selectedScenarios =
+	scenarioName === undefined
+		? SCENARIOS
+		: SCENARIOS.filter((scenario) => scenario.name === scenarioName);
+if (selectedScenarios.length === 0) {
+	throw new Error(`Unknown scenario: ${scenarioName}`);
+}
+
+const warmupScenario = selectedScenarios[0];
 await runScenario(warmupScenario, { keepOutput: false, warmup: true });
 
-for (const scenario of SCENARIOS) {
+for (const scenario of selectedScenarios) {
 	const results: ScenarioResult[] = [];
 	for (let iteration = 0; iteration < iterations; iteration++) {
 		results.push(
@@ -78,6 +97,30 @@ for (const scenario of SCENARIOS) {
 	}
 	for (const result of results) console.log(JSON.stringify(result));
 	if (results.length > 1) console.log(JSON.stringify(summarize(results)));
+}
+
+async function runIsolatedScenarios() {
+	const scriptPath = fileURLToPath(import.meta.url);
+	for (const scenario of SCENARIOS) {
+		await new Promise<void>((resolve, reject) => {
+			const args = [
+				...process.execArgv,
+				scriptPath,
+				`--iterations=${iterations}`,
+				`--scenario=${scenario.name}`
+			];
+			if (!sampleMemory) args.push('--no-memory-sampling');
+			if (process.argv.includes('--keep-output')) args.push('--keep-output');
+			const child = spawn(process.execPath, args, {
+				stdio: ['ignore', 'inherit', 'inherit']
+			});
+			child.on('error', reject);
+			child.on('exit', (code) => {
+				if (code === 0) resolve();
+				else reject(new Error(`${scenario.name} exited with code ${code}`));
+			});
+		});
+	}
 }
 
 async function runScenario(
