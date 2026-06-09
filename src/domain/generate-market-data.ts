@@ -20,7 +20,6 @@ import {
 	createBarId,
 	IntervalTimeAggregator,
 	PriceLevelAggregator,
-	TimeAggregator,
 	VolumeAggregator
 } from './candles.ts';
 import {
@@ -64,7 +63,6 @@ export async function generateMarketData(
 	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
 	const seconds15Aggregator = new IntervalTimeAggregator(15_000);
 	const minutes5Aggregator = new IntervalTimeAggregator(300_000);
-	const dailyAggregator = new TimeAggregator((time) => time);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const minutes5Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
@@ -129,7 +127,7 @@ export async function generateMarketData(
 					sessionOpenPrice,
 					shouldEmitPriceLevel,
 					scid,
-					dailyAggregator,
+					counts.daily,
 					seconds15Aggregator,
 					minutes5Aggregator,
 					volume500Aggregator,
@@ -163,7 +161,7 @@ export async function generateMarketData(
 		}
 
 		const final = {
-			daily: dailyAggregator.finish(),
+			daily: [],
 			minutes5: minutes5Aggregator.finish(),
 			priceLevel: priceLevelAggregator.finish(),
 			seconds15: seconds15Aggregator.finish(),
@@ -224,7 +222,7 @@ function generateSessionTicksIntoOutputs(
 	sessionStartPrice: number,
 	shouldEmitPriceLevel: boolean,
 	scid: ScidTickWriter,
-	dailyAggregator: TimeAggregator,
+	dailyPos: number,
 	seconds15Aggregator: IntervalTimeAggregator,
 	minutes5Aggregator: IntervalTimeAggregator,
 	volume500Aggregator: VolumeAggregator,
@@ -240,6 +238,12 @@ function generateSessionTicksIntoOutputs(
 		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
 	const tickSize = symbolConfig.tickSize;
+	let dailyOpen = 0;
+	let dailyHigh = 0;
+	let dailyLow = 0;
+	let dailyClose = 0;
+	let dailyVolume = 0;
+	let dailyPriceVolume = 0;
 
 	if (!shouldEmitPriceLevel) {
 		for (let index = 0; index < ticksPerSession; index++) {
@@ -280,13 +284,17 @@ function generateSessionTicksIntoOutputs(
 				isAsk ? 0 : volume,
 				isAsk ? volume : 0
 			);
-			dailyAggregator.pushTickValuesForBucket(
-				time,
-				price,
-				volume,
-				sessionStart,
-				emitted.daily
-			);
+			if (index === 0) {
+				dailyOpen = price;
+				dailyHigh = price;
+				dailyLow = price;
+			} else {
+				dailyHigh = Math.max(dailyHigh, price);
+				dailyLow = Math.min(dailyLow, price);
+			}
+			dailyClose = price;
+			dailyVolume += volume;
+			dailyPriceVolume += price * volume;
 			seconds15Aggregator.pushTickValues(
 				time,
 				price,
@@ -301,6 +309,18 @@ function generateSessionTicksIntoOutputs(
 				emitted.volume500
 			);
 		}
+
+		emitted.daily.push({
+			close: dailyClose,
+			high: dailyHigh,
+			id: createBarId(sessionStart, 0),
+			low: dailyLow,
+			open: dailyOpen,
+			pos: dailyPos,
+			time: sessionStart,
+			volume: dailyVolume,
+			vwap: dailyPriceVolume / dailyVolume
+		});
 
 		return priceTicks * tickSize;
 	}
@@ -340,13 +360,17 @@ function generateSessionTicksIntoOutputs(
 			isAsk ? 0 : volume,
 			isAsk ? volume : 0
 		);
-		dailyAggregator.pushTickValuesForBucket(
-			time,
-			price,
-			volume,
-			sessionStart,
-			emitted.daily
-		);
+		if (index === 0) {
+			dailyOpen = price;
+			dailyHigh = price;
+			dailyLow = price;
+		} else {
+			dailyHigh = Math.max(dailyHigh, price);
+			dailyLow = Math.min(dailyLow, price);
+		}
+		dailyClose = price;
+		dailyVolume += volume;
+		dailyPriceVolume += price * volume;
 		seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15);
 		minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
@@ -357,6 +381,18 @@ function generateSessionTicksIntoOutputs(
 			emitted.priceLevel
 		);
 	}
+
+	emitted.daily.push({
+		close: dailyClose,
+		high: dailyHigh,
+		id: createBarId(sessionStart, 0),
+		low: dailyLow,
+		open: dailyOpen,
+		pos: dailyPos,
+		time: sessionStart,
+		volume: dailyVolume,
+		vwap: dailyPriceVolume / dailyVolume
+	});
 
 	return priceTicks * tickSize;
 }
