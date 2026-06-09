@@ -49,12 +49,8 @@ export async function generateMarketData(
 	const files = getOutputFiles(inputs);
 	const priceLevelAggregator = new PriceLevelAggregator();
 	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
-	const seconds15Aggregator = new TimeAggregator(
-		(time) => Math.floor(time / 15_000) * 15_000
-	);
-	const minutes5Aggregator = new TimeAggregator(
-		(time) => Math.floor(time / 300_000) * 300_000
-	);
+	const seconds15Aggregator = new TimeAggregator(15_000);
+	const minutes5Aggregator = new TimeAggregator(300_000);
 	const dailyAggregator = new TimeAggregator((time) => time);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);

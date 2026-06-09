@@ -70,8 +70,18 @@ export class PriceLevelAggregator {
 export class TimeAggregator {
 	private current: MutableCandle | undefined;
 	private pos = 0;
+	private readonly bucketMs: number | undefined;
+	private readonly getBucket: ((time: number) => number) | undefined;
 
-	constructor(private readonly getBucket: (time: number) => number) {}
+	constructor(bucket: ((time: number) => number) | number) {
+		if (typeof bucket === 'number') {
+			this.bucketMs = bucket;
+			this.getBucket = undefined;
+		} else {
+			this.bucketMs = undefined;
+			this.getBucket = bucket;
+		}
+	}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
 		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
@@ -93,13 +103,11 @@ export class TimeAggregator {
 		volume: number,
 		emitted: MdCandle[]
 	) {
-		this.pushTickValuesForBucket(
-			time,
-			price,
-			volume,
-			this.getBucket(time),
-			emitted
-		);
+		const bucket =
+			this.bucketMs === undefined
+				? this.requireGetBucket()(time)
+				: Math.floor(time / this.bucketMs) * this.bucketMs;
+		this.pushTickValuesForBucket(time, price, volume, bucket, emitted);
 	}
 
 	pushTickValuesForBucket(
@@ -129,6 +137,14 @@ export class TimeAggregator {
 		emitted.push(finalizeMutableCandle(this.current, this.pos));
 		this.pos++;
 		this.current = undefined;
+	}
+
+	private requireGetBucket() {
+		if (this.getBucket === undefined) {
+			throw new Error('Time bucket function is not configured');
+		}
+
+		return this.getBucket;
 	}
 }
 
