@@ -189,7 +189,8 @@ export class IntervalTimeAggregator {
 
 export class VolumeAggregator {
 	private current: MutableCandle | undefined;
-	private readonly sequences = new Map<number, number>();
+	private lastSequenceTime: number | undefined;
+	private nextSequenceValue = 0;
 	private pos = 0;
 
 	constructor(private readonly targetVolume: number) {}
@@ -237,11 +238,25 @@ export class VolumeAggregator {
 			finalizeMutableCandleWithId(
 				this.current,
 				this.pos,
-				createBarId(time, nextSequence(this.sequences, time))
+				createBarId(time, this.nextSequence(time))
 			)
 		);
 		this.pos++;
 		this.current = undefined;
+	}
+
+	private nextSequence(time: number) {
+		if (this.lastSequenceTime === time) {
+			const sequence = this.nextSequenceValue;
+			this.nextSequenceValue++;
+
+			return sequence;
+		}
+
+		this.lastSequenceTime = time;
+		this.nextSequenceValue = 1;
+
+		return 0;
 	}
 }
 
@@ -312,11 +327,4 @@ function finalizeMutablePriceLevelCandle(
 
 export function createBarId(time: number, sequence: number) {
 	return BigInt(time) * ID_SEQUENCE_MULTIPLIER + BigInt(sequence);
-}
-
-function nextSequence(sequences: Map<number, number>, time: number) {
-	const sequence = sequences.get(time) ?? 0;
-	sequences.set(time, sequence + 1);
-
-	return sequence;
 }
