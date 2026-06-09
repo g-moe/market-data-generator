@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -154,10 +155,19 @@ async function fingerprintDirectory(directory: string) {
 		const fileStat = await stat(path);
 		bytes += fileStat.size;
 		hash.update(file);
-		hash.update(await readFile(path));
+		await updateHashFromFile(hash, path);
 	}
 
 	return { bytes, hash: hash.digest('hex') };
+}
+
+async function updateHashFromFile(
+	hash: ReturnType<typeof createHash>,
+	path: string
+) {
+	for await (const chunk of createReadStream(path)) {
+		hash.update(chunk);
+	}
 }
 
 function toMb(bytes: number) {
