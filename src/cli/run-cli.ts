@@ -24,6 +24,10 @@ type TaskSpinner = {
 	stop: (message?: string) => void;
 };
 
+type TerminalTaskSpinner = TaskSpinner & {
+	log: (message: string) => void;
+};
+
 export type CliPorts = {
 	log: (message: string) => void;
 	select: (message: string, choices: readonly Choice[]) => Promise<string>;
@@ -131,12 +135,15 @@ function getGenerationWorkerExecArgv() {
 	return import.meta.url.endsWith('.ts') ? ['--import', 'tsx'] : undefined;
 }
 
-function createTextSpinner(output: typeof stdout): TaskSpinner {
+function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 	let frameIndex = 0;
 	let message = '';
 	let timer: ReturnType<typeof setInterval> | undefined;
+	let isRunning = false;
 
 	const render = () => {
+		if (!isRunning) return;
+
 		const frame = styleText('white', SPINNER_FRAMES[frameIndex]);
 		output.write(`\r\x1B[2K${frame}${message}`);
 		frameIndex = (frameIndex + 1) % SPINNER_FRAMES.length;
@@ -147,6 +154,7 @@ function createTextSpinner(output: typeof stdout): TaskSpinner {
 			clearInterval(timer);
 			timer = undefined;
 		}
+		isRunning = false;
 
 		output.write(`\r\x1B[2K${symbol}${nextMessage}\n`);
 	};
@@ -155,8 +163,13 @@ function createTextSpinner(output: typeof stdout): TaskSpinner {
 		error: (nextMessage) => {
 			stop('■', nextMessage);
 		},
+		log: (nextMessage) => {
+			output.write(`\r\x1B[2K${nextMessage}\n`);
+			render();
+		},
 		start: (nextMessage = '') => {
 			message = nextMessage;
+			isRunning = true;
 			render();
 			timer = setInterval(render, 100);
 		},
@@ -170,9 +183,11 @@ export function createNodePorts({
 	input = stdin,
 	output = stdout
 }: NodePortsOptions = {}): CliPorts {
+	const spinner = createTextSpinner(output);
+
 	return {
 		log: (message) => {
-			output.write(`\r\x1B[2K${message}\n`);
+			spinner.log(message);
 		},
 		select: async (message, choices) => {
 			const prompt = createInterface({
@@ -206,7 +221,7 @@ export function createNodePorts({
 			}
 		},
 		spinner: () => {
-			return createTextSpinner(output);
+			return spinner;
 		}
 	};
 }
