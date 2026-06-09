@@ -135,10 +135,10 @@ export async function generateMarketData(
 					minutes5Aggregator,
 					volume500Aggregator,
 					priceLevelAggregator,
-					emitted,
-					counts
+					emitted
 				);
 				sessionTicks = inputs.ticksPerSession;
+				counts.ticks += sessionTicks;
 			}
 
 			await scid.flush();
@@ -230,8 +230,7 @@ function generateSessionTicksIntoOutputs(
 	minutes5Aggregator: IntervalTimeAggregator,
 	volume500Aggregator: VolumeAggregator,
 	priceLevelAggregator: PriceLevelAggregator,
-	emitted: CandleEmissions,
-	counts: GenerationResult['counts']
+	emitted: CandleEmissions
 ) {
 	const sessionEnd = getSessionEnd(sessionStart);
 	const ticksPerSession = inputs.ticksPerSession;
@@ -271,7 +270,6 @@ function generateSessionTicksIntoOutputs(
 			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
 		}
 		const price = priceTicks * tickSize;
-		counts.ticks++;
 		scid.pushTickValues(time, price, volume, side);
 		dailyAggregator.pushTickValuesForBucket(
 			time,
