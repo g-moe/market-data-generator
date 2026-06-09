@@ -58,10 +58,13 @@ export class PriceLevelAggregator {
 
 	private emitCurrent(emitted: MdCandleVolumeByPrice[]) {
 		if (this.current === undefined) return;
-		emitted.push({
-			...finalizeMutableCandle(this.current.candle, this.pos),
-			prices: this.current.prices
-		});
+		emitted.push(
+			finalizeMutablePriceLevelCandle(
+				this.current.candle,
+				this.pos,
+				this.current.prices
+			)
+		);
 		this.pos++;
 		this.current = undefined;
 	}
@@ -230,10 +233,13 @@ export class VolumeAggregator {
 	private emitCurrent(emitted: MdCandle[]) {
 		if (this.current === undefined) return;
 		const time = this.current.time;
-		emitted.push({
-			...finalizeMutableCandle(this.current, this.pos),
-			id: createBarId(time, nextSequence(this.sequences, time))
-		});
+		emitted.push(
+			finalizeMutableCandleWithId(
+				this.current,
+				this.pos,
+				createBarId(time, nextSequence(this.sequences, time))
+			)
+		);
 		this.pos++;
 		this.current = undefined;
 	}
@@ -264,6 +270,32 @@ function addTickValues(candle: MutableCandle, price: number, volume: number) {
 }
 
 function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
+	return finalizeMutableCandleWithId(candle, pos, createBarId(candle.time, 0));
+}
+
+function finalizeMutableCandleWithId(
+	candle: MutableCandle,
+	pos: number,
+	id: bigint
+): MdCandle {
+	return {
+		close: candle.close,
+		high: candle.high,
+		id,
+		low: candle.low,
+		open: candle.open,
+		pos,
+		time: candle.time,
+		volume: candle.volume,
+		vwap: candle.priceVolume / candle.volume
+	};
+}
+
+function finalizeMutablePriceLevelCandle(
+	candle: MutableCandle,
+	pos: number,
+	prices: Map<number, number>
+): MdCandleVolumeByPrice {
 	return {
 		close: candle.close,
 		high: candle.high,
@@ -271,6 +303,7 @@ function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
 		low: candle.low,
 		open: candle.open,
 		pos,
+		prices,
 		time: candle.time,
 		volume: candle.volume,
 		vwap: candle.priceVolume / candle.volume
