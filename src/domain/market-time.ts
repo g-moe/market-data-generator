@@ -2,7 +2,6 @@ import { CENTRAL_TIMEZONE } from '../contracts/market-time.ts';
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 const SESSION_START_HOUR = 17;
 const SESSION_END_HOUR = 16;
 
@@ -11,7 +10,7 @@ export function getSessionStart(anchorIso: string, sessionsBack: number) {
 	let remaining = sessionsBack;
 
 	while (remaining > 0) {
-		cursor -= DAY_MS;
+		cursor = getPreviousSessionStart(cursor);
 		if (isTradingSessionStart(cursor)) remaining--;
 	}
 
@@ -95,25 +94,54 @@ export function getUtcParts(time: Date) {
 
 function getSessionStartForTime(time: number) {
 	const parts = getCentralParts(new Date(time));
-	const sameDayStart = centralDateTimeToUtcMs(
-		Number(parts.date.slice(0, 4)),
-		Number(parts.date.slice(5, 7)),
-		Number(parts.date.slice(8, 10)),
-		SESSION_START_HOUR,
-		0,
-		0
-	);
+	const sameDayStart = centralDateHourToUtcMs(parts.date, SESSION_START_HOUR);
 	const minuteOfDay = parts.hour * 60 + parts.minute;
 
 	return minuteOfDay >= SESSION_START_HOUR * 60
 		? sameDayStart
-		: sameDayStart - DAY_MS;
+		: centralDateHourToUtcMs(
+				addCentralCalendarDays(parts.date, -1),
+				SESSION_START_HOUR
+			);
 }
 
-function isTradingSessionStart(time: number) {
+export function isTradingSessionStart(time: number) {
 	const parts = getCentralParts(new Date(time));
 
 	return parts.weekday !== 'Fri' && parts.weekday !== 'Sat';
+}
+
+export function getPreviousSessionStart(sessionStart: number) {
+	const parts = getCentralParts(new Date(sessionStart));
+
+	return centralDateHourToUtcMs(
+		addCentralCalendarDays(parts.date, -1),
+		SESSION_START_HOUR
+	);
+}
+
+function centralDateHourToUtcMs(date: string, hour: number) {
+	return centralDateTimeToUtcMs(
+		Number(date.slice(0, 4)),
+		Number(date.slice(5, 7)),
+		Number(date.slice(8, 10)),
+		hour,
+		0,
+		0
+	);
+}
+
+function addCentralCalendarDays(date: string, days: number) {
+	const year = Number(date.slice(0, 4));
+	const month = Number(date.slice(5, 7));
+	const day = Number(date.slice(8, 10));
+	const next = new Date(Date.UTC(year, month - 1, day + days));
+
+	return [
+		next.getUTCFullYear(),
+		String(next.getUTCMonth() + 1).padStart(2, '0'),
+		String(next.getUTCDate()).padStart(2, '0')
+	].join('-');
 }
 
 function centralDateTimeToUtcMs(

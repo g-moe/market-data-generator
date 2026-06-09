@@ -1,5 +1,6 @@
 import { generateMarketData } from './domain/generate-market-data.ts';
 import { normalizeInputs } from './domain/inputs.ts';
+import { formatProgressMessage } from './cli/progress.ts';
 
 const inputs = normalizeInputs({
 	symbol: 'ES'
@@ -15,13 +16,3 @@ const result = await generateMarketData(inputs, {
 });
 
 console.log(`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`);
-
-function formatProgressMessage(progress: { completed: number; total: number }) {
-	if (progress.completed % 100 !== 0 && progress.completed !== progress.total) {
-		return undefined;
-	}
-
-	const start = Math.max(1, progress.completed - 99);
-
-	return `Completed sessions ${start}-${progress.completed} of ${progress.total}`;
-}

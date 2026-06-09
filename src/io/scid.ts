@@ -12,10 +12,7 @@ export class ScidTickWriter {
 	private handle: FileHandle | undefined;
 	private readonly ticks: MarketTick[] = [];
 
-	constructor(
-		private readonly filePath: string,
-		private readonly flushTickCount = 10_000
-	) {}
+	constructor(private readonly filePath: string) {}
 
 	async open() {
 		await mkdir(dirname(this.filePath), { recursive: true });
@@ -37,7 +34,6 @@ export class ScidTickWriter {
 
 	pushTick(tick: MarketTick) {
 		this.ticks.push(tick);
-		return this.ticks.length >= this.flushTickCount;
 	}
 
 	async flush() {

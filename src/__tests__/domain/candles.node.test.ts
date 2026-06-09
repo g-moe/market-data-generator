@@ -24,7 +24,7 @@ describe('streaming candle aggregators', () => {
 
 	it('builds price-level candles with volume by price', () => {
 		const aggregator = new PriceLevelAggregator();
-		const emitted = aggregator.pushTicks([
+		const emitted = pushTicks(aggregator, [
 			tick({ price: 6000, volume: 2 }),
 			tick({ price: 6000.25, time: 1_700_000_000_500, volume: 3 }),
 			tick({ price: 6000, time: 1_700_000_001_000, volume: 5 })
@@ -48,7 +48,7 @@ describe('streaming candle aggregators', () => {
 
 	it('splits ticks across exact 500-volume candles', () => {
 		const aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
-		const emitted = aggregator.pushTicks([
+		const emitted = pushTicks(aggregator, [
 			tick({ volume: 300 }),
 			tick({ volume: 700 })
 		]);
@@ -109,7 +109,20 @@ function aggregateTime(
 	getBucket: ConstructorParameters<typeof TimeAggregator>[0]
 ) {
 	const aggregator = new TimeAggregator(getBucket);
-	const emitted = aggregator.pushTicks(ticks);
+	const emitted = pushTicks(aggregator, ticks);
 
 	return [...emitted, ...aggregator.finish()];
+}
+
+function pushTicks<T>(
+	aggregator: { pushTick: (tick: MarketTick, emitted: T[]) => void },
+	ticks: MarketTick[]
+) {
+	const emitted: T[] = [];
+
+	for (const current of ticks) {
+		aggregator.pushTick(current, emitted);
+	}
+
+	return emitted;
 }

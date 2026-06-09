@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 
+import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import type {
 	GenerationResult,
@@ -20,7 +21,11 @@ import {
 	TimeAggregator,
 	VolumeAggregator
 } from './candles.ts';
-import { getCentralParts, getSessionStart } from './market-time.ts';
+import {
+	getPreviousSessionStart,
+	getSessionStart,
+	isTradingSessionStart
+} from './market-time.ts';
 import { RingBuffer } from './ring-buffer.ts';
 import { generateSessionTicksForStart } from './ticks.ts';
 
@@ -44,7 +49,7 @@ export async function generateMarketData(
 	const symbolConfig = getSymbolConfig(inputs.symbol);
 	const files = getOutputFiles(inputs);
 	const priceLevelAggregator = new PriceLevelAggregator();
-	const volume500Aggregator = new VolumeAggregator(500);
+	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
 	const seconds15Aggregator = new TimeAggregator(
 		(time) => Math.floor(time / 15_000) * 15_000
 	);
@@ -209,16 +214,10 @@ function getSessionStarts(inputs: GeneratorInputs) {
 		if (isTradingSessionStart(cursor)) {
 			sessionStarts.push(cursor);
 		}
-		cursor -= 24 * 60 * 60 * 1000;
+		cursor = getPreviousSessionStart(cursor);
 	}
 
 	return sessionStarts.reverse();
-}
-
-function isTradingSessionStart(time: number) {
-	const weekday = getCentralParts(new Date(time)).weekday;
-
-	return weekday !== 'Fri' && weekday !== 'Sat';
 }
 
 async function writeRingBuffer(

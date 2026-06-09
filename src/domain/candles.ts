@@ -18,29 +18,11 @@ type MutableCandle = {
 	volume: number;
 };
 
-export type AggregationResult = {
-	priceLevel: MdCandleVolumeByPrice[];
-	volume500: MdCandle[];
-	seconds15: MdCandle[];
-	minutes5: MdCandle[];
-	daily: MdCandle[];
-};
-
 export class PriceLevelAggregator {
 	private current:
 		| { candle: MutableCandle; prices: Map<Price, Volume> }
 		| undefined;
 	private pos = 0;
-
-	pushTicks(ticks: MarketTick[]) {
-		const emitted: MdCandleVolumeByPrice[] = [];
-
-		for (const tick of ticks) {
-			this.pushTick(tick, emitted);
-		}
-
-		return emitted;
-	}
 
 	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
 		const bucket = floorTime(tick.time, 1000);
@@ -84,16 +66,6 @@ export class TimeAggregator {
 
 	constructor(private readonly getBucket: (time: number) => number) {}
 
-	pushTicks(ticks: MarketTick[]) {
-		const emitted: MdCandle[] = [];
-
-		for (const tick of ticks) {
-			this.pushTick(tick, emitted);
-		}
-
-		return emitted;
-	}
-
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
 		this.pushTickForBucket(tick, this.getBucket(tick.time), emitted);
 	}
@@ -128,16 +100,6 @@ export class VolumeAggregator {
 	private pos = 0;
 
 	constructor(private readonly targetVolume: number) {}
-
-	pushTicks(ticks: MarketTick[]) {
-		const emitted: MdCandle[] = [];
-
-		for (const tick of ticks) {
-			this.pushTick(tick, emitted);
-		}
-
-		return emitted;
-	}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
 		let remaining = tick.volume;

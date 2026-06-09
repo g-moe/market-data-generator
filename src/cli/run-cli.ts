@@ -7,6 +7,7 @@ import { isCancel, outro, select } from '@clack/prompts';
 import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
 import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
 import { normalizeInputs } from '../domain/inputs.ts';
+import { formatProgressMessage } from './progress.ts';
 
 type Choice = {
 	label: string;
@@ -73,21 +74,6 @@ export async function runCli(
 		task.error('Failed to generate market data');
 		throw error;
 	}
-}
-
-function formatProgressMessage(progress: {
-	completed: number;
-	total: number;
-	sessionIndex: number;
-	ticks: number;
-}) {
-	if (progress.completed % 100 !== 0 && progress.completed !== progress.total) {
-		return undefined;
-	}
-
-	const start = Math.max(1, progress.completed - 99);
-
-	return `Completed sessions ${start}-${progress.completed} of ${progress.total}`;
 }
 
 type WorkerMessage =

@@ -38,6 +38,39 @@ describe('futures market time', () => {
 		});
 	});
 
+	it('keeps session starts at 17:00 CT across spring daylight saving time', () => {
+		const starts = Array.from({ length: 6 }, (_, sessionsBack) => {
+			return getCentralParts(
+				new Date(getSessionStart('2026-03-10T23:00:00.000Z', sessionsBack))
+			);
+		});
+
+		expect(starts.map((start) => `${start.weekday} ${start.time}`)).toEqual([
+			'Tue 17:00:00',
+			'Mon 17:00:00',
+			'Sun 17:00:00',
+			'Thu 17:00:00',
+			'Wed 17:00:00',
+			'Tue 17:00:00'
+		]);
+	});
+
+	it('keeps session starts at 17:00 CT across fall daylight saving time', () => {
+		const starts = Array.from({ length: 5 }, (_, sessionsBack) => {
+			return getCentralParts(
+				new Date(getSessionStart('2026-11-04T23:00:00.000Z', sessionsBack))
+			);
+		});
+
+		expect(starts.map((start) => `${start.weekday} ${start.time}`)).toEqual([
+			'Wed 17:00:00',
+			'Tue 17:00:00',
+			'Mon 17:00:00',
+			'Sun 17:00:00',
+			'Thu 17:00:00'
+		]);
+	});
+
 	it('finds the daily session start for intraday ticks', () => {
 		const sessionStart = getDailySessionStart(
 			Date.parse('2026-06-08T15:30:00.000Z')
