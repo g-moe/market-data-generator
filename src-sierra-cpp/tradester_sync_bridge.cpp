@@ -2,87 +2,39 @@
 
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 
 SCDLLName("Tradester Sync Bridge")
 
 namespace {
 
-std::string ReadTextFile(const char* path)
-{
-    std::ifstream input(path, std::ios::in | std::ios::binary);
-    if (!input.is_open())
-        return {};
-
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    return buffer.str();
-}
-
-std::string DataFilePath(const char* fileName, SCStudyInterfaceRef sc)
-{
-    return (std::filesystem::path(sc.DataFilesFolder().GetChars()) / fileName).string();
-}
-
-std::string ExtractJsonString(const std::string& json, const char* key)
-{
-    const std::string quotedKey = std::string("\"") + key + "\"";
-    const size_t keyPosition = json.find(quotedKey);
-    if (keyPosition == std::string::npos)
-        return {};
-
-    const size_t colonPosition = json.find(':', keyPosition + quotedKey.size());
-    if (colonPosition == std::string::npos)
-        return {};
-
-    const size_t valueStart = json.find('"', colonPosition + 1);
-    if (valueStart == std::string::npos)
-        return {};
-
-    const size_t valueEnd = json.find('"', valueStart + 1);
-    if (valueEnd == std::string::npos)
-        return {};
-
-    return json.substr(valueStart + 1, valueEnd - valueStart - 1);
-}
-
-std::string ExtractJsonStringInObject(const std::string& json, const char* objectKey, const char* key)
-{
-    const std::string quotedObjectKey = std::string("\"") + objectKey + "\"";
-    const size_t objectPosition = json.find(quotedObjectKey);
-    if (objectPosition == std::string::npos)
-        return {};
-
-    return ExtractJsonString(json.substr(objectPosition), key);
-}
-
-std::string ExportKeyForChartNumber(int chartNumber)
+const char* ExportFileNameForChartNumber(int chartNumber)
 {
     switch (chartNumber)
     {
         case 1:
-            return "priceLevel";
+            return "tradester_ES_1s_GraphData.txt";
         case 2:
-            return "seconds15";
+            return "tradester_ES_15s_GraphData.txt";
         case 3:
-            return "volume500";
+            return "tradester_ES_500v_GraphData.txt";
         case 4:
-            return "minutes5";
+            return "tradester_ES_5m_GraphData.txt";
         case 5:
-            return "daily";
+            return "tradester_ES_1d_GraphData.txt";
         default:
-            return {};
+            return "";
     }
 }
 
-void WriteChartDataExport(const std::string& directory, const std::string& fileName, SCStudyInterfaceRef sc)
+std::filesystem::path ExportDirectory()
 {
-    if (directory.empty() || fileName.empty())
-        return;
+    return std::filesystem::path("__TRADESTER_SIERRA_EXPORT_DIR__");
+}
 
-    std::filesystem::create_directories(directory);
-    const std::filesystem::path exportPath = std::filesystem::path(directory) / fileName;
+void WriteChartDataExport(const std::filesystem::path& exportPath, SCStudyInterfaceRef sc)
+{
+    std::filesystem::create_directories(exportPath.parent_path());
     std::ofstream output(exportPath, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!output.is_open())
         return;
@@ -108,43 +60,20 @@ void WriteChartDataExport(const std::string& directory, const std::string& fileN
 
 SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
 {
-    SCInputRef RequestPath = sc.Input[0];
-
     if (sc.SetDefaults)
     {
         sc.GraphName = "Tradester Sync Bridge";
-        sc.StudyDescription = "Reads tradester-sync-request.json and writes temporary chart data exports.";
+        sc.StudyDescription = "Writes fixed temporary chart data exports for Tradester validation.";
         sc.AutoLoop = 0;
         sc.UpdateAlways = 1;
-
-        RequestPath.Name = "Request JSON Path";
-        RequestPath.SetString("");
-
         return;
     }
 
-    const std::string requestPath = RequestPath.GetString()[0] == '\0'
-                                            ? DataFilePath("tradester-sync-request.json", sc)
-                                            : std::string(RequestPath.GetString());
-    const std::string request = ReadTextFile(requestPath.c_str());
-    if (request.empty())
+    const char* fileName = ExportFileNameForChartNumber(sc.ChartNumber);
+    if (fileName[0] == '\0')
         return;
-
-    const std::string runId = ExtractJsonString(request, "runId");
-    if (runId.empty())
-        return;
-
-    SCString& lastRunId = sc.GetPersistentSCString(1);
-    if (std::string(lastRunId.GetChars()) == runId)
-        return;
-
-    lastRunId = runId.c_str();
 
     sc.FlagToReloadChartData = 1;
     sc.FlagFullRecalculate = 1;
-
-    const std::string exportKey = ExportKeyForChartNumber(sc.ChartNumber);
-    const std::string exportFileName = exportKey.empty() ? std::string() : ExtractJsonStringInObject(request, "exportFiles", exportKey.c_str());
-    const std::string dataOutTempDir = ExtractJsonString(request, "dataOutTempDir");
-    WriteChartDataExport(dataOutTempDir, exportFileName, sc);
+    WriteChartDataExport(ExportDirectory() / fileName, sc);
 }

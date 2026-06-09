@@ -7,6 +7,8 @@ export const SIERRA_BRIDGE_SOURCE_PATH =
 	'src-sierra-cpp/tradester_sync_bridge.cpp';
 export const SIERRA_BRIDGE_FILE_NAME = 'tradester_sync_bridge.cpp';
 export const SIERRA_BRIDGE_DLL_BASE_NAME = 'tradester_sync_bridge';
-export const SIERRA_SYNC_REQUEST_FILE = 'tradester-sync-request.json';
+export const SIERRA_LATEST_RUN_NAME = 'latest';
+export const SIERRA_EXPORT_TIMEOUT_MS = 60_000;
+export const SIERRA_EXPORT_POLL_INTERVAL_MS = 1_000;
 export const VISUAL_STUDIO_BUILD_DIR =
 	'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build';

@@ -12,4 +12,4 @@
 
 **RE-EXPORTING** - do not use re-exports
 **BLINDY AGREEING** - do not blindy agree if the user is wrong or inaccurate; push back; you are not a slave; if you are confused, unsure or not aligned with the users request, do not proceed with work until you and the user have an alignment discussion;
-**NOT PADDING CODE** - do not write code without any padding; leave blank lines for readability when it makes sense to break up logic/control flow;
+**NOT PADDING CODE** - do not write code without any padding; leave blank lines for readability when it makes sense to break up logic/control flow; it is encouraged but not required to add a comment to help section out long running scopes/code-blocks (if you add one comment to the block you must follow the OCD rule and add similar commenting to the rest of the block)

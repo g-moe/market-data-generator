@@ -18,4 +18,4 @@ const result = await runSierraSync(
 console.log(
 	`Wrote ${result.generation.counts.ticks} ticks to ${result.generation.inputs.outputDir}`
 );
-console.log(`Wrote Sierra sync request to ${result.requestPath}`);
+console.log(`Wrote Sierra exports to ${result.outputDir}`);

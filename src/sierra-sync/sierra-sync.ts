@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import type {
 	GenerationProgress,
 	GenerationResult
@@ -11,22 +8,27 @@ import {
 	installSierraBridgeSource,
 	type SierraBridgeBuildInputs
 } from './bridge.ts';
-import { SIERRA_SYNC_REQUEST_FILE } from './constants.ts';
+import {
+	copySierraOutputsToRun,
+	resetLatestSierraOutputs,
+	sierraExportFiles,
+	type SierraExportFiles,
+	waitForFreshSierraOutputs
+} from './outputs.ts';
 import {
 	normalizeSierraSyncInputs,
 	type RawSierraSyncInputs
 } from './inputs.ts';
-import { createSierraSyncRequest, type SierraSyncRequest } from './request.ts';
 
 export type SierraSyncResult = {
 	generation: GenerationResult;
-	request: SierraSyncRequest;
-	requestPath: string;
 	bridgeSourcePath: string;
 	bridgeInstalledPath: string;
 	bridgeDllPaths: string[];
+	latestOutputDir: string;
 	outputDir: string;
-	dataOutTempDir: string;
+	exportFiles: SierraExportFiles;
+	copiedFiles: SierraExportFiles;
 };
 
 type SierraSyncOptions = {
@@ -40,14 +42,17 @@ export async function runSierraSync(
 	raw: RawSierraSyncInputs,
 	options: SierraSyncOptions = {}
 ): Promise<SierraSyncResult> {
+	const startedAt = Date.now();
 	const normalized = normalizeSierraSyncInputs(raw, options.now);
 	const generate = options.generate ?? generateMarketData;
 	const generation = await generate(normalized.generationInputs, {
 		onSessionComplete: options.onSessionComplete
 	});
+	await resetLatestSierraOutputs(normalized.latestOutputDir);
 	const bridgeInstalledPath = await installSierraBridgeSource({
 		acsSourceDir: normalized.acsSourceDir,
-		bridgeSourcePath: normalized.bridgeSourcePath
+		bridgeSourcePath: normalized.bridgeSourcePath,
+		latestOutputDir: normalized.latestOutputDir
 	});
 	const buildBridge = options.buildSierraBridge ?? buildSierraBridge;
 	const bridgeDllPaths = normalized.buildSierraBridge
@@ -56,26 +61,25 @@ export async function runSierraSync(
 				sierraDataDir: normalized.sierraDataDir
 			})
 		: [];
-	const request = createSierraSyncRequest({
-		bridgeDllPaths,
-		bridgeInstalledPath,
-		bridgeSourcePath: normalized.bridgeSourcePath,
-		dataOutTempDir: normalized.dataOutTempDir,
-		generation,
-		requestedAt: normalized.requestedAt,
-		runId: normalized.syncRunId
+	const exportFiles = sierraExportFiles(generation.inputs.symbol);
+	await waitForFreshSierraOutputs({
+		directory: normalized.latestOutputDir,
+		exportFiles,
+		startedAt
 	});
-	const requestPath = join(normalized.sierraDataDir, SIERRA_SYNC_REQUEST_FILE);
-	await mkdir(normalized.sierraDataDir, { recursive: true });
-	await writeFile(requestPath, `${JSON.stringify(request, null, 2)}\n`);
+	const copiedFiles = await copySierraOutputsToRun({
+		exportFiles,
+		fromDir: normalized.latestOutputDir,
+		toDir: normalized.outputDir
+	});
 	return {
 		bridgeDllPaths,
 		bridgeInstalledPath,
 		bridgeSourcePath: normalized.bridgeSourcePath,
-		dataOutTempDir: normalized.dataOutTempDir,
+		copiedFiles,
+		exportFiles,
 		generation,
-		outputDir: normalized.outputDir,
-		request,
-		requestPath
+		latestOutputDir: normalized.latestOutputDir,
+		outputDir: normalized.outputDir
 	};
 }

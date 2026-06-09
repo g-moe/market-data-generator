@@ -36,7 +36,7 @@ export async function runSierraSyncCli(
 				}
 			}
 		);
-		task.stop(`Wrote Sierra sync request to ${result.requestPath}`);
+		task.stop(`Wrote Sierra exports to ${result.outputDir}`);
 
 		return result;
 	} catch (error) {

@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import type { RawGeneratorInputs } from '../contracts/types.ts';
@@ -8,8 +8,11 @@ import {
 	DEFAULT_DATA_OUT_ROOT,
 	DEFAULT_DATA_OUT_TEMP_ROOT,
 	DEFAULT_SIERRA_INSTALL_DIR,
-	SIERRA_BRIDGE_SOURCE_PATH
+	SIERRA_BRIDGE_SOURCE_PATH,
+	SIERRA_EXPORT_POLL_INTERVAL_MS,
+	SIERRA_EXPORT_TIMEOUT_MS
 } from './constants.ts';
+import { latestSierraOutputDir } from './outputs.ts';
 
 export type RawSierraSyncInputs = RawGeneratorInputs & {
 	dataInRoot?: string;
@@ -21,6 +24,8 @@ export type RawSierraSyncInputs = RawGeneratorInputs & {
 	bridgeSourcePath?: string;
 	buildSierraBridge?: boolean;
 	syncRunId?: string;
+	exportPollIntervalMs?: number;
+	exportTimeoutMs?: number;
 };
 
 export function normalizeSierraSyncInputs(
@@ -45,8 +50,14 @@ export function normalizeSierraSyncInputs(
 		acsSourceDir,
 		bridgeSourcePath: raw.bridgeSourcePath?.trim() || SIERRA_BRIDGE_SOURCE_PATH,
 		buildSierraBridge: raw.buildSierraBridge ?? true,
-		dataOutTempDir: resolve(dataOutTempRoot, symbolConfig.symbolId, syncRunId),
+		exportPollIntervalMs:
+			raw.exportPollIntervalMs ?? SIERRA_EXPORT_POLL_INTERVAL_MS,
+		exportTimeoutMs: raw.exportTimeoutMs ?? SIERRA_EXPORT_TIMEOUT_MS,
 		generationInputs,
+		latestOutputDir: latestSierraOutputDir({
+			dataOutTempRoot,
+			symbol: generationInputs.symbol
+		}),
 		outputDir: join(dataOutRoot, symbolConfig.symbolId, syncRunId),
 		requestedAt,
 		sierraDataDir,

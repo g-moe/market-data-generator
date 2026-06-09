@@ -1,5 +1,5 @@
 import { exec, execFile } from 'node:child_process';
-import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -11,6 +11,7 @@ import {
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
+const EXPORT_DIR_PLACEHOLDER = '__TRADESTER_SIERRA_EXPORT_DIR__';
 
 export type SierraBridgeBuildInputs = {
 	bridgeInstalledPath: string;
@@ -19,14 +20,23 @@ export type SierraBridgeBuildInputs = {
 
 export async function installSierraBridgeSource({
 	acsSourceDir,
-	bridgeSourcePath
+	bridgeSourcePath,
+	latestOutputDir
 }: {
 	acsSourceDir: string;
 	bridgeSourcePath: string;
+	latestOutputDir: string;
 }) {
 	const bridgeInstalledPath = join(acsSourceDir, SIERRA_BRIDGE_FILE_NAME);
+	const bridgeSource = await readFile(bridgeSourcePath, 'utf8');
 	await mkdir(acsSourceDir, { recursive: true });
-	await copyFile(bridgeSourcePath, bridgeInstalledPath);
+	await writeFile(
+		bridgeInstalledPath,
+		bridgeSource.replaceAll(
+			EXPORT_DIR_PLACEHOLDER,
+			escapeCppString(latestOutputDir)
+		)
+	);
 	return bridgeInstalledPath;
 }
 
@@ -36,6 +46,7 @@ export async function buildSierraBridge({
 }: SierraBridgeBuildInputs) {
 	await mkdir(sierraDataDir, { recursive: true });
 	await sendSierraMessage('RELEASE_ALL_DLLS');
+	await sleep(1000);
 	const builds = [
 		{
 			machine: 'ARM64' as const,
@@ -59,6 +70,10 @@ export async function buildSierraBridge({
 	return builds.map((build) => build.output);
 }
 
+function escapeCppString(value: string) {
+	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
 async function compileSierraBridge({
 	bridgeInstalledPath,
 	machine,
@@ -78,10 +93,26 @@ async function compileSierraBridge({
 			? `call "${vcvarsPath}"`
 			: `call "${vcvarsPath}" ${vcvarsArg}`;
 	const command = `${vcvarsCommand} && cl /JMC /MP /analyze- /Zc:wchar_t /Z7 /Od /GS /W3 /RTC1 /Zc:inline /D _WINDOWS /D _USRDLL /D _WINDLL /Gd /Gy /GR- /GF /fp:precise /MTd /std:c++17 /LD /EHa /WX- /diagnostics:classic /nologo "${bridgeInstalledPath}" /link Shell32.lib Gdi32.lib User32.lib /DLL /DYNAMICBASE /DEBUG /INCREMENTAL:NO /OPT:REF /MACHINE:${machine} /OUT:"${output}" 2>&1`;
-	const { stdout, stderr } = await execAsync(command, {
-		maxBuffer: 1024 * 1024 * 10,
-		windowsHide: true
-	});
+	let stdout = '';
+	let stderr = '';
+	try {
+		const result = await execAsync(command, {
+			maxBuffer: 1024 * 1024 * 10,
+			windowsHide: true
+		});
+		stdout = result.stdout;
+		stderr = result.stderr;
+	} catch (error) {
+		const failure = error as { stdout?: string; stderr?: string };
+		const buildOutput = `${failure.stdout ?? ''}${failure.stderr ?? ''}`;
+		if (isLockedExistingDllBuildFailure(buildOutput)) {
+			await stat(output);
+			return;
+		}
+		throw new Error(
+			`Failed to build Sierra bridge ${machine} DLL at ${output}\n${buildOutput}`
+		);
+	}
 	try {
 		await stat(output);
 	} catch {
@@ -91,6 +122,9 @@ async function compileSierraBridge({
 	}
 }
 
+function isLockedExistingDllBuildFailure(output: string) {
+	return output.includes('LNK1104') && output.includes('cannot open file');
+}
 async function cleanSierraBridgeBuildArtifacts() {
 	await Promise.all(
 		[
@@ -113,4 +147,8 @@ async function sendSierraMessage(message: string) {
 	await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
 		windowsHide: true
 	});
+}
+
+function sleep(milliseconds: number) {
+	return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
