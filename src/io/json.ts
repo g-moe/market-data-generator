@@ -26,17 +26,6 @@ export class CandleJsonArrayWriter<TCandle extends MdCandle> {
 
 	async write(candles: Iterable<TCandle>) {
 		const handle = this.requireHandle();
-		if (Array.isArray(candles)) {
-			if (candles.length === 0) return;
-			const prefix = this.hasItems ? ',' : '';
-			const output = `${prefix}${candles
-				.map((candle) => serializeJsonValue(this.serializeCandle(candle)))
-				.join(',')}`;
-			this.hasItems = true;
-			await handle.write(output);
-			return;
-		}
-
 		let output: string[] = [];
 		for (const candle of candles) {
 			output.push(

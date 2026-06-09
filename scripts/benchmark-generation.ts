@@ -135,7 +135,9 @@ async function runScenario(
 
 function summarize(results: ScenarioResult[]) {
 	const elapsed = results.map((result) => result.elapsedMs);
-	const peakRss = results.map((result) => result.rssPeakMb);
+	const peakRss = results
+		.map((result) => result.rssPeakMb)
+		.filter((value) => value !== undefined);
 	const throughput = results.map((result) => result.ticksPerSecond);
 	const rss = results.map((result) => result.rssMb);
 
@@ -145,7 +147,7 @@ function summarize(results: ScenarioResult[]) {
 		iterations: results.length,
 		name: `${results[0].name}-summary`,
 		rssMbMax: Math.max(...rss),
-		rssMbPeakMax: Math.max(...peakRss),
+		rssMbPeakMax: peakRss.length === 0 ? undefined : Math.max(...peakRss),
 		ticksPerSecondMedian: median(throughput)
 	};
 }
