@@ -1,6 +1,41 @@
-# TODO - output shapes
+# Output Shapes
 
-# TODO - hard requirements
+## 1. Raw ticks for .scid
+
+```scid
+Timestamp, Open, High, Low, Close, Transactions, Volume, Bid Volume, Ask Volume
+```
+
+## 2. Candles for .json
+
+```typescript
+/** Md candlestick bar */
+export type MdCandle = {
+	/** Unique BarId */
+	id: bigint;
+	/** Bar close */
+	close: number;
+	/** Bar high */
+	high: number;
+	/** Bar low */
+	low: number;
+	/** Bar open */
+	open: number;
+	/** Array Index Position */
+	pos: number;
+	/** Bars date time */
+	time: UnixMs;
+	/** Bar volume */
+	volume: number;
+	/** Bar vwap */
+	vwap: number;
+};
+
+/** Md candlestick bar with volume by price */
+type MdCandleVolumeByPrice = {
+	prices: Map<price, volume>;
+} & MdCandle;
+```
 
 # Sierra requirements
 
