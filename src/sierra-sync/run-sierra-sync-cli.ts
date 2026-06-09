@@ -1,7 +1,8 @@
 import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
 import { createNodePorts, type CliPorts } from '../shared/cli/run-cli.ts';
 import { formatProgressMessage } from '../shared/cli/progress.ts';
-import { runSierraSync, type RawSierraSyncInputs } from './sierra-sync.ts';
+import type { RawSierraSyncInputs } from './inputs.ts';
+import { runSierraSync } from './sierra-sync.ts';
 
 const SYMBOL_CHOICES = SYMBOL_OPTIONS.map((symbol) => ({
 	description: `${symbol.name} (${symbol.id})`,

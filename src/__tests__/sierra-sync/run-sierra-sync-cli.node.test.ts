@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { CliPorts } from '../../shared/cli/run-cli.ts';
-import { SIERRA_SYNC_REQUEST_FILE } from '../../sierra-sync/sierra-sync.ts';
+import { SIERRA_SYNC_REQUEST_FILE } from '../../sierra-sync/constants.ts';
 import { runSierraSyncCli } from '../../sierra-sync/run-sierra-sync-cli.ts';
 
 describe('runSierraSyncCli', () => {

@@ -5,13 +5,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { GenerationResult } from '../../contracts/types.ts';
-import {
-	createSierraSyncRequest,
-	runSierraSync,
-	SIERRA_SYNC_ACK_FILE,
-	SIERRA_SYNC_REQUEST_FILE,
-	waitForSierraAcknowledgement
-} from '../../sierra-sync/sierra-sync.ts';
+import { SIERRA_SYNC_REQUEST_FILE } from '../../sierra-sync/constants.ts';
+import { createSierraSyncRequest } from '../../sierra-sync/request.ts';
+import { runSierraSync } from '../../sierra-sync/sierra-sync.ts';
 
 const GENERATED_FILES = {
 	daily: join('data-in', 'ES', 'tradester_ES_1d.csv'),
@@ -119,35 +115,6 @@ describe('runSierraSync', () => {
 				runId: 'review-run',
 				symbolId: 'ES'
 			});
-		} finally {
-			await rm(root, { force: true, recursive: true });
-		}
-	});
-
-	it('can wait for a matching Sierra acknowledgement', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'sierra-ack-'));
-		const acknowledgementPath = join(root, SIERRA_SYNC_ACK_FILE);
-
-		try {
-			await mkdir(root, { recursive: true });
-			setTimeout(() => {
-				void writeFile(
-					acknowledgementPath,
-					JSON.stringify({
-						reloadedAt: '2026-06-09T18:01:00.000Z',
-						runId: 'run-ack'
-					})
-				);
-			}, 10);
-
-			await expect(
-				waitForSierraAcknowledgement({
-					acknowledgementPath,
-					pollIntervalMs: 5,
-					runId: 'run-ack',
-					timeoutMs: 500
-				})
-			).resolves.toMatchObject({ runId: 'run-ack' });
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
