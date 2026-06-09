@@ -18,13 +18,13 @@ describe('scid output', () => {
 		try {
 			const writer = new ScidTickWriter(filePath);
 			await writer.open();
-			await writer.writeTicks([
+			writer.pushTick(
 				tick({
 					side: 'bid',
 					time: Date.parse('2026-06-08T22:00:00.000Z'),
 					volume: 15
 				})
-			]);
+			);
 			await writer.close();
 			const output = await readFile(filePath);
 
@@ -59,7 +59,8 @@ describe('scid output', () => {
 			await writeFile(filePath, 'old data');
 			const writer = new ScidTickWriter(filePath);
 			await writer.open();
-			await writer.writeTicks([tick(), tick({ price: 6000.25 })]);
+			writer.pushTick(tick());
+			writer.pushTick(tick({ price: 6000.25 }));
 			await writer.close();
 
 			const output = await readFile(filePath);

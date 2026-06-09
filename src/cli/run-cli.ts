@@ -1,15 +1,19 @@
 import { stdin, stdout } from 'node:process';
+import { createInterface } from 'node:readline/promises';
 import { styleText } from 'node:util';
 import { Worker } from 'node:worker_threads';
 
-import { isCancel, outro, select } from '@clack/prompts';
-
 import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
-import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
+import type {
+	GenerationProgress,
+	GenerationResult,
+	GeneratorInputs
+} from '../contracts/types.ts';
 import { normalizeInputs } from '../domain/inputs.ts';
 import { formatProgressMessage } from './progress.ts';
 
 type Choice = {
+	description?: string;
 	label: string;
 	value: string;
 };
@@ -22,7 +26,6 @@ type TaskSpinner = {
 
 export type CliPorts = {
 	log: (message: string) => void;
-	outro: (message: string) => void;
 	select: (message: string, choices: readonly Choice[]) => Promise<string>;
 	spinner: () => TaskSpinner;
 };
@@ -39,6 +42,7 @@ type RunCliOptions = {
 };
 
 const SYMBOL_CHOICES: Choice[] = SYMBOL_OPTIONS.map((symbol) => ({
+	description: `${symbol.name} (${symbol.id})`,
 	label: symbol.symbolId,
 	value: symbol.id
 }));
@@ -78,24 +82,12 @@ export async function runCli(
 
 type WorkerMessage =
 	| { result: GenerationResult }
-	| {
-			progress: {
-				completed: number;
-				total: number;
-				sessionIndex: number;
-				ticks: number;
-			};
-	  }
+	| { progress: GenerationProgress }
 	| { error: { message: string; stack?: string } };
 
 function generateAndWriteMarketData(
 	inputs: GeneratorInputs,
-	onProgress: (progress: {
-		completed: number;
-		total: number;
-		sessionIndex: number;
-		ticks: number;
-	}) => void
+	onProgress: (progress: GenerationProgress) => void
 ) {
 	return new Promise<GenerationResult>((resolve, reject) => {
 		const worker = new Worker(getGenerationWorkerUrl(), {
@@ -182,28 +174,62 @@ export function createNodePorts({
 		log: (message) => {
 			output.write(`${message}\n`);
 		},
-		outro: (message) => {
-			outro(message, { output });
-		},
 		select: async (message, choices) => {
-			const answer = await select({
+			const prompt = createInterface({
 				input,
-				message,
-				options: choices.map((choice) => ({
-					label: choice.label,
-					value: choice.value
-				})),
-				output
+				output,
+				terminal: output.isTTY
 			});
 
-			if (isCancel(answer)) {
-				throw new Error('Cancelled');
-			}
+			try {
+				output.write(`${message}\n`);
+				choices.forEach((choice, index) => {
+					output.write(formatChoiceLine(choice, index));
+				});
+				const lines = prompt[Symbol.asyncIterator]();
+				while (true) {
+					output.write('Enter choice: ');
+					const line = await lines.next();
+					if (line.done === true) {
+						throw new Error('No symbol selected');
+					}
+					const answer = line.value.trim();
+					const choice = findChoice(answer, choices);
+					if (choice !== undefined) {
+						return choice.value;
+					}
 
-			return answer;
+					output.write('Invalid choice. Try again.\n');
+				}
+			} finally {
+				prompt.close();
+			}
 		},
 		spinner: () => {
 			return createTextSpinner(output);
 		}
 	};
+}
+
+function formatChoiceLine(choice: Choice, index: number) {
+	const description =
+		choice.description === undefined ? '' : `  ${choice.description}`;
+
+	return `${index + 1}. ${choice.label}${description}\n`;
+}
+
+function findChoice(answer: string, choices: readonly Choice[]) {
+	const choiceIndex = Number(answer) - 1;
+	if (Number.isInteger(choiceIndex) && choices[choiceIndex] !== undefined) {
+		return choices[choiceIndex];
+	}
+
+	const normalizedAnswer = answer.toUpperCase();
+
+	return choices.find((option) => {
+		return (
+			option.value.toUpperCase() === normalizedAnswer ||
+			option.label.toUpperCase() === normalizedAnswer
+		);
+	});
 }

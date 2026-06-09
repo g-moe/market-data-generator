@@ -22,7 +22,7 @@ export class ScidTickWriter {
 		await this.handle.write(header);
 	}
 
-	async writeTicks(ticks: MarketTick[]) {
+	private async writeTicks(ticks: MarketTick[]) {
 		if (ticks.length === 0) return;
 		const handle = this.requireHandle();
 		const output = Buffer.alloc(ticks.length * RECORD_SIZE);

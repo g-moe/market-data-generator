@@ -18,9 +18,6 @@
 		"format": "oxfmt",
 		"format:check": "oxfmt --check"
 	},
-	"dependencies": {
-		"@clack/prompts": "1.5.0"
-	},
 	"devDependencies": {
 		"@types/node": "24.12.4",
 		"@typescript/native-preview": "7.0.0-dev.20260527.2",

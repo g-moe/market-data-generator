@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -124,20 +125,13 @@ describe('runCli worker handling', () => {
 });
 
 describe('createNodePorts', () => {
-	it('adapts clack prompts and writes spinner output', async () => {
+	it('reads prompt input and writes spinner output', async () => {
+		const input = readable('1\n');
 		const output = writable();
 
-		vi.doMock('@clack/prompts', () => ({
-			isCancel: () => false,
-			outro: vi.fn<(message: string, options: unknown) => void>(),
-			select: vi.fn<() => Promise<string>>().mockResolvedValue('/ES:XCME')
-		}));
-
-		const clack = await import('@clack/prompts');
 		const { createNodePorts } = await import('../../cli/run-cli.ts');
-		const promptPorts = createNodePorts({ output });
+		const promptPorts = createNodePorts({ input, output });
 
-		promptPorts.outro('Done');
 		await expect(
 			promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
 		).resolves.toBe('/ES:XCME');
@@ -153,34 +147,27 @@ describe('createNodePorts', () => {
 			vi.useRealTimers();
 		}
 
-		expect(clack.outro).toHaveBeenCalledWith('Done', { output });
-		expect(clack.select).toHaveBeenCalledWith(
-			expect.objectContaining({
-				message: 'Choose symbol',
-				options: [{ label: 'ES', value: '/ES:XCME' }],
-				output
-			})
-		);
+		expect(output.chunks.join('')).toContain('Choose symbol');
+		expect(output.chunks.join('')).toContain('1. ES');
 		expect(output.chunks.join('')).toContain('Working');
 		expect(output.chunks.join('')).toContain('◇Done\n');
 		expect(output.chunks.join('')).toContain('■Failed\n');
 	});
 
-	it('throws when clack prompts are cancelled', async () => {
-		const cancel = Symbol('cancel');
-
-		vi.doMock('@clack/prompts', () => ({
-			isCancel: (value: unknown) => value === cancel,
-			outro: vi.fn<(message: string, options: unknown) => void>(),
-			select: vi.fn<() => Promise<symbol>>().mockResolvedValue(cancel)
-		}));
-
+	it('prompts again until a valid choice is entered', async () => {
+		const input = readable('\nbad\n2\n');
+		const output = writable();
 		const { createNodePorts } = await import('../../cli/run-cli.ts');
-		const promptPorts = createNodePorts({ output: writable() });
+		const promptPorts = createNodePorts({ input, output });
 
-		await expect(promptPorts.select('Choose symbol', [])).rejects.toThrow(
-			'Cancelled'
-		);
+		await expect(
+			promptPorts.select('Choose symbol', [
+				{ label: 'ES', value: '/ES:XCME' },
+				{ label: 'NQ', value: '/NQ:XCME' }
+			])
+		).resolves.toBe('/NQ:XCME');
+
+		expect(output.chunks.join('')).toContain('Invalid choice. Try again.');
 	});
 });
 
@@ -194,9 +181,6 @@ function ports({
 	return {
 		log: (message) => {
 			events.push(`log:${message}`);
-		},
-		outro: (message) => {
-			events.push(`outro:${message}`);
 		},
 		select: async (message) => {
 			events.push(`select:${message}`);
@@ -231,4 +215,11 @@ function writable() {
 			return true;
 		}
 	} as unknown as TestOutput;
+}
+
+function readable(input: string) {
+	const stream = new PassThrough();
+	stream.end(input);
+
+	return stream as unknown as typeof import('node:process').stdin;
 }

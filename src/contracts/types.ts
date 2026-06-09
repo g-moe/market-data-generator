@@ -108,3 +108,10 @@ export type GenerationResult = {
 		daily: number;
 	};
 };
+
+export type GenerationProgress = {
+	completed: number;
+	total: number;
+	sessionIndex: number;
+	ticks: number;
+};

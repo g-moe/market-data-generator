@@ -1,8 +1,8 @@
-export { runCli } from './cli/run-cli.ts';
+import { runCli } from './cli/run-cli.ts';
+
+export { runCli };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const { runCli } = await import('./cli/run-cli.ts');
-
 	try {
 		await runCli();
 	} catch (error) {

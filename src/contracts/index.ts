@@ -19,6 +19,7 @@ export {
 export { CENTRAL_TIMEZONE } from './market-time.ts';
 export type {
 	GenerationResult,
+	GenerationProgress,
 	GeneratorInputs,
 	MarketTick,
 	MdCandle,

@@ -1,6 +1,7 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"entry": [
+		"src/cli/run-cli.ts",
 		"src/cli/generation-worker.ts",
 		"src/contracts/index.ts"
 	],

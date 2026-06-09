@@ -1,18 +1,15 @@
 import { parentPort, workerData } from 'node:worker_threads';
 
-import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
+import type {
+	GenerationProgress,
+	GenerationResult,
+	GeneratorInputs
+} from '../contracts/types.ts';
 import { generateMarketData } from '../domain/generate-market-data.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }
-	| {
-			progress: {
-				completed: number;
-				total: number;
-				sessionIndex: number;
-				ticks: number;
-			};
-	  }
+	| { progress: GenerationProgress }
 	| { error: { message: string; stack?: string } };
 
 try {

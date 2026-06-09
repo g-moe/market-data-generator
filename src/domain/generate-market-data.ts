@@ -4,6 +4,7 @@ import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import type {
 	GenerationResult,
+	GenerationProgress,
 	GeneratorInputs,
 	MdCandle,
 	MdCandleVolumeByPrice,
@@ -34,12 +35,7 @@ const RING_BUFFER_BAR_COUNT = 20_000;
 const UNIX_EPOCH_MS = 0;
 
 type GenerateMarketDataOptions = {
-	onSessionComplete?: (progress: {
-		completed: number;
-		total: number;
-		sessionIndex: number;
-		ticks: number;
-	}) => void;
+	onSessionComplete?: (progress: GenerationProgress) => void;
 };
 
 export async function generateMarketData(
