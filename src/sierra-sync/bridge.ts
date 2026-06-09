@@ -15,6 +15,7 @@ const EXPORT_DIR_PLACEHOLDER = '__TRADESTER_SIERRA_EXPORT_DIR__';
 
 export type SierraBridgeBuildInputs = {
 	bridgeInstalledPath: string;
+	reloadDelayMs?: number;
 	sierraDataDir: string;
 };
 
@@ -42,11 +43,12 @@ export async function installSierraBridgeSource({
 
 export async function buildSierraBridge({
 	bridgeInstalledPath,
+	reloadDelayMs = 1000,
 	sierraDataDir
 }: SierraBridgeBuildInputs) {
 	await mkdir(sierraDataDir, { recursive: true });
 	await sendSierraMessage('RELEASE_ALL_DLLS');
-	await sleep(1000);
+	await sleep(reloadDelayMs);
 	const builds = [
 		{
 			machine: 'ARM64' as const,

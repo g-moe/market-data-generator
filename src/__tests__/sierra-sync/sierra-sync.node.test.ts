@@ -105,7 +105,7 @@ describe('runSierraSync', () => {
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
-	});
+	}, 10_000);
 });
 
 function generationResult(outputDir = join('data-in', 'ES')): GenerationResult {
