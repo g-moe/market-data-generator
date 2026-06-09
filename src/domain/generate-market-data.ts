@@ -138,7 +138,6 @@ export async function generateMarketData(
 				counts.ticks += sessionTicks;
 			}
 
-			await scid.flush();
 			seconds15Ring.pushMany(emitted.seconds15);
 			minutes5Ring.pushMany(emitted.minutes5);
 			volume500Ring.pushMany(emitted.volume500);
