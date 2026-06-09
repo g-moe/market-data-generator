@@ -91,8 +91,16 @@ async function runScenario(
 		outputRoot
 	};
 	const startMemory = process.memoryUsage();
+	let peakHeapUsed = startMemory.heapUsed;
+	let peakRss = startMemory.rss;
 	const start = performance.now();
-	const generation = await generateMarketData(inputs);
+	const generation = await generateMarketData(inputs, {
+		onSessionComplete: () => {
+			const memory = process.memoryUsage();
+			peakHeapUsed = Math.max(peakHeapUsed, memory.heapUsed);
+			peakRss = Math.max(peakRss, memory.rss);
+		}
+	});
 	const elapsedMs = performance.now() - start;
 	if (globalThis.gc) globalThis.gc();
 	const endMemory = process.memoryUsage();
@@ -107,12 +115,14 @@ async function runScenario(
 		hash: output.hash,
 		heapUsedDeltaMb: toMb(endMemory.heapUsed - startMemory.heapUsed),
 		heapUsedMb: toMb(endMemory.heapUsed),
+		heapUsedPeakMb: toMb(peakHeapUsed),
 		iteration: options.iteration,
 		name: scenario.name,
 		outputBytes: output.bytes,
 		outputRoot: options.keepOutput ? outputRoot : undefined,
 		rssDeltaMb: toMb(endMemory.rss - startMemory.rss),
 		rssMb: toMb(endMemory.rss),
+		rssPeakMb: toMb(peakRss),
 		ticks: generation.counts.ticks,
 		ticksPerSecond: Math.round(generation.counts.ticks / (elapsedMs / 1000)),
 		warmup: options.warmup || undefined
@@ -121,6 +131,7 @@ async function runScenario(
 
 function summarize(results: ScenarioResult[]) {
 	const elapsed = results.map((result) => result.elapsedMs);
+	const peakRss = results.map((result) => result.rssPeakMb);
 	const throughput = results.map((result) => result.ticksPerSecond);
 	const rss = results.map((result) => result.rssMb);
 
@@ -130,6 +141,7 @@ function summarize(results: ScenarioResult[]) {
 		iterations: results.length,
 		name: `${results[0].name}-summary`,
 		rssMbMax: Math.max(...rss),
+		rssMbPeakMax: Math.max(...peakRss),
 		ticksPerSecondMedian: median(throughput)
 	};
 }
