@@ -1,45 +1,225 @@
-import { getCandleStart, isTradingDayStart } from './market-time.ts';
-import type { Candle, GeneratorInputs, Tick } from '../contracts/types.ts';
+import { ID_SEQUENCE_MULTIPLIER } from '../contracts/defaults.ts';
+import type {
+	MarketTick,
+	MdCandle,
+	MdCandleVolumeByPrice,
+	Price,
+	Volume
+} from '../contracts/types.ts';
+import { floorTime } from './market-time.ts';
 
-export function buildCandles(ticks: Tick[], inputs: GeneratorInputs): Candle[] {
-	const candles: Candle[] = [];
+type MutableCandle = {
+	close: number;
+	high: number;
+	low: number;
+	open: number;
+	priceVolume: number;
+	time: number;
+	volume: number;
+};
 
-	for (let candleIndex = 0; candleIndex < inputs.candles; candleIndex++) {
-		const candleTicks = ticks.filter(
-			(tick) => tick.candleIndex === candleIndex
-		);
-		if (candleTicks.length === 0) {
-			throw new Error(`missing ticks for candle ${candleIndex}`);
+export type AggregationResult = {
+	priceLevel: MdCandleVolumeByPrice[];
+	volume500: MdCandle[];
+	seconds15: MdCandle[];
+	minutes5: MdCandle[];
+	daily: MdCandle[];
+};
+
+export class PriceLevelAggregator {
+	private current:
+		| { candle: MutableCandle; prices: Map<Price, Volume> }
+		| undefined;
+	private pos = 0;
+
+	pushTicks(ticks: MarketTick[]) {
+		const emitted: MdCandleVolumeByPrice[] = [];
+
+		for (const tick of ticks) {
+			this.pushTick(tick, emitted);
 		}
 
-		const previous = candles.at(-1);
-		const time = getCandleStart(inputs, candleIndex);
-		const isNewTradingDay = candleIndex > 0 && isTradingDayStart(time);
-		const open =
-			previous && !isNewTradingDay ? previous.close : candleTicks[0].price;
-		const prices = [open, ...candleTicks.map((tick) => tick.price)];
-		const bidVolume = sumTickVolume(candleTicks, 'bid');
-		const askVolume = sumTickVolume(candleTicks, 'ask');
-
-		candles.push({
-			askVolume,
-			bidVolume,
-			close: candleTicks.at(-1)?.price ?? open,
-			high: Math.max(...prices),
-			isNewTradingDay,
-			low: Math.min(...prices),
-			open,
-			time,
-			transactions: candleTicks.length,
-			volume: bidVolume + askVolume
-		});
+		return emitted;
 	}
 
-	return candles;
+	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
+		const bucket = floorTime(tick.time, 1000);
+		if (this.current === undefined || this.current.candle.time !== bucket) {
+			this.emitCurrent(emitted);
+			this.current = {
+				candle: createMutableCandle(tick, bucket),
+				prices: new Map()
+			};
+		} else {
+			addTick(this.current.candle, tick);
+		}
+
+		this.current.prices.set(
+			tick.price,
+			(this.current.prices.get(tick.price) ?? 0) + tick.volume
+		);
+	}
+
+	finish() {
+		const emitted: MdCandleVolumeByPrice[] = [];
+		this.emitCurrent(emitted);
+
+		return emitted;
+	}
+
+	private emitCurrent(emitted: MdCandleVolumeByPrice[]) {
+		if (this.current === undefined) return;
+		emitted.push({
+			...finalizeMutableCandle(this.current.candle, this.pos),
+			prices: this.current.prices
+		});
+		this.pos++;
+		this.current = undefined;
+	}
 }
 
-function sumTickVolume(ticks: Tick[], side: Tick['side']) {
-	return ticks.reduce((total, tick) => {
-		return tick.side === side ? total + tick.volume : total;
-	}, 0);
+export class TimeAggregator {
+	private current: MutableCandle | undefined;
+	private pos = 0;
+
+	constructor(private readonly getBucket: (time: number) => number) {}
+
+	pushTicks(ticks: MarketTick[]) {
+		const emitted: MdCandle[] = [];
+
+		for (const tick of ticks) {
+			this.pushTick(tick, emitted);
+		}
+
+		return emitted;
+	}
+
+	pushTick(tick: MarketTick, emitted: MdCandle[]) {
+		this.pushTickForBucket(tick, this.getBucket(tick.time), emitted);
+	}
+
+	pushTickForBucket(tick: MarketTick, bucket: number, emitted: MdCandle[]) {
+		if (this.current === undefined || this.current.time !== bucket) {
+			this.emitCurrent(emitted);
+			this.current = createMutableCandle(tick, bucket);
+		} else {
+			addTick(this.current, tick);
+		}
+	}
+
+	finish() {
+		const emitted: MdCandle[] = [];
+		this.emitCurrent(emitted);
+
+		return emitted;
+	}
+
+	private emitCurrent(emitted: MdCandle[]) {
+		if (this.current === undefined) return;
+		emitted.push(finalizeMutableCandle(this.current, this.pos));
+		this.pos++;
+		this.current = undefined;
+	}
+}
+
+export class VolumeAggregator {
+	private current: MutableCandle | undefined;
+	private readonly sequences = new Map<number, number>();
+	private pos = 0;
+
+	constructor(private readonly targetVolume: number) {}
+
+	pushTicks(ticks: MarketTick[]) {
+		const emitted: MdCandle[] = [];
+
+		for (const tick of ticks) {
+			this.pushTick(tick, emitted);
+		}
+
+		return emitted;
+	}
+
+	pushTick(tick: MarketTick, emitted: MdCandle[]) {
+		let remaining = tick.volume;
+		while (remaining > 0) {
+			const volume = Math.min(
+				remaining,
+				this.targetVolume - (this.current?.volume ?? 0)
+			);
+			const piece = { ...tick, volume };
+			if (this.current === undefined) {
+				this.current = createMutableCandle(piece, tick.time);
+			} else {
+				addTick(this.current, piece);
+			}
+			remaining -= volume;
+
+			if (this.current.volume === this.targetVolume) {
+				this.emitCurrent(emitted);
+			}
+		}
+	}
+
+	finish() {
+		const emitted: MdCandle[] = [];
+		this.emitCurrent(emitted);
+
+		return emitted;
+	}
+
+	private emitCurrent(emitted: MdCandle[]) {
+		if (this.current === undefined) return;
+		const time = this.current.time;
+		emitted.push({
+			...finalizeMutableCandle(this.current, this.pos),
+			id: createBarId(time, nextSequence(this.sequences, time))
+		});
+		this.pos++;
+		this.current = undefined;
+	}
+}
+
+function createMutableCandle(tick: MarketTick, time: number): MutableCandle {
+	return {
+		close: tick.price,
+		high: tick.price,
+		low: tick.price,
+		open: tick.price,
+		priceVolume: tick.price * tick.volume,
+		time,
+		volume: tick.volume
+	};
+}
+
+function addTick(candle: MutableCandle, tick: MarketTick) {
+	candle.close = tick.price;
+	candle.high = Math.max(candle.high, tick.price);
+	candle.low = Math.min(candle.low, tick.price);
+	candle.priceVolume += tick.price * tick.volume;
+	candle.volume += tick.volume;
+}
+
+function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
+	return {
+		close: candle.close,
+		high: candle.high,
+		id: createBarId(candle.time, 0),
+		low: candle.low,
+		open: candle.open,
+		pos,
+		time: candle.time,
+		volume: candle.volume,
+		vwap: candle.priceVolume / candle.volume
+	};
+}
+
+export function createBarId(time: number, sequence: number) {
+	return BigInt(time) * ID_SEQUENCE_MULTIPLIER + BigInt(sequence);
+}
+
+function nextSequence(sequences: Map<number, number>, time: number) {
+	const sequence = sequences.get(time) ?? 0;
+	sequences.set(time, sequence + 1);
+
+	return sequence;
 }

@@ -3,115 +3,52 @@ import { describe, expect, it } from 'vitest';
 import { normalizeInputs } from '../../domain/inputs.ts';
 
 describe('normalizeInputs', () => {
-	it('normalizes valid CLI inputs', () => {
-		expect(
-			normalizeInputs({
-				candleInterval: '5',
-				candleType: 'minute',
-				symbol: ' /es:xcme '
-			})
-		).toEqual({
-			candleInterval: 5,
-			candleType: 'minute',
-			candles: 20_000,
-			minTickSize: 0.25,
-			outputDir: 'data',
-			seed: 1,
-			startIso: '2026-06-08T22:00:00.000Z',
-			startPrice: 6000,
+	it('normalizes valid symbol-only inputs', () => {
+		const inputs = normalizeInputs({
+			outputDir: 'tmp/data',
+			sessionCount: 3,
+			startPrice: 6100.25,
+			symbol: ' es ',
+			ticksPerSession: 5
+		});
+
+		expect(inputs).toMatchObject({
+			outputDir: 'tmp/data/ES',
+			outputRoot: 'tmp/data',
+			sessionCount: 3,
+			startPrice: 6100.25,
 			symbol: '/ES:XCME',
-			ticksPerCandle: 12
+			ticksPerSession: 5
 		});
 	});
 
-	it('applies defaults for optional inputs', () => {
+	it('accepts the previous full Sierra-style symbol id', () => {
 		expect(
 			normalizeInputs({
-				candleInterval: 1,
-				candleType: 'daily',
-				symbol: '/NQ:XCME'
-			})
-		).toMatchObject({
-			outputDir: 'data',
-			seed: 1,
-			startIso: '2026-06-08T22:00:00.000Z',
-			startPrice: 22_000,
-			ticksPerCandle: 12
-		});
-	});
-
-	it('uses explicit price inputs when provided', () => {
-		expect(
-			normalizeInputs({
-				candleInterval: 5,
-				candleType: 'minute',
-				minTickSize: '0.5',
-				startPrice: '6123.5',
 				symbol: '/ES:XCME'
 			})
 		).toMatchObject({
-			minTickSize: 0.5,
-			startPrice: 6123.5
+			symbol: '/ES:XCME',
+			ticksPerSession: 10_000
 		});
 	});
 
-	it('uses explicit output directory when provided', () => {
-		expect(
-			normalizeInputs({
-				candleInterval: 5,
-				candleType: 'minute',
-				outputDir: 'tmp/generated',
-				symbol: '/ES:XCME'
-			})
-		).toMatchObject({
-			outputDir: 'tmp/generated'
-		});
-	});
-
-	it.each([
-		[
-			{
-				candleInterval: 1,
-				candleType: 'minute',
-				symbol: '/YM:XCBT'
-			},
-			/symbol/i
-		],
-		[
-			{
-				candleInterval: 1,
-				candleType: 'weekly',
-				symbol: '/ES:XCME'
-			},
-			/candleType/i
-		],
-		[
-			{
-				candleInterval: 0,
-				candleType: 'minute',
-				symbol: '/ES:XCME'
-			},
-			/candleInterval/i
-		],
-		[
-			{
-				candleInterval: 1,
-				candleType: 'minute',
-				startPrice: 0,
-				symbol: '/ES:XCME'
-			},
-			/startPrice/i
-		],
-		[
-			{
-				candleInterval: 1,
-				candleType: 'minute',
-				outputDir: ' ',
-				symbol: '/ES:XCME'
-			},
+	it('rejects invalid inputs', () => {
+		expect(() => normalizeInputs({ symbol: 'YM' })).toThrow(/symbol/i);
+		expect(() => normalizeInputs({ outputDir: ' ', symbol: 'ES' })).toThrow(
 			/outputDir/i
-		]
-	])('rejects invalid input %#', (raw, error) => {
-		expect(() => normalizeInputs(raw)).toThrow(error);
+		);
+		expect(() => normalizeInputs({ sessionCount: 0, symbol: 'ES' })).toThrow(
+			/sessionCount/i
+		);
+		expect(() => normalizeInputs({ startPrice: 0, symbol: 'ES' })).toThrow(
+			/startPrice/i
+		);
+		expect(() => normalizeInputs({ symbol: 'ES', ticksPerSession: 0 })).toThrow(
+			/ticksPerSession/i
+		);
+		expect(() =>
+			normalizeInputs({ anchorIso: 'not-a-date', symbol: 'ES' })
+		).toThrow(/anchorIso/i);
 	});
 });

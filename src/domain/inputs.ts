@@ -1,14 +1,16 @@
+import { join } from 'node:path';
+
 import {
-	DEFAULT_CANDLES,
-	DEFAULT_OUTPUT_DIR,
+	DEFAULT_ANCHOR_ISO,
+	DEFAULT_OUTPUT_ROOT,
 	DEFAULT_SEED,
-	DEFAULT_START_ISO,
-	DEFAULT_TICKS_PER_CANDLE
+	DEFAULT_SESSION_COUNT,
+	DEFAULT_TICKS_PER_SESSION
 } from '../contracts/defaults.ts';
 import {
 	ALLOWED_SYMBOLS,
-	getSymbolConfig,
-	isAllowedSymbol
+	findSymbol,
+	getSymbolConfig
 } from '../contracts/symbols.ts';
 import type {
 	GeneratorInputs,
@@ -16,53 +18,51 @@ import type {
 } from '../contracts/types.ts';
 
 export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
-	const symbol = raw.symbol?.trim().toUpperCase() ?? '';
-	if (!isAllowedSymbol(symbol)) {
+	const symbol = findSymbol(raw.symbol ?? '');
+	if (symbol === undefined) {
 		throw new Error(`symbol must be one of: ${ALLOWED_SYMBOLS.join(', ')}`);
 	}
 
-	const candleType = raw.candleType?.trim().toLowerCase();
-	if (candleType !== 'minute' && candleType !== 'daily') {
-		throw new Error('candleType must be minute or daily');
-	}
-
-	const candleInterval = readInteger(raw.candleInterval, 'candleInterval');
-	if (candleInterval < 1) {
-		throw new Error('candleInterval must be at least 1');
-	}
-
 	const symbolConfig = getSymbolConfig(symbol);
-	const outputDir = raw.outputDir?.trim() ?? DEFAULT_OUTPUT_DIR;
-	if (outputDir === '') {
+	const outputRoot = raw.outputDir?.trim() ?? DEFAULT_OUTPUT_ROOT;
+	if (outputRoot === '') {
 		throw new Error('outputDir must not be empty');
 	}
 
 	return {
-		candleInterval,
-		candleType,
-		candles: DEFAULT_CANDLES,
-		minTickSize: readOptionalPositiveNumber(
-			raw.minTickSize,
-			'minTickSize',
-			symbolConfig.tickSize
+		anchorIso: readOptionalIso(raw.anchorIso, DEFAULT_ANCHOR_ISO),
+		outputDir: join(outputRoot, symbolConfig.symbolId),
+		outputRoot,
+		seed: readOptionalInteger(raw.seed, 'seed', DEFAULT_SEED),
+		sessionCount: readOptionalInteger(
+			raw.sessionCount,
+			'sessionCount',
+			DEFAULT_SESSION_COUNT
 		),
-		outputDir,
-		seed: DEFAULT_SEED,
-		startIso: DEFAULT_START_ISO,
 		startPrice: readOptionalPositiveNumber(
 			raw.startPrice,
 			'startPrice',
 			symbolConfig.defaultStartPrice
 		),
 		symbol,
-		ticksPerCandle: DEFAULT_TICKS_PER_CANDLE
+		ticksPerSession: readOptionalInteger(
+			raw.ticksPerSession,
+			'ticksPerSession',
+			DEFAULT_TICKS_PER_SESSION
+		)
 	};
 }
 
-function readInteger(value: string | number | undefined, name: string) {
+function readOptionalInteger(
+	value: string | number | undefined,
+	name: string,
+	defaultValue: number
+) {
+	if (value === undefined) return defaultValue;
+
 	const parsed = Number(value);
-	if (!Number.isInteger(parsed)) {
-		throw new Error(`${name} must be an integer`);
+	if (!Number.isInteger(parsed) || parsed < 1) {
+		throw new Error(`${name} must be a positive integer`);
 	}
 
 	return parsed;
@@ -73,9 +73,7 @@ function readOptionalPositiveNumber(
 	name: string,
 	defaultValue: number
 ) {
-	if (value === undefined) {
-		return defaultValue;
-	}
+	if (value === undefined) return defaultValue;
 
 	const parsed = Number(value);
 	if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -83,4 +81,13 @@ function readOptionalPositiveNumber(
 	}
 
 	return parsed;
+}
+
+function readOptionalIso(value: string | undefined, defaultValue: string) {
+	const iso = value?.trim() ?? defaultValue;
+	if (Number.isNaN(new Date(iso).getTime())) {
+		throw new Error('anchorIso must be a valid date');
+	}
+
+	return new Date(iso).toISOString();
 }

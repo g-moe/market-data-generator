@@ -2,21 +2,25 @@ import { parentPort, workerData } from 'node:worker_threads';
 
 import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
 import { generateMarketData } from '../domain/generate-market-data.ts';
-import { writeCandlesScid } from '../io/scid.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }
+	| {
+			progress: {
+				completed: number;
+				total: number;
+				sessionIndex: number;
+				ticks: number;
+			};
+	  }
 	| { error: { message: string; stack?: string } };
 
-async function generateAndWrite(inputs: GeneratorInputs) {
-	const result = generateMarketData(inputs);
-	await writeCandlesScid(result.filePath, result.candles);
-
-	return result;
-}
-
 try {
-	const result = await generateAndWrite(workerData as GeneratorInputs);
+	const result = await generateMarketData(workerData as GeneratorInputs, {
+		onSessionComplete: (progress) => {
+			parentPort?.postMessage({ progress } satisfies WorkerMessage);
+		}
+	});
 	parentPort?.postMessage({ result } satisfies WorkerMessage);
 } catch (error) {
 	parentPort?.postMessage({

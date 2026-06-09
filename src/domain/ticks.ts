@@ -1,57 +1,78 @@
-import {
-	getCandleDurationMs,
-	getCandleStart,
-	getTimeWeight,
-	isTradingDayStart
-} from './market-time.ts';
+import { createHash } from 'node:crypto';
+
+import type { SymbolConfig } from '../contracts/symbols.ts';
+import type { GeneratorInputs, MarketTick } from '../contracts/types.ts';
+import { getSessionEnd } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
-import type { GeneratorInputs, Tick } from '../contracts/types.ts';
 
-export function buildTicks(inputs: GeneratorInputs): Tick[] {
-	const random = createRandom(inputs.seed);
-	const ticks: Tick[] = [];
-	let previousClose = roundToTick(inputs.startPrice, inputs.minTickSize);
+export function generateSessionTicksForStart(
+	inputs: GeneratorInputs,
+	symbolConfig: SymbolConfig,
+	sessionIndex: number,
+	sessionStart: number,
+	onTick: (tick: MarketTick) => void
+) {
+	const sessionEnd = getSessionEnd(sessionStart);
+	const random = createRandom(
+		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
+	);
+	let price = roundToTick(
+		inputs.startPrice +
+			randomSigned(random) *
+				symbolConfig.tickSize *
+				100 *
+				Math.log2(sessionIndex + 2),
+		symbolConfig.tickSize
+	);
 
-	for (let candleIndex = 0; candleIndex < inputs.candles; candleIndex++) {
-		const candleStart = getCandleStart(inputs, candleIndex);
-		const isNewTradingDay = candleIndex > 0 && isTradingDayStart(candleStart);
-		const open = isNewTradingDay
-			? roundToTick(
-					previousClose + randomSigned(random) * inputs.minTickSize * 20,
-					inputs.minTickSize
-				)
-			: previousClose;
-		const volumeMultiplier = getTimeWeight(candleStart, 'volume');
-		const volatilityMultiplier = getTimeWeight(candleStart, 'volatility');
-		let price = open;
+	for (let index = 0; index < inputs.ticksPerSession; index++) {
+		const progress =
+			inputs.ticksPerSession === 1 ? 0 : index / inputs.ticksPerSession;
+		const time = Math.floor(
+			sessionStart + (sessionEnd - sessionStart - 1) * progress
+		);
+		const volatility = getIntradayVolatility(progress);
+		const move =
+			randomSigned(random) *
+			symbolConfig.tickSize *
+			volatility *
+			(random() > 0.7 ? 2 : 1);
+		price = roundToTick(price + move, symbolConfig.tickSize);
 
-		for (let index = 0; index < inputs.ticksPerCandle; index++) {
-			const offsetMs = Math.floor(
-				(getCandleDurationMs(inputs) / inputs.ticksPerCandle) * index
-			);
-			const move =
-				randomSigned(random) *
-				inputs.minTickSize *
-				volatilityMultiplier *
-				(0.5 + random());
-			price = roundToTick(price + move, inputs.minTickSize);
-
-			const volume = Math.max(
-				1,
-				Math.round((1 + random() * 9) * volumeMultiplier)
-			);
-			ticks.push({
-				candleIndex,
-				price,
-				side: random() > 0.5 ? 'ask' : 'bid',
-				time: new Date(candleStart.getTime() + offsetMs),
-				volume
-			});
-		}
-
-		previousClose = price;
+		onTick({
+			price,
+			sessionIndex,
+			side: random() > 0.5 ? 'ask' : 'bid',
+			time,
+			volume: nextTickVolume(random)
+		});
 	}
+}
 
-	return ticks;
+export function deriveSessionSeed(
+	baseSeed: number,
+	symbolId: string,
+	sessionIndex: number
+) {
+	const hash = createHash('sha256')
+		.update(`${baseSeed}:${symbolId}:${sessionIndex}`)
+		.digest();
+
+	return hash.readUInt32LE(0);
+}
+
+function getIntradayVolatility(progress: number) {
+	if (progress < 0.1) return 4;
+	if (progress > 0.85) return 3;
+
+	return 1;
+}
+
+function nextTickVolume(random: () => number) {
+	const roll = random();
+	if (roll > 0.995) return 251 + Math.floor(random() * 750);
+	if (roll > 0.95) return 26 + Math.floor(random() * 225);
+
+	return 1 + Math.floor(random() * 25);
 }

@@ -1,77 +1,115 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCandles } from '../../domain/candles.ts';
-import { normalizeInputs } from '../../domain/inputs.ts';
-import { buildTicks } from '../../domain/ticks.ts';
+import {
+	ID_SEQUENCE_MULTIPLIER,
+	VOLUME_BAR_SIZE
+} from '../../contracts/defaults.ts';
+import type { MarketTick } from '../../contracts/types.ts';
+import {
+	createBarId,
+	PriceLevelAggregator,
+	TimeAggregator,
+	VolumeAggregator
+} from '../../domain/candles.ts';
+import { floorTime, getDailySessionStart } from '../../domain/market-time.ts';
 
-describe('buildCandles', () => {
-	it('builds one candle per requested interval', () => {
-		const inputs = normalizeInputs({
-			candleInterval: '1',
-			candleType: 'minute',
-			symbol: '/ES:XCME'
-		});
-		inputs.candles = 5;
-		inputs.seed = 11;
-		inputs.ticksPerCandle = 8;
-
-		expect(buildCandles(buildTicks(inputs), inputs)).toHaveLength(5);
+describe('streaming candle aggregators', () => {
+	it('returns empty series without ticks', () => {
+		expect(new PriceLevelAggregator().finish()).toEqual([]);
+		expect(new VolumeAggregator(VOLUME_BAR_SIZE).finish()).toEqual([]);
+		expect(
+			new TimeAggregator((time) => floorTime(time, 15_000)).finish()
+		).toEqual([]);
 	});
 
-	it('keeps candles internally consistent', () => {
-		const inputs = normalizeInputs({
-			candleInterval: '30',
-			candleType: 'minute',
-			symbol: '/ES:XCME'
-		});
-		inputs.candles = 80;
-		inputs.seed = 11;
-		inputs.ticksPerCandle = 8;
-		const candles = buildCandles(buildTicks(inputs), inputs);
+	it('builds price-level candles with volume by price', () => {
+		const aggregator = new PriceLevelAggregator();
+		const emitted = aggregator.pushTicks([
+			tick({ price: 6000, volume: 2 }),
+			tick({ price: 6000.25, time: 1_700_000_000_500, volume: 3 }),
+			tick({ price: 6000, time: 1_700_000_001_000, volume: 5 })
+		]);
+		const result = [...emitted, ...aggregator.finish()];
 
-		for (const candle of candles) {
-			expect(candle.high).toBeGreaterThanOrEqual(candle.open);
-			expect(candle.high).toBeGreaterThanOrEqual(candle.close);
-			expect(candle.low).toBeLessThanOrEqual(candle.open);
-			expect(candle.low).toBeLessThanOrEqual(candle.close);
-			expect(candle.volume).toBe(candle.bidVolume + candle.askVolume);
-			expect(candle.transactions).toBe(inputs.ticksPerCandle);
-		}
+		expect(result).toHaveLength(2);
+		expect([...result[0].prices.entries()]).toEqual([
+			[6000, 2],
+			[6000.25, 3]
+		]);
+		expect(result[0]).toMatchObject({
+			close: 6000.25,
+			high: 6000.25,
+			low: 6000,
+			open: 6000,
+			volume: 5,
+			vwap: 6000.15
+		});
 	});
 
-	it('continues opens from previous closes except at a new trading day', () => {
-		const inputs = normalizeInputs({
-			candleInterval: '30',
-			candleType: 'minute',
-			symbol: '/ES:XCME'
-		});
-		inputs.candles = 80;
-		inputs.seed = 11;
-		inputs.ticksPerCandle = 8;
-		const candles = buildCandles(buildTicks(inputs), inputs);
+	it('splits ticks across exact 500-volume candles', () => {
+		const aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
+		const emitted = aggregator.pushTicks([
+			tick({ volume: 300 }),
+			tick({ volume: 700 })
+		]);
+		const result = [...emitted, ...aggregator.finish()];
 
-		for (let index = 1; index < candles.length; index++) {
-			const current = candles[index];
-			const previous = candles[index - 1];
-
-			expect(
-				current.isNewTradingDay
-					? current.open !== previous.close
-					: current.open === previous.close
-			).toBe(true);
-		}
+		expect(result).toHaveLength(2);
+		expect(result.map((candle) => candle.volume)).toEqual([500, 500]);
+		expect(result.map((candle) => candle.id)).toEqual([
+			createBarId(1_700_000_000_000, 0),
+			createBarId(1_700_000_000_000, 1)
+		]);
 	});
 
-	it('throws when ticks are missing for a candle', () => {
-		const inputs = normalizeInputs({
-			candleInterval: '1',
-			candleType: 'minute',
-			symbol: '/ES:XCME'
-		});
-		inputs.candles = 2;
+	it('aggregates 15-second, 5-minute, and daily candles from ticks', () => {
+		const ticks = [
+			tick({ price: 6000, time: Date.parse('2026-06-01T22:00:00.000Z') }),
+			tick({ price: 6001, time: Date.parse('2026-06-01T22:00:14.000Z') }),
+			tick({ price: 6002, time: Date.parse('2026-06-01T22:00:15.000Z') }),
+			tick({ price: 6003, time: Date.parse('2026-06-01T22:05:00.000Z') })
+		];
+		const seconds15 = aggregateTime(ticks, (time) => floorTime(time, 15_000));
+		const minutes5 = aggregateTime(ticks, (time) => floorTime(time, 300_000));
+		const daily = aggregateTime(ticks, getDailySessionStart);
 
-		expect(() => buildCandles([], inputs)).toThrow(
-			/missing ticks for candle 0/
+		expect(seconds15).toHaveLength(3);
+		expect(minutes5).toHaveLength(2);
+		expect(daily).toHaveLength(1);
+		expect(daily[0]).toMatchObject({
+			close: 6003,
+			high: 6003,
+			low: 6000,
+			open: 6000
+		});
+	});
+});
+
+describe('createBarId', () => {
+	it('combines unix milliseconds and same-ms sequence', () => {
+		expect(createBarId(1_700_000_000_000, 2)).toBe(
+			1_700_000_000_000n * ID_SEQUENCE_MULTIPLIER + 2n
 		);
 	});
 });
+
+function tick(overrides: Partial<MarketTick> = {}): MarketTick {
+	return {
+		price: 6000,
+		sessionIndex: 0,
+		side: 'ask',
+		time: 1_700_000_000_000,
+		volume: 1,
+		...overrides
+	};
+}
+
+function aggregateTime(
+	ticks: MarketTick[],
+	getBucket: ConstructorParameters<typeof TimeAggregator>[0]
+) {
+	const aggregator = new TimeAggregator(getBucket);
+	const emitted = aggregator.pushTicks(ticks);
+
+	return [...emitted, ...aggregator.finish()];
+}

@@ -1,27 +1,78 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { open, mkdir, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import type { Candle } from '../contracts/types.ts';
+import type { MarketTick, ScidRecord } from '../contracts/types.ts';
 
 const HEADER_SIZE = 56;
 const RECORD_SIZE = 40;
 const SCID_EPOCH_MS = Date.UTC(1899, 11, 30);
 const MICROSECONDS_PER_MILLISECOND = 1000n;
 
-export function serializeCandlesToScid(candles: Candle[]) {
-	const output = Buffer.alloc(HEADER_SIZE + candles.length * RECORD_SIZE);
+export class ScidTickWriter {
+	private handle: FileHandle | undefined;
+	private readonly ticks: MarketTick[] = [];
 
-	writeHeader(output);
-	candles.forEach((candle, index) => {
-		writeRecord(output, HEADER_SIZE + index * RECORD_SIZE, candle);
-	});
+	constructor(
+		private readonly filePath: string,
+		private readonly flushTickCount = 10_000
+	) {}
 
-	return output;
+	async open() {
+		await mkdir(dirname(this.filePath), { recursive: true });
+		this.handle = await open(this.filePath, 'w');
+		const header = Buffer.alloc(HEADER_SIZE);
+		writeHeader(header);
+		await this.handle.write(header);
+	}
+
+	async writeTicks(ticks: MarketTick[]) {
+		if (ticks.length === 0) return;
+		const handle = this.requireHandle();
+		const output = Buffer.alloc(ticks.length * RECORD_SIZE);
+		ticks.forEach((tick, index) => {
+			writeRecord(output, index * RECORD_SIZE, tickToScidRecord(tick));
+		});
+		await handle.write(output);
+	}
+
+	pushTick(tick: MarketTick) {
+		this.ticks.push(tick);
+		return this.ticks.length >= this.flushTickCount;
+	}
+
+	async flush() {
+		if (this.ticks.length === 0) return;
+		const ticks = this.ticks.splice(0);
+		await this.writeTicks(ticks);
+	}
+
+	async close() {
+		await this.flush();
+		await this.handle?.close();
+		this.handle = undefined;
+	}
+
+	private requireHandle() {
+		if (this.handle === undefined) {
+			throw new Error('SCID writer is not open');
+		}
+
+		return this.handle;
+	}
 }
 
-export async function writeCandlesScid(filePath: string, candles: Candle[]) {
-	await mkdir(dirname(filePath), { recursive: true });
-	await writeFile(filePath, serializeCandlesToScid(candles));
+export function tickToScidRecord(tick: MarketTick): ScidRecord {
+	return {
+		askVolume: tick.side === 'ask' ? tick.volume : 0,
+		bidVolume: tick.side === 'bid' ? tick.volume : 0,
+		close: tick.price,
+		high: tick.price,
+		low: tick.price,
+		open: tick.price,
+		time: new Date(tick.time),
+		transactions: 1,
+		volume: tick.volume
+	};
 }
 
 function writeHeader(output: Buffer) {
@@ -33,16 +84,16 @@ function writeHeader(output: Buffer) {
 	output.writeUInt32LE(0, 16);
 }
 
-function writeRecord(output: Buffer, offset: number, candle: Candle) {
-	output.writeBigInt64LE(toScDateTimeMs(candle.time), offset);
-	output.writeFloatLE(candle.open, offset + 8);
-	output.writeFloatLE(candle.high, offset + 12);
-	output.writeFloatLE(candle.low, offset + 16);
-	output.writeFloatLE(candle.close, offset + 20);
-	output.writeUInt32LE(candle.transactions, offset + 24);
-	output.writeUInt32LE(candle.volume, offset + 28);
-	output.writeUInt32LE(candle.bidVolume, offset + 32);
-	output.writeUInt32LE(candle.askVolume, offset + 36);
+function writeRecord(output: Buffer, offset: number, record: ScidRecord) {
+	output.writeBigInt64LE(toScDateTimeMs(record.time), offset);
+	output.writeFloatLE(record.open, offset + 8);
+	output.writeFloatLE(record.high, offset + 12);
+	output.writeFloatLE(record.low, offset + 16);
+	output.writeFloatLE(record.close, offset + 20);
+	output.writeUInt32LE(record.transactions, offset + 24);
+	output.writeUInt32LE(record.volume, offset + 28);
+	output.writeUInt32LE(record.bidVolume, offset + 32);
+	output.writeUInt32LE(record.askVolume, offset + 36);
 }
 
 export function toScDateTimeMs(date: Date) {

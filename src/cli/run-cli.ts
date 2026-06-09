@@ -2,14 +2,10 @@ import { stdin, stdout } from 'node:process';
 import { styleText } from 'node:util';
 import { Worker } from 'node:worker_threads';
 
-import { isCancel, outro, select, text } from '@clack/prompts';
+import { isCancel, outro, select } from '@clack/prompts';
 
 import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
-import type {
-	CandleType,
-	GenerationResult,
-	GeneratorInputs
-} from '../contracts/types.ts';
+import type { GenerationResult, GeneratorInputs } from '../contracts/types.ts';
 import { normalizeInputs } from '../domain/inputs.ts';
 
 type Choice = {
@@ -24,13 +20,10 @@ type TaskSpinner = {
 };
 
 export type CliPorts = {
+	log: (message: string) => void;
 	outro: (message: string) => void;
 	select: (message: string, choices: readonly Choice[]) => Promise<string>;
 	spinner: () => TaskSpinner;
-	text: (
-		message: string,
-		validate?: (value: string | undefined) => string | undefined
-	) => Promise<string>;
 };
 
 type NodePortsOptions = {
@@ -40,15 +33,12 @@ type NodePortsOptions = {
 
 type RunCliOptions = {
 	outputDir?: string;
+	sessionCount?: number;
+	ticksPerSession?: number;
 };
 
-const CANDLE_TYPE_OPTIONS: Choice[] = [
-	{ label: 'minute', value: 'minute' },
-	{ label: 'daily', value: 'daily' }
-];
-
 const SYMBOL_CHOICES: Choice[] = SYMBOL_OPTIONS.map((symbol) => ({
-	label: symbol.id,
+	label: symbol.symbolId,
 	value: symbol.id
 }));
 
@@ -59,30 +49,24 @@ export async function runCli(
 	options: RunCliOptions = {}
 ): Promise<GenerationResult> {
 	const symbol = await ports.select('Choose symbol', SYMBOL_CHOICES);
-	const candleType = (await ports.select(
-		'Choose candle type',
-		CANDLE_TYPE_OPTIONS
-	)) as CandleType;
-	const candleInterval = await ports.text(
-		`Candle interval (${candleType})`,
-		(value) =>
-			value?.trim() === '' || value === undefined
-				? 'Please enter a value.'
-				: undefined
-	);
 	const inputs = normalizeInputs({
-		candleInterval,
-		candleType,
 		outputDir: options.outputDir,
-		symbol
+		sessionCount: options.sessionCount,
+		symbol,
+		ticksPerSession: options.ticksPerSession
 	});
 	const task = ports.spinner();
-	const message = `Generating SCID market data for ${inputs.symbol} ${inputs.candleInterval} ${inputs.candleType}...`;
+	const message = `Generating market data for ${inputs.symbol}...`;
 
 	task.start(message);
 	try {
-		const result = await generateAndWriteMarketData(inputs);
-		task.stop(`Wrote ${result.candles.length} candles to ${result.filePath}`);
+		const result = await generateAndWriteMarketData(inputs, (progress) => {
+			const message = formatProgressMessage(progress);
+			if (message !== undefined) ports.log(message);
+		});
+		task.stop(
+			`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`
+		);
 
 		return result;
 	} catch (error) {
@@ -91,22 +75,59 @@ export async function runCli(
 	}
 }
 
+function formatProgressMessage(progress: {
+	completed: number;
+	total: number;
+	sessionIndex: number;
+	ticks: number;
+}) {
+	if (progress.completed % 100 !== 0 && progress.completed !== progress.total) {
+		return undefined;
+	}
+
+	const start = Math.max(1, progress.completed - 99);
+
+	return `Completed sessions ${start}-${progress.completed} of ${progress.total}`;
+}
+
 type WorkerMessage =
 	| { result: GenerationResult }
+	| {
+			progress: {
+				completed: number;
+				total: number;
+				sessionIndex: number;
+				ticks: number;
+			};
+	  }
 	| { error: { message: string; stack?: string } };
 
-function generateAndWriteMarketData(inputs: GeneratorInputs) {
+function generateAndWriteMarketData(
+	inputs: GeneratorInputs,
+	onProgress: (progress: {
+		completed: number;
+		total: number;
+		sessionIndex: number;
+		ticks: number;
+	}) => void
+) {
 	return new Promise<GenerationResult>((resolve, reject) => {
 		const worker = new Worker(getGenerationWorkerUrl(), {
 			execArgv: getGenerationWorkerExecArgv(),
 			workerData: inputs
 		});
 
-		worker.once('message', (message: WorkerMessage) => {
+		worker.on('message', (message: WorkerMessage) => {
 			if ('error' in message) {
 				const error = new Error(message.error.message);
 				error.stack = message.error.stack;
 				reject(error);
+
+				return;
+			}
+
+			if ('progress' in message) {
+				onProgress(message.progress);
 
 				return;
 			}
@@ -172,6 +193,9 @@ export function createNodePorts({
 	output = stdout
 }: NodePortsOptions = {}): CliPorts {
 	return {
+		log: (message) => {
+			output.write(`${message}\n`);
+		},
 		outro: (message) => {
 			outro(message, { output });
 		},
@@ -194,20 +218,6 @@ export function createNodePorts({
 		},
 		spinner: () => {
 			return createTextSpinner(output);
-		},
-		text: async (message, validate) => {
-			const answer = await text({
-				input,
-				message,
-				output,
-				validate
-			});
-
-			if (isCancel(answer)) {
-				throw new Error('Cancelled');
-			}
-
-			return answer;
 		}
 	};
 }

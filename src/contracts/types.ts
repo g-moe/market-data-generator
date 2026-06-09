@@ -1,57 +1,110 @@
 import type { Symbol } from './symbols.ts';
 
-export type CandleType = 'minute' | 'daily';
+export type UnixMs = number;
+export type Price = number;
+export type Volume = number;
+export type TradeSide = 'bid' | 'ask';
 
 export type RawGeneratorInputs = {
 	symbol?: string;
-	minTickSize?: string | number;
-	candles?: string | number;
-	candleType?: string;
-	candleInterval?: string | number;
-	startIso?: string;
-	startPrice?: string | number;
-	seed?: string | number;
-	ticksPerCandle?: string | number;
 	outputDir?: string;
+	seed?: string | number;
+	sessionCount?: string | number;
+	anchorIso?: string;
+	startPrice?: string | number;
+	ticksPerSession?: string | number;
 };
 
 export type GeneratorInputs = {
 	symbol: Symbol;
-	minTickSize: number;
-	candles: number;
-	candleType: CandleType;
-	candleInterval: number;
-	startIso: string;
-	startPrice: number;
-	seed: number;
-	ticksPerCandle: number;
+	outputRoot: string;
 	outputDir: string;
+	seed: number;
+	sessionCount: number;
+	anchorIso: string;
+	startPrice: number;
+	ticksPerSession: number;
 };
 
-export type Tick = {
-	time: Date;
-	price: number;
-	volume: number;
-	side: 'bid' | 'ask';
-	candleIndex: number;
+export type MarketTick = {
+	time: UnixMs;
+	price: Price;
+	volume: Volume;
+	side: TradeSide;
+	sessionIndex: number;
 };
 
-export type Candle = {
+export type ScidRecord = {
 	time: Date;
 	open: number;
 	high: number;
 	low: number;
 	close: number;
-	volume: number;
 	transactions: number;
+	volume: number;
 	bidVolume: number;
 	askVolume: number;
-	isNewTradingDay: boolean;
+};
+
+export type MdCandle = {
+	id: bigint;
+	close: number;
+	high: number;
+	low: number;
+	open: number;
+	pos: number;
+	time: UnixMs;
+	volume: number;
+	vwap: number;
+};
+
+export type MdCandleVolumeByPrice = {
+	prices: Map<Price, Volume>;
+} & MdCandle;
+
+export type StoredMdCandle = {
+	id: string;
+	close: number;
+	high: number;
+	low: number;
+	open: number;
+	pos: number;
+	time: UnixMs;
+	volume: number;
+	vwap: number;
+};
+
+export type StoredMdCandleVolumeByPrice = {
+	id: string;
+	close: number;
+	high: number;
+	low: number;
+	open: number;
+	pos: number;
+	time: UnixMs;
+	volume: number;
+	vwap: number;
+	prices: Array<[Price, Volume]>;
+};
+
+export type OutputFiles = {
+	scid: string;
+	priceLevel: string;
+	volume500: string;
+	seconds15: string;
+	minutes5: string;
+	daily: string;
 };
 
 export type GenerationResult = {
 	inputs: GeneratorInputs;
-	ticks: Tick[];
-	candles: Candle[];
-	filePath: string;
+	files: OutputFiles;
+	counts: {
+		ticks: number;
+		priceLevel: number;
+		volume500: number;
+		seconds15: number;
+		minutes5: number;
+		daily: number;
+	};
 };

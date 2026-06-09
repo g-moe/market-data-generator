@@ -20,44 +20,28 @@ describe('runCli', () => {
 			const result = await runCli(
 				ports({
 					events,
-					selectAnswers: ['/ES:XCME', 'minute'],
-					textAnswers: ['5']
+					selectAnswers: ['/ES:XCME']
 				}),
-				{ outputDir }
+				{ outputDir, sessionCount: 1, ticksPerSession: 5 }
 			);
 
-			expect(result.candles).toHaveLength(20_000);
-			expect(result.filePath).toBe(join(outputDir, 'tradester_ES.scid'));
+			expect(result.counts.ticks).toBe(5);
+			expect(result.files.scid).toBe(
+				join(outputDir, 'ES', 'tradester_ES.scid')
+			);
 			expect(events).toContain('select:Choose symbol');
-			expect(events).toContain('select:Choose candle type');
-			expect(events).toContain('text:Candle interval (minute)');
+			expect(events).toContain('start:Generating market data for /ES:XCME...');
+			expect(events).toContain('log:Completed sessions 1-1 of 1');
 			expect(events).toContain(
-				'start:Generating SCID market data for /ES:XCME 5 minute...'
+				`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`
 			);
-			expect(events).toContain(
-				`stop:Wrote 20000 candles to ${join(outputDir, 'tradester_ES.scid')}`
-			);
-			expect((await readFile(result.filePath)).toString('ascii', 0, 4)).toBe(
+			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe(
 				'SCID'
 			);
 		} finally {
 			await rm(outputDir, { force: true, recursive: true });
 		}
 	}, 15_000);
-
-	it('validates the candle interval prompt', async () => {
-		const events: string[] = [];
-
-		await expect(
-			runCli(
-				ports({
-					events,
-					selectAnswers: ['/ES:XCME', 'minute'],
-					textAnswers: ['']
-				})
-			)
-		).rejects.toThrow('Please enter a value.');
-	});
 
 	it('stops the spinner with an error when generation fails', async () => {
 		const events: string[] = [];
@@ -66,13 +50,12 @@ describe('runCli', () => {
 			runCli(
 				ports({
 					events,
-					selectAnswers: ['bad-symbol', 'minute'],
-					textAnswers: ['5']
+					selectAnswers: ['bad-symbol']
 				})
 			)
 		).rejects.toThrow(/symbol/i);
 		expect(events).not.toContain(
-			'start:Generating SCID market data for bad-symbol 5 minute...'
+			'start:Generating market data for bad-symbol...'
 		);
 	});
 });
@@ -104,8 +87,7 @@ describe('runCli worker handling', () => {
 			runCliWithMockWorker(
 				ports({
 					events,
-					selectAnswers: ['/ES:XCME', 'minute'],
-					textAnswers: ['5']
+					selectAnswers: ['/ES:XCME']
 				})
 			)
 		).rejects.toThrow('worker failed');
@@ -133,8 +115,7 @@ describe('runCli worker handling', () => {
 			runCliWithMockWorker(
 				ports({
 					events,
-					selectAnswers: ['/ES:XCME', 'minute'],
-					textAnswers: ['5']
+					selectAnswers: ['/ES:XCME']
 				})
 			)
 		).rejects.toThrow('Generation worker exited with code 1');
@@ -149,8 +130,7 @@ describe('createNodePorts', () => {
 		vi.doMock('@clack/prompts', () => ({
 			isCancel: () => false,
 			outro: vi.fn<(message: string, options: unknown) => void>(),
-			select: vi.fn<() => Promise<string>>().mockResolvedValue('/ES:XCME'),
-			text: vi.fn<() => Promise<string>>().mockResolvedValue('5')
+			select: vi.fn<() => Promise<string>>().mockResolvedValue('/ES:XCME')
 		}));
 
 		const clack = await import('@clack/prompts');
@@ -161,7 +141,6 @@ describe('createNodePorts', () => {
 		await expect(
 			promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
 		).resolves.toBe('/ES:XCME');
-		await expect(promptPorts.text('Interval')).resolves.toBe('5');
 
 		const spinner = promptPorts.spinner();
 		vi.useFakeTimers();
@@ -182,12 +161,6 @@ describe('createNodePorts', () => {
 				output
 			})
 		);
-		expect(clack.text).toHaveBeenCalledWith(
-			expect.objectContaining({
-				message: 'Interval',
-				output
-			})
-		);
 		expect(output.chunks.join('')).toContain('Working');
 		expect(output.chunks.join('')).toContain('◇Done\n');
 		expect(output.chunks.join('')).toContain('■Failed\n');
@@ -199,8 +172,7 @@ describe('createNodePorts', () => {
 		vi.doMock('@clack/prompts', () => ({
 			isCancel: (value: unknown) => value === cancel,
 			outro: vi.fn<(message: string, options: unknown) => void>(),
-			select: vi.fn<() => Promise<symbol>>().mockResolvedValue(cancel),
-			text: vi.fn<() => Promise<symbol>>().mockResolvedValue(cancel)
+			select: vi.fn<() => Promise<symbol>>().mockResolvedValue(cancel)
 		}));
 
 		const { createNodePorts } = await import('../../cli/run-cli.ts');
@@ -209,20 +181,20 @@ describe('createNodePorts', () => {
 		await expect(promptPorts.select('Choose symbol', [])).rejects.toThrow(
 			'Cancelled'
 		);
-		await expect(promptPorts.text('Interval')).rejects.toThrow('Cancelled');
 	});
 });
 
 function ports({
 	events,
-	selectAnswers,
-	textAnswers
+	selectAnswers
 }: {
 	events: string[];
 	selectAnswers: string[];
-	textAnswers: string[];
 }): CliPorts {
 	return {
+		log: (message) => {
+			events.push(`log:${message}`);
+		},
 		outro: (message) => {
 			events.push(`outro:${message}`);
 		},
@@ -241,17 +213,7 @@ function ports({
 			stop: (message) => {
 				events.push(`stop:${message}`);
 			}
-		}),
-		text: async (message, validate) => {
-			events.push(`text:${message}`);
-			const answer = textAnswers.shift() ?? '';
-			const error = validate?.(answer);
-			if (error !== undefined) {
-				throw new Error(error);
-			}
-
-			return answer;
-		}
+		})
 	};
 }
 

@@ -1,71 +1,87 @@
 import { describe, expect, it } from 'vitest';
 
+import { getSymbolConfig } from '../../contracts/symbols.ts';
+import type { GeneratorInputs, MarketTick } from '../../contracts/types.ts';
 import { normalizeInputs } from '../../domain/inputs.ts';
-import { buildTicks } from '../../domain/ticks.ts';
+import { getSessionStart } from '../../domain/market-time.ts';
+import {
+	deriveSessionSeed,
+	generateSessionTicksForStart
+} from '../../domain/ticks.ts';
 
-describe('buildTicks', () => {
-	it('generates the requested number of deterministic ticks', () => {
+describe('generateSessionTicksForStart', () => {
+	it('generates deterministic ES ticks for a session', () => {
 		const inputs = normalizeInputs({
-			candleInterval: '5',
-			candleType: 'minute',
-			symbol: '/NQ:XCME'
+			sessionCount: 2,
+			symbol: 'ES',
+			ticksPerSession: 5
 		});
-		inputs.candles = 3;
-		inputs.startPrice = 19_000;
-		inputs.seed = 7;
-		inputs.ticksPerCandle = 4;
 
-		expect(buildTicks(inputs)).toEqual(buildTicks(inputs));
-		expect(buildTicks(inputs)).toHaveLength(12);
+		expect(collectSessionTicks(inputs, 0)).toEqual(
+			collectSessionTicks(inputs, 0)
+		);
 	});
 
-	it('keeps tick prices on the configured tick size', () => {
+	it('keeps prices aligned to the symbol tick size', () => {
 		const inputs = normalizeInputs({
-			candleInterval: '1',
-			candleType: 'minute',
-			symbol: '/ES:XCME'
+			sessionCount: 1,
+			symbol: 'ES',
+			ticksPerSession: 20
 		});
-		inputs.candles = 10;
-		inputs.ticksPerCandle = 6;
+		const symbol = getSymbolConfig(inputs.symbol);
+		const ticks = collectSessionTicks(inputs, 0);
 
 		expect(
-			buildTicks(inputs).every((tick) => tick.price % inputs.minTickSize === 0)
+			ticks.every((tick) => {
+				return Number.isInteger(tick.price / symbol.tickSize);
+			})
 		).toBe(true);
 	});
 
-	it('creates higher aggregate volume during regular trading hours', () => {
+	it('supports one-tick sessions and larger deterministic volume samples', () => {
 		const inputs = normalizeInputs({
-			candleInterval: '1',
-			candleType: 'minute',
-			symbol: '/NQ:XCME'
+			sessionCount: 1,
+			symbol: 'ES',
+			ticksPerSession: 1
 		});
-		inputs.candles = 1_100;
-		inputs.startPrice = 19_000;
-		inputs.seed = 7;
-		inputs.ticksPerCandle = 4;
-
-		const ticks = buildTicks(inputs);
-		const regular = ticks.filter(
-			(tick) => centralHour(tick.time) >= 8 && centralHour(tick.time) < 11
-		);
-		const overnight = ticks.filter(
-			(tick) => centralHour(tick.time) >= 18 && centralHour(tick.time) < 21
+		const oneTick = collectSessionTicks(inputs, 0);
+		const manyTicks = collectSessionTicks(
+			{ ...inputs, ticksPerSession: 5_000 },
+			0
 		);
 
-		expect(sumVolume(regular)).toBeGreaterThan(sumVolume(overnight));
+		expect(oneTick).toHaveLength(1);
+		expect(manyTicks.some((tick) => tick.volume > 250)).toBe(true);
+		expect(
+			manyTicks.some((tick) => tick.volume > 25 && tick.volume <= 250)
+		).toBe(true);
+	});
+
+	it('derives distinct deterministic seeds per session', () => {
+		expect(deriveSessionSeed(1, 'ES', 1)).toBe(deriveSessionSeed(1, 'ES', 1));
+		expect(deriveSessionSeed(1, 'ES', 1)).not.toBe(
+			deriveSessionSeed(1, 'ES', 2)
+		);
 	});
 });
 
-function centralHour(time: Date) {
-	return Number(
-		new Intl.DateTimeFormat('en-US', {
-			hour: '2-digit',
-			hour12: false,
-			timeZone: 'America/Chicago'
-		}).format(time)
+function collectSessionTicks(
+	inputs: GeneratorInputs,
+	sessionIndex: number
+): MarketTick[] {
+	const symbol = getSymbolConfig(inputs.symbol);
+	const sessionStart = getSessionStart(
+		inputs.anchorIso,
+		inputs.sessionCount - sessionIndex - 1
 	);
-}
+	const ticks: MarketTick[] = [];
+	generateSessionTicksForStart(
+		inputs,
+		symbol,
+		sessionIndex,
+		sessionStart,
+		(tick) => ticks.push(tick)
+	);
 
-function sumVolume(ticks: { volume: number }[]) {
-	return ticks.reduce((total, tick) => total + tick.volume, 0);
+	return ticks;
 }

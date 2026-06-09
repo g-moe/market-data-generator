@@ -1,59 +1,63 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	getCandleDurationMs,
-	getCandleStart,
 	getCentralParts,
-	getTimeWeight,
+	getDailySessionStart,
+	getSessionEnd,
+	getSessionStart,
 	getUtcParts,
-	isTradingDayStart
+	isMarketOpen
 } from '../../domain/market-time.ts';
-import type { GeneratorInputs } from '../../contracts/types.ts';
 
-describe('market time', () => {
-	it('advances minute candles through 23-hour trading sessions', () => {
-		const inputs = input({ candleInterval: 30, candleType: 'minute' });
-
-		expect(getCentralParts(getCandleStart(inputs, 0)).time).toBe('17:00:00');
-		expect(getCentralParts(getCandleStart(inputs, 45)).time).toBe('15:30:00');
-		expect(getCentralParts(getCandleStart(inputs, 46)).time).toBe('17:00:00');
-		expect(isTradingDayStart(getCandleStart(inputs, 46))).toBe(true);
+describe('futures market time', () => {
+	it('detects equity-index futures open and maintenance periods in Central time', () => {
+		expect(isMarketOpen(Date.parse('2026-06-07T21:59:59.000Z'))).toBe(false);
+		expect(isMarketOpen(Date.parse('2026-06-07T22:00:00.000Z'))).toBe(true);
+		expect(isMarketOpen(Date.parse('2026-06-08T21:30:00.000Z'))).toBe(false);
+		expect(isMarketOpen(Date.parse('2026-06-08T22:00:00.000Z'))).toBe(true);
+		expect(isMarketOpen(Date.parse('2026-06-12T21:00:00.000Z'))).toBe(false);
+		expect(isMarketOpen(Date.parse('2026-06-13T15:00:00.000Z'))).toBe(false);
 	});
 
-	it('advances daily candles by whole day intervals', () => {
-		const inputs = input({ candleInterval: 2, candleType: 'daily' });
+	it('walks backward by trading session starts', () => {
+		const start = getSessionStart('2026-06-05T21:00:00.000Z', 0);
 
-		expect(
-			getCandleStart(inputs, 1).getTime() - getCandleStart(inputs, 0).getTime()
-		).toBe(2 * 24 * 60 * 60 * 1000);
-		expect(getCandleDurationMs(inputs)).toBe(2 * 24 * 60 * 60 * 1000);
+		expect(getCentralParts(new Date(start))).toMatchObject({
+			time: '17:00:00',
+			weekday: 'Thu'
+		});
+		expect(getSessionEnd(start) - start).toBe(23 * 60 * 60 * 1000);
 	});
 
-	it('weights regular trading hours more heavily than overnight time', () => {
-		expect(
-			getTimeWeight(new Date('2026-06-09T08:30:00.000-05:00'), 'volume')
-		).toBe(8);
-		expect(
-			getTimeWeight(new Date('2026-06-09T14:00:00.000-05:00'), 'volatility')
-		).toBe(3);
-		expect(
-			getTimeWeight(new Date('2026-06-09T18:00:00.000-05:00'), 'volume')
-		).toBe(1);
+	it('skips non-trading weekend session starts when walking backward', () => {
+		const start = getSessionStart('2026-06-07T22:00:00.000Z', 1);
+
+		expect(getCentralParts(new Date(start))).toMatchObject({
+			time: '17:00:00',
+			weekday: 'Thu'
+		});
 	});
 
-	it('uses declarative central time boundaries for weighted windows', () => {
-		expect(
-			getTimeWeight(new Date('2026-06-09T08:29:59.000-05:00'), 'volume')
-		).toBe(1);
-		expect(
-			getTimeWeight(new Date('2026-06-09T08:30:00.000-05:00'), 'volume')
-		).toBe(8);
-		expect(
-			getTimeWeight(new Date('2026-06-09T10:29:59.000-05:00'), 'volatility')
-		).toBe(4);
-		expect(
-			getTimeWeight(new Date('2026-06-09T10:30:00.000-05:00'), 'volatility')
-		).toBe(1);
+	it('finds the daily session start for intraday ticks', () => {
+		const sessionStart = getDailySessionStart(
+			Date.parse('2026-06-08T15:30:00.000Z')
+		);
+
+		expect(getCentralParts(new Date(sessionStart))).toMatchObject({
+			time: '17:00:00',
+			weekday: 'Sun'
+		});
+	});
+
+	it('uses the same-day 17:00 CT session start for evening ticks', () => {
+		const sessionStart = getDailySessionStart(
+			Date.parse('2026-06-09T01:00:00.000Z')
+		);
+
+		expect(getCentralParts(new Date(sessionStart))).toMatchObject({
+			time: '17:00:00',
+			weekday: 'Mon'
+		});
 	});
 
 	it('formats UTC date and time parts', () => {
@@ -63,19 +67,3 @@ describe('market time', () => {
 		});
 	});
 });
-
-function input(overrides: Partial<GeneratorInputs>): GeneratorInputs {
-	return {
-		candleInterval: 1,
-		candleType: 'minute',
-		candles: 1,
-		minTickSize: 0.25,
-		outputDir: 'data',
-		seed: 1,
-		startIso: '2026-06-08T17:00:00.000-05:00',
-		startPrice: 100,
-		symbol: '/ES:XCME',
-		ticksPerCandle: 4,
-		...overrides
-	};
-}
