@@ -6,6 +6,10 @@ import { getSessionEnd } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
 
+const RANDOM_MULTIPLIER = 1_664_525;
+const RANDOM_INCREMENT = 1_013_904_223;
+const RANDOM_DIVISOR = 0x1_0000_0000;
+
 export type OnTickValues = (
 	time: number,
 	price: number,
@@ -52,9 +56,8 @@ export function generateSessionTickValuesForStart(
 	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
 	const openVolatilityEnd = ticksPerSession * 0.1;
 	const closingVolatilityStart = ticksPerSession * 0.85;
-	const random = createRandom(
-		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
-	);
+	let randomState =
+		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
 	const toPrice = (ticks: number) => ticks * symbolConfig.tickSize;
 
@@ -62,19 +65,30 @@ export function generateSessionTickValuesForStart(
 		const time = Math.floor(sessionStart + index * timeStep);
 		const volatility =
 			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const moveTicks = Math.round(
-			randomSigned(random) * volatility * (random() > 0.7 ? 2 : 1)
+			signedMove * volatility * (randomState / RANDOM_DIVISOR > 0.7 ? 2 : 1)
 		);
 		priceTicks += moveTicks;
 
-		const side = random() > 0.5 ? 'ask' : 'bid';
-		onTick(
-			time,
-			toPrice(priceTicks),
-			nextTickVolume(random),
-			side,
-			sessionIndex
-		);
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const side = randomState / RANDOM_DIVISOR > 0.5 ? 'ask' : 'bid';
+		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+		const volumeRoll = randomState / RANDOM_DIVISOR;
+		let volume: number;
+		if (volumeRoll > 0.995) {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 251 + Math.floor((randomState / RANDOM_DIVISOR) * 750);
+		} else if (volumeRoll > 0.95) {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 26 + Math.floor((randomState / RANDOM_DIVISOR) * 225);
+		} else {
+			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+			volume = 1 + Math.floor((randomState / RANDOM_DIVISOR) * 25);
+		}
+		onTick(time, toPrice(priceTicks), volume, side, sessionIndex);
 	}
 
 	return toPrice(priceTicks);
@@ -114,12 +128,4 @@ export function getSessionOpenPrice(
 
 function getSessionGapTicks(sessionIndex: number) {
 	return 1 + Math.floor(Math.log2(sessionIndex + 1));
-}
-
-function nextTickVolume(random: () => number) {
-	const roll = random();
-	if (roll > 0.995) return 251 + Math.floor(random() * 750);
-	if (roll > 0.95) return 26 + Math.floor(random() * 225);
-
-	return 1 + Math.floor(random() * 25);
 }
