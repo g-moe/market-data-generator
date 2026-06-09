@@ -102,6 +102,11 @@ export async function generateMarketData(
 			if (sessionStart < UNIX_EPOCH_MS) {
 				emitted.daily.push(createZeroDailyCandle(counts.daily));
 			} else {
+				const shouldEmitPriceLevel = isInLastSessions(
+					inputs,
+					sessionIndex,
+					PRICE_LEVEL_SESSIONS
+				);
 				const sessionOpenPrice = getSessionOpenPrice(
 					previousClose,
 					inputs,
@@ -143,7 +148,7 @@ export async function generateMarketData(
 							volume,
 							emitted.volume500
 						);
-						if (isInLastSessions(inputs, sessionIndex, PRICE_LEVEL_SESSIONS)) {
+						if (shouldEmitPriceLevel) {
 							priceLevelAggregator.pushTickValues(
 								time,
 								price,
