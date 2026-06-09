@@ -178,6 +178,9 @@ async function runScenario(
 
 function summarize(results: ScenarioResult[]) {
 	const elapsed = results.map((result) => result.elapsedMs);
+	const heapPeak = results
+		.map((result) => result.heapUsedPeakMb)
+		.filter((value) => value !== undefined);
 	const peakRss = results
 		.map((result) => result.rssPeakMb)
 		.filter((value) => value !== undefined);
@@ -185,12 +188,18 @@ function summarize(results: ScenarioResult[]) {
 	const rss = results.map((result) => result.rssMb);
 
 	return {
+		elapsedMsMax: Math.max(...elapsed),
 		elapsedMsMedian: median(elapsed),
+		elapsedMsMin: Math.min(...elapsed),
 		hashes: [...new Set(results.map((result) => result.hash))],
+		heapUsedPeakMbMax:
+			heapPeak.length === 0 ? undefined : Math.max(...heapPeak),
+		heapUsedPeakMbMedian: heapPeak.length === 0 ? undefined : median(heapPeak),
 		iterations: results.length,
 		name: `${results[0].name}-summary`,
 		rssMbMax: Math.max(...rss),
 		rssMbPeakMax: peakRss.length === 0 ? undefined : Math.max(...peakRss),
+		rssMbPeakMedian: peakRss.length === 0 ? undefined : median(peakRss),
 		ticksPerSecondMedian: median(throughput)
 	};
 }
@@ -227,5 +236,5 @@ function median(values: number[]) {
 	const middle = Math.floor(sorted.length / 2);
 	if (sorted.length % 2 === 1) return sorted[middle];
 
-	return Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+	return Math.round(((sorted[middle - 1] + sorted[middle]) / 2) * 10) / 10;
 }
