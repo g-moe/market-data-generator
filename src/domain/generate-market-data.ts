@@ -491,14 +491,19 @@ function getRingRetainedSessionStart(
 }
 
 function countSessionBuckets(ticksPerSession: number, bucketMs: number) {
-	const buckets = new Set<number>();
 	const timeStep = (SESSION_DURATION_MS - 1) / ticksPerSession;
+	let count = 0;
+	let previousBucket: number | undefined;
 	for (let index = 0; index < ticksPerSession; index++) {
 		const time = Math.floor(index * timeStep);
-		buckets.add(Math.floor(time / bucketMs) * bucketMs);
+		const bucket = Math.floor(time / bucketMs) * bucketMs;
+		if (bucket !== previousBucket) {
+			count++;
+			previousBucket = bucket;
+		}
 	}
 
-	return buckets.size;
+	return count;
 }
 
 function createZeroDailyCandle(sequence: number): MdCandle {
