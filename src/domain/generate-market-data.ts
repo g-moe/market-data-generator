@@ -11,9 +11,11 @@ import type {
 	OutputFiles
 } from '../contracts/types.ts';
 import {
-	CandleJsonArrayWriter,
-	toStoredCandleJson,
-	toStoredPriceLevelCandleJson
+	CANDLE_ROW_HEADER,
+	CandleRowWriter,
+	PRICE_LEVEL_CANDLE_ROW_HEADER,
+	toStoredCandleRow,
+	toStoredPriceLevelCandleRow
 } from '../io/json.ts';
 import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../io/scid.ts';
 import {
@@ -90,11 +92,16 @@ export async function generateMarketData(
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const minutes5Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const scid = new ScidTickWriter(files.scid);
-	const priceLevel = new CandleJsonArrayWriter(
+	const priceLevel = new CandleRowWriter(
 		files.priceLevel,
-		toStoredPriceLevelCandleJson
+		PRICE_LEVEL_CANDLE_ROW_HEADER,
+		toStoredPriceLevelCandleRow
 	);
-	const daily = new CandleJsonArrayWriter(files.daily, toStoredCandleJson);
+	const daily = new CandleRowWriter(
+		files.daily,
+		CANDLE_ROW_HEADER,
+		toStoredCandleRow
+	);
 	const counts = {
 		daily: 0,
 		minutes5: 0,
@@ -226,15 +233,15 @@ export function getOutputFiles(inputs: GeneratorInputs): OutputFiles {
 	const priceLevelSuffix = formatPriceLevelSuffix(symbolConfig.tickSize);
 
 	return {
-		daily: join(inputs.outputDir, `${prefix}_1d.json`),
-		minutes5: join(inputs.outputDir, `${prefix}_5m.json`),
+		daily: join(inputs.outputDir, `${prefix}_1d.csv`),
+		minutes5: join(inputs.outputDir, `${prefix}_5m.csv`),
 		priceLevel: join(
 			inputs.outputDir,
-			`${prefix}_1s_pl${priceLevelSuffix}.json`
+			`${prefix}_1s_pl${priceLevelSuffix}.csv`
 		),
 		scid: join(inputs.outputDir, `${prefix}.scid`),
-		seconds15: join(inputs.outputDir, `${prefix}_15s.json`),
-		volume500: join(inputs.outputDir, `${prefix}_500v.json`)
+		seconds15: join(inputs.outputDir, `${prefix}_15s.csv`),
+		volume500: join(inputs.outputDir, `${prefix}_500v.csv`)
 	};
 }
 
@@ -463,7 +470,11 @@ async function writeRingBuffer(
 	filePath: string,
 	ringBuffer: RingBuffer<MdCandle>
 ) {
-	const writer = new CandleJsonArrayWriter(filePath, toStoredCandleJson);
+	const writer = new CandleRowWriter(
+		filePath,
+		CANDLE_ROW_HEADER,
+		toStoredCandleRow
+	);
 	await writer.open();
 	try {
 		await writer.write(ringBuffer.iterate());

@@ -8,6 +8,7 @@ import {
 	getOutputFiles
 } from '../../domain/generate-market-data.ts';
 import { normalizeInputs } from '../../domain/inputs.ts';
+import { CANDLE_ROW_HEADER } from '../../io/json.ts';
 
 describe('generateMarketData', () => {
 	it('writes all tick-first outputs for ES', async () => {
@@ -27,24 +28,25 @@ describe('generateMarketData', () => {
 			expect(result.files.scid).toBe(
 				join(outputRoot, 'ES', 'tradester_ES.scid')
 			);
+			expect(result.files.daily).toBe(
+				join(outputRoot, 'ES', 'tradester_ES_1d.csv')
+			);
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe(
 				'SCID'
 			);
-			expect(
-				JSON.parse(await readFile(result.files.priceLevel, 'utf8'))
-			).toBeInstanceOf(Array);
-			expect(
-				JSON.parse(await readFile(result.files.volume500, 'utf8'))
-			).toBeInstanceOf(Array);
-			expect(
-				JSON.parse(await readFile(result.files.seconds15, 'utf8'))
-			).toBeInstanceOf(Array);
-			expect(
-				JSON.parse(await readFile(result.files.minutes5, 'utf8'))
-			).toBeInstanceOf(Array);
-			expect(
-				JSON.parse(await readFile(result.files.daily, 'utf8'))
-			).toBeInstanceOf(Array);
+			expect(await readFirstLine(result.files.priceLevel)).toBe(
+				`${CANDLE_ROW_HEADER},prices`
+			);
+			expect(await readFirstLine(result.files.volume500)).toBe(
+				CANDLE_ROW_HEADER
+			);
+			expect(await readFirstLine(result.files.seconds15)).toBe(
+				CANDLE_ROW_HEADER
+			);
+			expect(await readFirstLine(result.files.minutes5)).toBe(
+				CANDLE_ROW_HEADER
+			);
+			expect(await readFirstLine(result.files.daily)).toBe(CANDLE_ROW_HEADER);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}
@@ -105,12 +107,8 @@ describe('generateMarketData', () => {
 			expect(result.counts.priceLevel).toBe(9_000);
 			expect(result.counts.seconds15).toBe(20_000);
 			expect(result.counts.minutes5).toBe(20_000);
-			expect(
-				JSON.parse(await readFile(result.files.seconds15, 'utf8'))
-			).toHaveLength(20_000);
-			expect(
-				JSON.parse(await readFile(result.files.minutes5, 'utf8'))
-			).toHaveLength(20_000);
+			expect(await countRows(result.files.seconds15)).toBe(20_000);
+			expect(await countRows(result.files.minutes5)).toBe(20_000);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}
@@ -128,22 +126,30 @@ describe('generateMarketData', () => {
 
 		try {
 			const result = await generateMarketData(inputs);
-			const daily = JSON.parse(await readFile(result.files.daily, 'utf8'));
+			const daily = (await readFile(result.files.daily, 'utf8'))
+				.trimEnd()
+				.split('\n')
+				.slice(1)
+				.map((line) => line.split(','));
 			const padded = daily.filter(
-				(candle: { close: number; time: number }) =>
-					candle.time === 0 && candle.close === 0
+				(candle) => candle[1] === '0' && candle[6] === '0'
 			);
 
 			expect(daily).toHaveLength(10);
 			expect(padded.length).toBeGreaterThan(0);
-			expect(
-				daily.every((candle: { id: string }) => !candle.id.startsWith('-'))
-			).toBe(true);
-			expect(daily.every((candle: { time: number }) => candle.time >= 0)).toBe(
-				true
-			);
+			expect(daily.every((candle) => !candle[0].startsWith('-'))).toBe(true);
+			expect(daily.every((candle) => Number(candle[1]) >= 0)).toBe(true);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}
 	});
 });
+
+async function readFirstLine(filePath: string) {
+	return (await readFile(filePath, 'utf8')).split('\n')[0];
+}
+
+async function countRows(filePath: string) {
+	const text = await readFile(filePath, 'utf8');
+	return text.trimEnd().split('\n').length - 1;
+}

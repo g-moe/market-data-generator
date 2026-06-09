@@ -3,8 +3,8 @@
 Generate deterministic synthetic market data from raw ticks.
 
 This is a small TypeScript CLI and library for producing deterministic raw
-trade ticks, writing Sierra Chart `.scid` tick data, and deriving JavaScript
-candle files from those same ticks.
+trade ticks, writing Sierra Chart `.scid` tick data, and deriving candle row
+files from those same ticks.
 
 ## Requirements
 
@@ -38,11 +38,11 @@ printf "ES\n" | corepack pnpm generate
 
 ```text
 data/ES/tradester_ES.scid           raw ticks for 20,000 sessions
-data/ES/tradester_ES_1d.json        20,000 daily bars
-data/ES/tradester_ES_5m.json        latest 20,000 5-minute bars
-data/ES/tradester_ES_15s.json       latest 20,000 15-second bars
-data/ES/tradester_ES_500v.json      latest 20,000 500-volume bars
-data/ES/tradester_ES_1s_pl0.25.json 30 sessions of 1-second price-level bars
+data/ES/tradester_ES_1d.csv         20,000 daily bars
+data/ES/tradester_ES_5m.csv         latest 20,000 5-minute bars
+data/ES/tradester_ES_15s.csv        latest 20,000 15-second bars
+data/ES/tradester_ES_500v.csv       latest 20,000 500-volume bars
+data/ES/tradester_ES_1s_pl0.25.csv  30 sessions of 1-second price-level bars
 ```
 
 ## Calculation Note
@@ -52,8 +52,9 @@ boundaries, time bars use their time buckets, `500v` splits ticks as needed,
 and `1s` price-level bars also store volume by price.
 
 Raw ticks are the source of truth. The `.scid` file is for Sierra Chart.
-Derived candle files are JSON; `bigint` IDs are stored as strings and `Map`
-price levels are stored as entry arrays.
+Derived candle files are fixed-schema CSV-style rows with one header line.
+`bigint` IDs are stored as strings. Price-level rows add a `prices` field
+encoded as `price:volume;price:volume`.
 
 The generator uses the ES/NQ futures session model: Sunday 17:00 CT through
 Friday 16:00 CT with the daily 16:00-17:00 CT maintenance break.

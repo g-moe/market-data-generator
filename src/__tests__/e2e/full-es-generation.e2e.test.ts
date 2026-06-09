@@ -42,21 +42,13 @@ describe('full ES generation', () => {
 			expect(first.counts.seconds15).toBe(RETAINED_RING_BARS);
 			expect(first.counts.minutes5).toBe(RETAINED_RING_BARS);
 			expect(first.counts.volume500).toBe(RETAINED_RING_BARS);
-			expect(await countJsonArrayItems(first.files.daily)).toBe(
-				REQUESTED_DAILY_SESSIONS
-			);
-			expect(await countJsonArrayItems(first.files.priceLevel)).toBe(
+			expect(await countRows(first.files.daily)).toBe(REQUESTED_DAILY_SESSIONS);
+			expect(await countRows(first.files.priceLevel)).toBe(
 				RETAINED_PRICE_LEVEL_SESSIONS * TICKS_PER_GENERATED_SESSION
 			);
-			expect(await countJsonArrayItems(first.files.seconds15)).toBe(
-				RETAINED_RING_BARS
-			);
-			expect(await countJsonArrayItems(first.files.minutes5)).toBe(
-				RETAINED_RING_BARS
-			);
-			expect(await countJsonArrayItems(first.files.volume500)).toBe(
-				RETAINED_RING_BARS
-			);
+			expect(await countRows(first.files.seconds15)).toBe(RETAINED_RING_BARS);
+			expect(await countRows(first.files.minutes5)).toBe(RETAINED_RING_BARS);
+			expect(await countRows(first.files.volume500)).toBe(RETAINED_RING_BARS);
 			expect((await stat(first.files.scid)).size).toBe(
 				SCID_HEADER_BYTES +
 					GENERATED_TICK_SESSIONS *
@@ -104,45 +96,7 @@ function hashFile(filePath: string) {
 	});
 }
 
-async function countJsonArrayItems(filePath: string) {
-	const json = await readFile(filePath, 'utf8');
-	let depth = 0;
-	let count = 0;
-	let hasCurrentItem = false;
-	let inString = false;
-	let isEscaped = false;
-
-	for (const character of json) {
-		if (inString) {
-			if (isEscaped) {
-				isEscaped = false;
-			} else if (character === '\\') {
-				isEscaped = true;
-			} else if (character === '"') {
-				inString = false;
-			}
-			continue;
-		}
-
-		if (character === '"') {
-			inString = true;
-			continue;
-		}
-
-		if (character === '[' || character === '{') {
-			depth++;
-			if (depth === 2) hasCurrentItem = true;
-			continue;
-		}
-
-		if (character === ']' || character === '}') {
-			if (depth === 2 && hasCurrentItem) {
-				count++;
-				hasCurrentItem = false;
-			}
-			depth--;
-		}
-	}
-
-	return count;
+async function countRows(filePath: string) {
+	const text = await readFile(filePath, 'utf8');
+	return text.trimEnd().split('\n').length - 1;
 }
