@@ -2,12 +2,13 @@ import { writeSync } from 'node:fs';
 import { open, mkdir, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import type { MarketTick, ScidRecord } from '../contracts/types.ts';
+import type { MarketTick, ScidRecord, TradeSide } from '../contracts/types.ts';
 
 const HEADER_SIZE = 56;
 const RECORD_SIZE = 40;
 const DEFAULT_BUFFER_RECORDS = 16_384;
 const SCID_EPOCH_MS = Date.UTC(1899, 11, 30);
+const UINT32_SIZE = 0x1_0000_0000;
 const MICROSECONDS_PER_MILLISECOND = 1000n;
 
 export class ScidTickWriter {
@@ -38,7 +39,18 @@ export class ScidTickWriter {
 	}
 
 	pushTick(tick: MarketTick) {
-		writeTick(this.output, this.recordCount * RECORD_SIZE, tick);
+		this.pushTickValues(tick.time, tick.price, tick.volume, tick.side);
+	}
+
+	pushTickValues(time: number, price: number, volume: number, side: TradeSide) {
+		writeTickValues(
+			this.output,
+			this.recordCount * RECORD_SIZE,
+			time,
+			price,
+			volume,
+			side
+		);
 		this.recordCount++;
 		if (this.recordCount * RECORD_SIZE === this.output.length) {
 			this.writeBufferedTicksSync();
@@ -94,22 +106,31 @@ function writeHeader(output: Buffer) {
 	output.writeUInt32LE(0, 16);
 }
 
-function writeTick(output: Buffer, offset: number, tick: MarketTick) {
-	output.writeBigInt64LE(toScDateTimeMsValue(tick.time), offset);
-	output.writeFloatLE(tick.price, offset + 8);
-	output.writeFloatLE(tick.price, offset + 12);
-	output.writeFloatLE(tick.price, offset + 16);
-	output.writeFloatLE(tick.price, offset + 20);
+function writeTickValues(
+	output: Buffer,
+	offset: number,
+	time: number,
+	price: number,
+	volume: number,
+	side: TradeSide
+) {
+	writeScDateTimeMsValue(output, offset, time);
+	output.writeFloatLE(price, offset + 8);
+	output.writeFloatLE(price, offset + 12);
+	output.writeFloatLE(price, offset + 16);
+	output.writeFloatLE(price, offset + 20);
 	output.writeUInt32LE(1, offset + 24);
-	output.writeUInt32LE(tick.volume, offset + 28);
-	output.writeUInt32LE(tick.side === 'bid' ? tick.volume : 0, offset + 32);
-	output.writeUInt32LE(tick.side === 'ask' ? tick.volume : 0, offset + 36);
+	output.writeUInt32LE(volume, offset + 28);
+	output.writeUInt32LE(side === 'bid' ? volume : 0, offset + 32);
+	output.writeUInt32LE(side === 'ask' ? volume : 0, offset + 36);
 }
 
 export function toScDateTimeMs(date: Date) {
-	return toScDateTimeMsValue(date.getTime());
+	return BigInt(date.getTime() - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
 }
 
-function toScDateTimeMsValue(time: number) {
-	return BigInt(time - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
+function writeScDateTimeMsValue(output: Buffer, offset: number, time: number) {
+	const value = (time - SCID_EPOCH_MS) * 1000;
+	output.writeUInt32LE(value % UINT32_SIZE, offset);
+	output.writeInt32LE(Math.floor(value / UINT32_SIZE), offset + 4);
 }

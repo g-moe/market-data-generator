@@ -2,9 +2,7 @@ import { ID_SEQUENCE_MULTIPLIER } from '../contracts/defaults.ts';
 import type {
 	MarketTick,
 	MdCandle,
-	MdCandleVolumeByPrice,
-	Price,
-	Volume
+	MdCandleVolumeByPrice
 } from '../contracts/types.ts';
 import { floorTime } from './market-time.ts';
 
@@ -20,25 +18,34 @@ type MutableCandle = {
 
 export class PriceLevelAggregator {
 	private current:
-		| { candle: MutableCandle; prices: Map<Price, Volume> }
+		| { candle: MutableCandle; prices: Map<number, number> }
 		| undefined;
 	private pos = 0;
 
 	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
-		const bucket = floorTime(tick.time, 1000);
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
+	}
+
+	pushTickValues(
+		time: number,
+		price: number,
+		volume: number,
+		emitted: MdCandleVolumeByPrice[]
+	) {
+		const bucket = floorTime(time, 1000);
 		if (this.current === undefined || this.current.candle.time !== bucket) {
 			this.emitCurrent(emitted);
 			this.current = {
-				candle: createMutableCandle(tick, bucket),
+				candle: createMutableCandleForValues(price, bucket, volume),
 				prices: new Map()
 			};
 		} else {
-			addTick(this.current.candle, tick);
+			addTickValues(this.current.candle, price, volume);
 		}
 
 		this.current.prices.set(
-			tick.price,
-			(this.current.prices.get(tick.price) ?? 0) + tick.volume
+			price,
+			(this.current.prices.get(price) ?? 0) + volume
 		);
 	}
 
@@ -67,15 +74,46 @@ export class TimeAggregator {
 	constructor(private readonly getBucket: (time: number) => number) {}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
-		this.pushTickForBucket(tick, this.getBucket(tick.time), emitted);
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
 	}
 
 	pushTickForBucket(tick: MarketTick, bucket: number, emitted: MdCandle[]) {
+		this.pushTickValuesForBucket(
+			tick.time,
+			tick.price,
+			tick.volume,
+			bucket,
+			emitted
+		);
+	}
+
+	pushTickValues(
+		time: number,
+		price: number,
+		volume: number,
+		emitted: MdCandle[]
+	) {
+		this.pushTickValuesForBucket(
+			time,
+			price,
+			volume,
+			this.getBucket(time),
+			emitted
+		);
+	}
+
+	pushTickValuesForBucket(
+		time: number,
+		price: number,
+		volume: number,
+		bucket: number,
+		emitted: MdCandle[]
+	) {
 		if (this.current === undefined || this.current.time !== bucket) {
 			this.emitCurrent(emitted);
-			this.current = createMutableCandle(tick, bucket);
+			this.current = createMutableCandleForValues(price, bucket, volume);
 		} else {
-			addTick(this.current, tick);
+			addTickValues(this.current, price, volume);
 		}
 	}
 
@@ -102,20 +140,25 @@ export class VolumeAggregator {
 	constructor(private readonly targetVolume: number) {}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
-		let remaining = tick.volume;
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted);
+	}
+
+	pushTickValues(
+		time: number,
+		price: number,
+		tickVolume: number,
+		emitted: MdCandle[]
+	) {
+		let remaining = tickVolume;
 		while (remaining > 0) {
 			const volume = Math.min(
 				remaining,
 				this.targetVolume - (this.current?.volume ?? 0)
 			);
 			if (this.current === undefined) {
-				this.current = createMutableCandleForValues(
-					tick.price,
-					tick.time,
-					volume
-				);
+				this.current = createMutableCandleForValues(price, time, volume);
 			} else {
-				addTickValues(this.current, tick.price, volume);
+				addTickValues(this.current, price, volume);
 			}
 			remaining -= volume;
 
@@ -144,10 +187,6 @@ export class VolumeAggregator {
 	}
 }
 
-function createMutableCandle(tick: MarketTick, time: number): MutableCandle {
-	return createMutableCandleForValues(tick.price, time, tick.volume);
-}
-
 function createMutableCandleForValues(
 	price: number,
 	time: number,
@@ -162,10 +201,6 @@ function createMutableCandleForValues(
 		time,
 		volume
 	};
-}
-
-function addTick(candle: MutableCandle, tick: MarketTick) {
-	addTickValues(candle, tick.price, tick.volume);
 }
 
 function addTickValues(candle: MutableCandle, price: number, volume: number) {

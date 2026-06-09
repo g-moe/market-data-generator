@@ -28,7 +28,10 @@ import {
 	isTradingSessionStart
 } from './market-time.ts';
 import { RingBuffer } from './ring-buffer.ts';
-import { generateSessionTicksForStart, getSessionOpenPrice } from './ticks.ts';
+import {
+	generateSessionTickValuesForStart,
+	getSessionOpenPrice
+} from './ticks.ts';
 
 const PRICE_LEVEL_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
@@ -105,26 +108,48 @@ export async function generateMarketData(
 					symbolConfig,
 					sessionIndex
 				);
-				previousClose = generateSessionTicksForStart(
+				previousClose = generateSessionTickValuesForStart(
 					inputs,
 					symbolConfig,
 					sessionIndex,
 					sessionStart,
 					sessionOpenPrice,
-					(tick) => {
+					(time, price, volume, side) => {
 						sessionTicks++;
 						counts.ticks++;
-						scid.pushTick(tick);
-						dailyAggregator.pushTickForBucket(
-							tick,
+						scid.pushTickValues(time, price, volume, side);
+						dailyAggregator.pushTickValuesForBucket(
+							time,
+							price,
+							volume,
 							sessionStart,
 							emitted.daily
 						);
-						seconds15Aggregator.pushTick(tick, emitted.seconds15);
-						minutes5Aggregator.pushTick(tick, emitted.minutes5);
-						volume500Aggregator.pushTick(tick, emitted.volume500);
+						seconds15Aggregator.pushTickValues(
+							time,
+							price,
+							volume,
+							emitted.seconds15
+						);
+						minutes5Aggregator.pushTickValues(
+							time,
+							price,
+							volume,
+							emitted.minutes5
+						);
+						volume500Aggregator.pushTickValues(
+							time,
+							price,
+							volume,
+							emitted.volume500
+						);
 						if (isInLastSessions(inputs, sessionIndex, PRICE_LEVEL_SESSIONS)) {
-							priceLevelAggregator.pushTick(tick, emitted.priceLevel);
+							priceLevelAggregator.pushTickValues(
+								time,
+								price,
+								volume,
+								emitted.priceLevel
+							);
 						}
 					}
 				);

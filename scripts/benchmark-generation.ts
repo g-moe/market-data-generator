@@ -13,6 +13,8 @@ type Scenario = {
 	inputs: Omit<GeneratorInputs, 'outputDir' | 'outputRoot'>;
 };
 
+type ScenarioResult = Awaited<ReturnType<typeof runScenario>>;
+
 const SCENARIOS: Scenario[] = [
 	{
 		inputs: {
@@ -35,23 +37,50 @@ const SCENARIOS: Scenario[] = [
 			ticksPerSession: 10_000
 		},
 		name: 'nq-2m-ticks'
+	},
+	{
+		inputs: {
+			anchorIso: DEFAULT_ANCHOR_ISO,
+			seed: 11,
+			sessionCount: 500,
+			startPrice: 6000,
+			symbol: '/ES:XCME',
+			ticksPerSession: 10_000
+		},
+		name: 'es-5m-ticks'
 	}
 ];
+
+const iterationsArg = process.argv.find((arg) =>
+	arg.startsWith('--iterations=')
+);
+const iterations =
+	iterationsArg === undefined ? 1 : Number(iterationsArg.split('=')[1]);
+if (!Number.isInteger(iterations) || iterations < 1) {
+	throw new Error('--iterations must be a positive integer');
+}
 
 const warmupScenario = SCENARIOS[0];
 await runScenario(warmupScenario, { keepOutput: false, warmup: true });
 
 for (const scenario of SCENARIOS) {
-	const result = await runScenario(scenario, {
-		keepOutput: process.argv.includes('--keep-output'),
-		warmup: false
-	});
-	console.log(JSON.stringify(result));
+	const results: ScenarioResult[] = [];
+	for (let iteration = 0; iteration < iterations; iteration++) {
+		results.push(
+			await runScenario(scenario, {
+				iteration,
+				keepOutput: process.argv.includes('--keep-output'),
+				warmup: false
+			})
+		);
+	}
+	for (const result of results) console.log(JSON.stringify(result));
+	if (results.length > 1) console.log(JSON.stringify(summarize(results)));
 }
 
 async function runScenario(
 	scenario: Scenario,
-	options: { keepOutput: boolean; warmup: boolean }
+	options: { iteration?: number; keepOutput: boolean; warmup: boolean }
 ) {
 	if (globalThis.gc) globalThis.gc();
 	const outputRoot = await mkdtemp(join(tmpdir(), 'mdg-bench-'));
@@ -78,6 +107,7 @@ async function runScenario(
 		hash: output.hash,
 		heapUsedDeltaMb: toMb(endMemory.heapUsed - startMemory.heapUsed),
 		heapUsedMb: toMb(endMemory.heapUsed),
+		iteration: options.iteration,
 		name: scenario.name,
 		outputBytes: output.bytes,
 		outputRoot: options.keepOutput ? outputRoot : undefined,
@@ -86,6 +116,21 @@ async function runScenario(
 		ticks: generation.counts.ticks,
 		ticksPerSecond: Math.round(generation.counts.ticks / (elapsedMs / 1000)),
 		warmup: options.warmup || undefined
+	};
+}
+
+function summarize(results: ScenarioResult[]) {
+	const elapsed = results.map((result) => result.elapsedMs);
+	const throughput = results.map((result) => result.ticksPerSecond);
+	const rss = results.map((result) => result.rssMb);
+
+	return {
+		elapsedMsMedian: median(elapsed),
+		hashes: [...new Set(results.map((result) => result.hash))],
+		iterations: results.length,
+		name: `${results[0].name}-summary`,
+		rssMbMax: Math.max(...rss),
+		ticksPerSecondMedian: median(throughput)
 	};
 }
 
@@ -105,4 +150,12 @@ async function fingerprintDirectory(directory: string) {
 
 function toMb(bytes: number) {
 	return Math.round((bytes / 1024 / 1024) * 10) / 10;
+}
+
+function median(values: number[]) {
+	const sorted = [...values].sort((left, right) => left - right);
+	const middle = Math.floor(sorted.length / 2);
+	if (sorted.length % 2 === 1) return sorted[middle];
+
+	return Math.round((sorted[middle - 1] + sorted[middle]) / 2);
 }

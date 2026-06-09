@@ -6,6 +6,14 @@ import { getSessionEnd } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
 
+export type OnTickValues = (
+	time: number,
+	price: number,
+	volume: number,
+	side: 'ask' | 'bid',
+	sessionIndex: number
+) => void;
+
 export function generateSessionTicksForStart(
 	inputs: GeneratorInputs,
 	symbolConfig: SymbolConfig,
@@ -14,36 +22,62 @@ export function generateSessionTicksForStart(
 	sessionStartPrice: number,
 	onTick: (tick: MarketTick) => void
 ) {
+	return generateSessionTickValuesForStart(
+		inputs,
+		symbolConfig,
+		sessionIndex,
+		sessionStart,
+		sessionStartPrice,
+		(time, price, volume, side, tickSessionIndex) =>
+			onTick({
+				price,
+				sessionIndex: tickSessionIndex,
+				side,
+				time,
+				volume
+			})
+	);
+}
+
+export function generateSessionTickValuesForStart(
+	inputs: GeneratorInputs,
+	symbolConfig: SymbolConfig,
+	sessionIndex: number,
+	sessionStart: number,
+	sessionStartPrice: number,
+	onTick: OnTickValues
+) {
 	const sessionEnd = getSessionEnd(sessionStart);
+	const ticksPerSession = inputs.ticksPerSession;
+	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
+	const openVolatilityEnd = ticksPerSession * 0.1;
+	const closingVolatilityStart = ticksPerSession * 0.85;
 	const random = createRandom(
 		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
 	);
-	let price = roundToTick(sessionStartPrice, symbolConfig.tickSize);
+	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
+	const toPrice = (ticks: number) => ticks * symbolConfig.tickSize;
 
-	for (let index = 0; index < inputs.ticksPerSession; index++) {
-		const progress =
-			inputs.ticksPerSession === 1 ? 0 : index / inputs.ticksPerSession;
-		const time = Math.floor(
-			sessionStart + (sessionEnd - sessionStart - 1) * progress
+	for (let index = 0; index < ticksPerSession; index++) {
+		const time = Math.floor(sessionStart + index * timeStep);
+		const volatility =
+			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+		const moveTicks = Math.round(
+			randomSigned(random) * volatility * (random() > 0.7 ? 2 : 1)
 		);
-		const volatility = getIntradayVolatility(progress);
-		const move =
-			randomSigned(random) *
-			symbolConfig.tickSize *
-			volatility *
-			(random() > 0.7 ? 2 : 1);
-		price = roundToTick(price + move, symbolConfig.tickSize);
+		priceTicks += moveTicks;
 
-		onTick({
-			price,
-			sessionIndex,
-			side: random() > 0.5 ? 'ask' : 'bid',
+		const side = random() > 0.5 ? 'ask' : 'bid';
+		onTick(
 			time,
-			volume: nextTickVolume(random)
-		});
+			toPrice(priceTicks),
+			nextTickVolume(random),
+			side,
+			sessionIndex
+		);
 	}
 
-	return price;
+	return toPrice(priceTicks);
 }
 
 export function deriveSessionSeed(
@@ -56,13 +90,6 @@ export function deriveSessionSeed(
 		.digest();
 
 	return hash.readUInt32LE(0);
-}
-
-function getIntradayVolatility(progress: number) {
-	if (progress < 0.1) return 4;
-	if (progress > 0.85) return 3;
-
-	return 1;
 }
 
 export function getSessionOpenPrice(
