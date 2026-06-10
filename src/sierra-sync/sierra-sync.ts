@@ -1,110 +1,95 @@
-import { copyFile, mkdir } from 'node:fs/promises';
-import { basename, join } from 'node:path';
-
-import type { GenerationResult } from '../contracts/types.ts';
-import {
-	buildSierraBridge,
-	installSierraBridgeSource,
-	type SierraBridgeBuildInputs
-} from './bridge.ts';
-import { loadExistingGenerationResult } from './existing-generation.ts';
-import {
-	copySierraOutputsToRun,
-	resetLatestSierraOutputs,
-	sierraExportFiles,
-	type SierraExportFiles,
-	waitForFreshSierraOutputs
-} from './outputs.ts';
-import {
-	normalizeSierraSyncInputs,
-	type RawSierraSyncInputs
-} from './inputs.ts';
-import {
-	validateSierraOneSecondBars,
-	type SierraBarValidationResult
-} from './validation.ts';
+import type { Symbol } from '../contracts/index.ts';
+import { findSymbol, getSymbolConfig } from '../contracts/symbols.ts';
+import { createBridgeSource } from './bridge-source.ts';
+import { TIMEFRAMES } from './constants.ts';
+import { assertInputDataExists } from './input-data.ts';
+import { sierraExportFileName, sierraSyncPaths } from './paths.ts';
+import { mergeValidatedSierraExports } from './sierra-export.ts';
+import { createNodeSierraOps, type SierraOps } from './sierra-ops.ts';
 
 export type SierraSyncResult = {
-	generation: GenerationResult;
-	bridgeSourcePath: string;
 	bridgeInstalledPath: string;
-	bridgeDllPaths: string[];
-	sierraScidPath: string;
-	latestOutputDir: string;
+	chartbookInstalledPath: string;
+	inputDir: string;
 	outputDir: string;
-	exportFiles: SierraExportFiles;
-	copiedFiles: SierraExportFiles;
-	validation: SierraBarValidationResult;
-};
-
-type SierraSyncOptions = {
-	now?: () => Date;
-	buildSierraBridge?: (inputs: SierraBridgeBuildInputs) => Promise<string[]>;
+	scidInstalledPath: string;
+	tempDir: string;
 };
 
 export async function runSierraSync(
-	raw: RawSierraSyncInputs,
-	options: SierraSyncOptions = {}
+	rawSymbol: string,
+	{
+		log = console.log,
+		ops = createNodeSierraOps()
+	}: { log?: (message: string) => void; ops?: SierraOps } = {}
 ): Promise<SierraSyncResult> {
-	const startedAt = Date.now();
-	const normalized = normalizeSierraSyncInputs(raw, options.now);
-	const generation = await loadExistingGenerationResult(
-		normalized.generationInputs
+	const symbol = requireSymbol(rawSymbol);
+	const config = getSymbolConfig(symbol);
+	const paths = sierraSyncPaths(symbol);
+	const exportFiles = TIMEFRAMES.map((timeframe) =>
+		sierraExportFileName(symbol, timeframe.suffix)
 	);
 
-	await resetLatestSierraOutputs(normalized.latestOutputDir);
-	await mkdir(normalized.sierraDataDir, { recursive: true });
-
-	const sierraScidPath = join(
-		normalized.sierraDataDir,
-		basename(generation.files.scid)
+	log(`Checking data-in/${config.symbolId}`);
+	await assertInputDataExists(symbol, paths.files);
+	log(`Clearing ${paths.tempDir}`);
+	await ops.cleanTempDir(paths.tempDir);
+	log('Closing Sierra Chart if it is running');
+	await ops.closeSierra();
+	log('Writing Sierra bridge source');
+	const bridgeSource = await createBridgeSource({
+		files: paths.files,
+		symbol,
+		tempDir: paths.tempDir
+	});
+	const bridgeInstalledPath = await ops.installBridgeSource(bridgeSource);
+	log('Building Sierra bridge');
+	await ops.buildBridge();
+	log('Installing SCID and chartbook');
+	log(
+		`Copying generated tick SCID into Data directory as ${paths.chartbookScidFileName}`
 	);
-
-	await copyFile(generation.files.scid, sierraScidPath);
-
-	const bridgeInstalledPath = await installSierraBridgeSource({
-		acsSourceDir: normalized.acsSourceDir,
-		bridgeSourcePath: normalized.bridgeSourcePath,
-		latestOutputDir: normalized.latestOutputDir
+	const scidInstalledPath = await ops.copyScid(
+		paths.files.scid,
+		paths.chartbookScidFileName
+	);
+	log(`SCID copy verified at ${scidInstalledPath}`);
+	log('Copying chartbook into Sierra Data directory');
+	const chartbookInstalledPath = await ops.copyChartbook(
+		paths.chartbookSourcePath
+	);
+	log(
+		'Sierra startup setting required: General Settings >> Startup >> Open Files on Startup >> YES'
+	);
+	log(
+		'Sierra startup setting required: General Settings >> Startup >> Files to open at startup >> !tradester.Cht'
+	);
+	log('Opening Sierra Chart');
+	await ops.openSierra();
+	log('Waiting for Sierra exports');
+	await ops.waitForFiles(paths.tempDir, exportFiles);
+	log('Validating Sierra OHLCV and writing data-out');
+	await mergeValidatedSierraExports({
+		inputFiles: paths.files,
+		outputDir: paths.outputDir,
+		symbol,
+		tempDir: paths.tempDir
 	});
-	const buildBridge = options.buildSierraBridge ?? buildSierraBridge;
-	const bridgeDllPaths = normalized.buildSierraBridge
-		? await buildBridge({
-				bridgeInstalledPath,
-				sierraDataDir: normalized.sierraDataDir
-			})
-		: [];
-	const exportFiles = sierraExportFiles(generation.inputs.symbol);
-
-	await waitForFreshSierraOutputs({
-		directory: normalized.latestOutputDir,
-		exportFiles,
-		pollIntervalMs: normalized.exportPollIntervalMs,
-		startedAt,
-		timeoutMs: normalized.exportTimeoutMs
-	});
-
-	const validation = await validateSierraOneSecondBars({
-		generatedFilePath: generation.files.priceLevel,
-		sierraFilePath: join(normalized.latestOutputDir, exportFiles.priceLevel)
-	});
-
-	const copiedFiles = await copySierraOutputsToRun({
-		exportFiles,
-		fromDir: normalized.latestOutputDir,
-		toDir: normalized.outputDir
-	});
+	log(`Wrote merged Sierra data to ${paths.outputDir}`);
 
 	return {
-		bridgeDllPaths,
 		bridgeInstalledPath,
-		bridgeSourcePath: normalized.bridgeSourcePath,
-		copiedFiles,
-		exportFiles,
-		generation,
-		latestOutputDir: normalized.latestOutputDir,
-		outputDir: normalized.outputDir,
-		sierraScidPath,
-		validation
+		chartbookInstalledPath,
+		inputDir: paths.inputDir,
+		outputDir: paths.outputDir,
+		scidInstalledPath,
+		tempDir: paths.tempDir
 	};
+}
+
+function requireSymbol(rawSymbol: string): Symbol {
+	const symbol = findSymbol(rawSymbol);
+	if (symbol === undefined) throw new Error(`Unknown symbol: ${rawSymbol}`);
+
+	return symbol;
 }
