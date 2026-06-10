@@ -1,9 +1,11 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import * as fsPromises from 'node:fs/promises';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
+import { SIERRA_BRIDGE_FILE_NAME, SIERRA_SOURCE_ROOT } from '../../sierra-sync/constants.ts';
 
 const DEFAULT_CSV =
 	'time,open,high,low,close,volume\n1760000000000,1,2,0,1.5,10\n1760000060000,1.5,3,1,2,12\n';
@@ -69,10 +71,67 @@ describe('createBridgeSource', () => {
 		});
 	});
 
+	it('maps each timeframe condition branch', async () => {
+		await withBridgeSource((source) => {
+			expect(source).toContain('IBPT_VOLUME_PER_BAR');
+			expect(source).toContain('IntradayChartBarPeriodParameter1 == 500');
+			expect(source).toContain('IntradayChartBarPeriodParameter1 == 1');
+			expect(source).toContain('IntradayChartBarPeriodParameter1 == 5 * 60');
+			expect(source).toContain('IntradayChartBarPeriodParameter1 == 15');
+		});
+	});
+
 	it('uses first non-zero bar as Sierra bridge start time when zero-padding exists', async () => {
 		await withBridgeSource((source) => {
 			expect(source).toContain('case 0: return DateYMD(2025, 10, 9);');
 			expect(source).not.toContain('case 0: return DateYMD(1970, 1, 1);');
 		}, 'time,open,high,low,close,volume\n0,0,0,0,0,0\n1760000000000,1,2,0,1.5,10\n');
+	});
+
+	it('throws when generated data is empty', async () => {
+		await expect(
+			withBridgeSource(() => {
+				/* unreachable */
+			}, 'time,open,high,low,close,volume\n')
+		).rejects.toThrow('Cannot derive Sierra date range from empty file');
+	});
+
+	it('throws when generated data is missing the time column', async () => {
+		await expect(
+			withBridgeSource(() => {
+				/* unreachable */
+			}, 'open,high,low,close,volume\n1,2,0,1.5,10\n')
+		).rejects.toThrow('Generated file is missing time column');
+	});
+
+	it('throws when all generated rows are padding rows', async () => {
+		await expect(
+			withBridgeSource(() => {
+				/* unreachable */
+			}, 'time,open,high,low,close,volume\n0,0,0,0,0,0\n')
+		).rejects.toThrow('No valid Sierra date range available in generated file');
+	});
+
+	it('throws when a bridge template token is not replaced', async () => {
+		const actualReadFile = (await vi.importActual<typeof fsPromises>('node:fs/promises')).readFile;
+		const readFileSpy = vi
+			.spyOn(fsPromises, 'readFile')
+			.mockImplementation(async (path, encoding) => {
+				if (String(path).endsWith(`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`)) {
+					return 'missing token __TRADESTER_TARGET_SYMBOL__ remains';
+				}
+
+				return actualReadFile(path as string, encoding as never);
+			});
+
+		try {
+			await expect(
+				withBridgeSource(() => {
+					/* unreachable */
+				})
+			).rejects.toThrow('Missing Sierra bridge token replacement');
+		} finally {
+			readFileSpy.mockRestore();
+		}
 	});
 });

@@ -9,7 +9,7 @@
 		"noEmitOnError": true,
 		"outDir": "dist",
 		"resolveJsonModule": true,
-		"rootDir": "src",
+		"rootDir": ".",
 		"rewriteRelativeImportExtensions": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
@@ -17,6 +17,6 @@
 		"target": "ES2024",
 		"types": ["node", "vitest/globals"]
 	},
-	"include": ["src/**/*.ts"],
+	"include": ["scripts/**/*.ts", "src/**/*.ts"],
 	"exclude": ["dist", "node_modules"]
 }

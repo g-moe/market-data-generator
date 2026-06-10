@@ -18,9 +18,7 @@ describe('generateSessionTicksForStart', () => {
 			ticksPerSession: 5
 		});
 
-		expect(collectSessionTicks(inputs, 0)).toEqual(
-			collectSessionTicks(inputs, 0)
-		);
+		expect(collectSessionTicks(inputs, 0)).toEqual(collectSessionTicks(inputs, 0));
 	});
 
 	it('keeps prices aligned to the symbol tick size', () => {
@@ -57,9 +55,7 @@ describe('generateSessionTicksForStart', () => {
 		);
 		const second = collectSessionTicks(inputs, 1, secondOpen);
 
-		expect(Math.abs(second[0].price - (firstClose ?? 0))).toBeLessThanOrEqual(
-			1
-		);
+		expect(Math.abs(second[0].price - (firstClose ?? 0))).toBeLessThanOrEqual(1);
 		expect(second).toEqual(collectSessionTicks(inputs, 1, secondOpen));
 	});
 
@@ -83,23 +79,16 @@ describe('generateSessionTicksForStart', () => {
 			ticksPerSession: 1
 		});
 		const oneTick = collectSessionTicks(inputs, 0);
-		const manyTicks = collectSessionTicks(
-			{ ...inputs, ticksPerSession: 5_000 },
-			0
-		);
+		const manyTicks = collectSessionTicks({ ...inputs, ticksPerSession: 5_000 }, 0);
 
 		expect(oneTick).toHaveLength(1);
 		expect(manyTicks.some((tick) => tick.volume > 250)).toBe(true);
-		expect(
-			manyTicks.some((tick) => tick.volume > 25 && tick.volume <= 250)
-		).toBe(true);
+		expect(manyTicks.some((tick) => tick.volume > 25 && tick.volume <= 250)).toBe(true);
 	});
 
 	it('derives distinct deterministic seeds per session', () => {
 		expect(deriveSessionSeed(1, 'ES', 1)).toBe(deriveSessionSeed(1, 'ES', 1));
-		expect(deriveSessionSeed(1, 'ES', 1)).not.toBe(
-			deriveSessionSeed(1, 'ES', 2)
-		);
+		expect(deriveSessionSeed(1, 'ES', 1)).not.toBe(deriveSessionSeed(1, 'ES', 2));
 	});
 });
 
@@ -109,10 +98,7 @@ function collectSessionTicks(
 	sessionStartPrice = inputs.startPrice
 ): MarketTick[] {
 	const symbol = getSymbolConfig(inputs.symbol);
-	const sessionStart = getSessionStart(
-		inputs.anchorIso,
-		inputs.sessionCount - sessionIndex - 1
-	);
+	const sessionStart = getSessionStart(inputs.anchorIso, inputs.sessionCount - sessionIndex - 1);
 	const ticks: MarketTick[] = [];
 	generateSessionTicksForStart(
 		inputs,

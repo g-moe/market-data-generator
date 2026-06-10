@@ -29,10 +29,7 @@ export function sierraSyncPaths(symbol: Symbol): SierraSyncPaths {
 	return {
 		bridgeSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_BRIDGE_FILE_NAME),
 		chartbookScidFileName: chartbookScidFileName(symbol),
-		chartbookSourcePath: resolve(
-			SIERRA_SOURCE_ROOT,
-			SIERRA_CHARTBOOK_FILE_NAME
-		),
+		chartbookSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
 		files: {
 			daily: join(inputDir, `${prefix}_1d.csv`),
 			minutes5: join(inputDir, `${prefix}_5m.csv`),

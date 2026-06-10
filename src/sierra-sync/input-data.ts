@@ -3,10 +3,7 @@ import { stat } from 'node:fs/promises';
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 
-export async function assertInputDataExists(
-	symbol: Symbol,
-	files: OutputFiles
-) {
+export async function assertInputDataExists(symbol: Symbol, files: OutputFiles) {
 	const missing: string[] = [];
 
 	for (const filePath of Object.values(files)) {

@@ -17,10 +17,7 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow
 } from '../shared/file-ops/csv.ts';
-import {
-	SCID_EPOCH_OFFSET_MS,
-	ScidTickWriter
-} from '../shared/file-ops/scid.ts';
+import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../shared/file-ops/scid.ts';
 import {
 	createBarId,
 	IntervalTimeAggregator,
@@ -65,14 +62,8 @@ export async function generateMarketData(
 ): Promise<GenerationResult> {
 	const symbolConfig = getSymbolConfig(inputs.symbol);
 	const files = getOutputFiles(inputs);
-	const seconds15BarsPerSession = countSessionBuckets(
-		inputs.ticksPerSession,
-		15_000
-	);
-	const minutes5BarsPerSession = countSessionBuckets(
-		inputs.ticksPerSession,
-		300_000
-	);
+	const seconds15BarsPerSession = countSessionBuckets(inputs.ticksPerSession, 15_000);
+	const minutes5BarsPerSession = countSessionBuckets(inputs.ticksPerSession, 300_000);
 	const seconds15StartSession = getRingRetainedSessionStart(
 		inputs.sessionCount,
 		seconds15BarsPerSession
@@ -100,11 +91,7 @@ export async function generateMarketData(
 		PRICE_LEVEL_CANDLE_ROW_HEADER,
 		toStoredPriceLevelCandleRow
 	);
-	const daily = new CandleRowWriter(
-		files.daily,
-		CANDLE_ROW_HEADER,
-		toStoredCandleRow
-	);
+	const daily = new CandleRowWriter(files.daily, CANDLE_ROW_HEADER, toStoredCandleRow);
 	const counts = {
 		daily: 0,
 		minutes5: 0,
@@ -127,11 +114,7 @@ export async function generateMarketData(
 		};
 
 		let previousClose = inputs.startPrice;
-		for (
-			let sessionIndex = 0;
-			sessionIndex < inputs.sessionCount;
-			sessionIndex++
-		) {
+		for (let sessionIndex = 0; sessionIndex < inputs.sessionCount; sessionIndex++) {
 			const sessionStart = sessionStarts[sessionIndex];
 			let sessionTicks = 0;
 			emitted.daily.length = 0;
@@ -142,11 +125,7 @@ export async function generateMarketData(
 			if (sessionStart < UNIX_EPOCH_MS) {
 				emitted.daily.push(createZeroDailyCandle(counts.daily));
 			} else {
-				const shouldEmitPriceLevel = isInLastSessions(
-					inputs,
-					sessionIndex,
-					PRICE_LEVEL_SESSIONS
-				);
+				const shouldEmitPriceLevel = isInLastSessions(inputs, sessionIndex, PRICE_LEVEL_SESSIONS);
 				const sessionOpenPrice = getSessionOpenPrice(
 					previousClose,
 					inputs,
@@ -182,10 +161,7 @@ export async function generateMarketData(
 			counts.volume500 = volume500Ring.length;
 			counts.daily += emitted.daily.length;
 			counts.priceLevel += emitted.priceLevel.length;
-			await Promise.all([
-				daily.write(emitted.daily),
-				priceLevel.write(emitted.priceLevel)
-			]);
+			await Promise.all([daily.write(emitted.daily), priceLevel.write(emitted.priceLevel)]);
 
 			options.onSessionComplete?.({
 				completed: sessionIndex + 1,
@@ -206,10 +182,7 @@ export async function generateMarketData(
 		seconds15Ring.pushMany(final.seconds15);
 		minutes5Ring.pushMany(final.minutes5);
 		volume500Ring.pushMany(final.volume500);
-		await Promise.all([
-			priceLevel.write(final.priceLevel),
-			daily.write(final.daily)
-		]);
+		await Promise.all([priceLevel.write(final.priceLevel), daily.write(final.daily)]);
 		counts.priceLevel += final.priceLevel.length;
 		counts.volume500 = volume500Ring.length;
 		counts.seconds15 = seconds15Ring.length;
@@ -240,10 +213,7 @@ export function getOutputFiles(inputs: GeneratorInputs): OutputFiles {
 	return {
 		daily: join(inputs.outputDir, `${prefix}_1d.csv`),
 		minutes5: join(inputs.outputDir, `${prefix}_5m.csv`),
-		priceLevel: join(
-			inputs.outputDir,
-			`${prefix}_1s_pl${priceLevelSuffix}.csv`
-		),
+		priceLevel: join(inputs.outputDir, `${prefix}_1s_pl${priceLevelSuffix}.csv`),
 		scid: join(inputs.outputDir, `${prefix}.scid`),
 		seconds15: join(inputs.outputDir, `${prefix}_15s.csv`),
 		volume500: join(inputs.outputDir, `${prefix}_500v.csv`)
@@ -272,8 +242,7 @@ function generateSessionTicksIntoOutputs(
 	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
 	const openVolatilityEnd = ticksPerSession * 0.1;
 	const closingVolatilityStart = ticksPerSession * 0.85;
-	let randomState =
-		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
+	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
 	const tickSize = symbolConfig.tickSize;
 	let dailyOpen = 0;
@@ -288,8 +257,7 @@ function generateSessionTicksIntoOutputs(
 	if (!shouldEmitPriceLevel) {
 		for (let index = 0; index < ticksPerSession; index++) {
 			const time = Math.floor(sessionStart + index * timeStep);
-			const volatility =
-				index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+			const volatility = index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 			const signedMove = randomState * RANDOM_UNIT * 2 - 1;
 			randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
@@ -305,16 +273,13 @@ function generateSessionTicksIntoOutputs(
 			const volumeRoll = randomState * RANDOM_UNIT;
 			let volume: number;
 			if (volumeRoll > 0.995) {
-				randomState =
-					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 				volume = 251 + Math.floor(randomState * RANDOM_UNIT * 750);
 			} else if (volumeRoll > 0.95) {
-				randomState =
-					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 				volume = 26 + Math.floor(randomState * RANDOM_UNIT * 225);
 			} else {
-				randomState =
-					(randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+				randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 				volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 			}
 
@@ -343,32 +308,14 @@ function generateSessionTicksIntoOutputs(
 			dailyPriceVolume += price * volume;
 
 			if (shouldEmitSeconds15) {
-				seconds15Aggregator.pushTickValues(
-					time,
-					price,
-					volume,
-					emitted.seconds15,
-					side
-				);
+				seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15, side);
 			}
 
 			if (shouldEmitMinutes5) {
-				minutes5Aggregator.pushTickValues(
-					time,
-					price,
-					volume,
-					emitted.minutes5,
-					side
-				);
+				minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5, side);
 			}
 
-			volume500Aggregator.pushTickValues(
-				time,
-				price,
-				volume,
-				emitted.volume500,
-				side
-			);
+			volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
 		}
 
 		emitted.daily.push({
@@ -390,8 +337,7 @@ function generateSessionTicksIntoOutputs(
 
 	for (let index = 0; index < ticksPerSession; index++) {
 		const time = Math.floor(sessionStart + index * timeStep);
-		const volatility =
-			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+		const volatility = index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const signedMove = randomState * RANDOM_UNIT * 2 - 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
@@ -442,13 +388,7 @@ function generateSessionTicksIntoOutputs(
 		dailyPriceVolume += price * volume;
 
 		if (shouldEmitSeconds15) {
-			seconds15Aggregator.pushTickValues(
-				time,
-				price,
-				volume,
-				emitted.seconds15,
-				side
-			);
+			seconds15Aggregator.pushTickValues(time, price, volume, emitted.seconds15, side);
 		}
 
 		if (shouldEmitMinutes5) {
@@ -456,13 +396,7 @@ function generateSessionTicksIntoOutputs(
 		}
 
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
-		priceLevelAggregator.pushTickValues(
-			time,
-			price,
-			volume,
-			emitted.priceLevel,
-			side
-		);
+		priceLevelAggregator.pushTickValues(time, price, volume, emitted.priceLevel, side);
 	}
 
 	emitted.daily.push({
@@ -500,15 +434,8 @@ function getSessionStarts(inputs: GeneratorInputs) {
 	return sessionStarts.reverse();
 }
 
-async function writeRingBuffer(
-	filePath: string,
-	ringBuffer: RingBuffer<MdCandle>
-) {
-	const writer = new CandleRowWriter(
-		filePath,
-		CANDLE_ROW_HEADER,
-		toStoredCandleRow
-	);
+async function writeRingBuffer(filePath: string, ringBuffer: RingBuffer<MdCandle>) {
+	const writer = new CandleRowWriter(filePath, CANDLE_ROW_HEADER, toStoredCandleRow);
 	await writer.open();
 	try {
 		await writer.write(ringBuffer.iterate());
@@ -517,22 +444,12 @@ async function writeRingBuffer(
 	}
 }
 
-function isInLastSessions(
-	inputs: GeneratorInputs,
-	sessionIndex: number,
-	sessionWindow: number
-) {
+function isInLastSessions(inputs: GeneratorInputs, sessionIndex: number, sessionWindow: number) {
 	return sessionIndex >= Math.max(0, inputs.sessionCount - sessionWindow);
 }
 
-function getRingRetainedSessionStart(
-	sessionCount: number,
-	barsPerSession: number
-) {
-	return Math.max(
-		0,
-		sessionCount - Math.ceil(RING_BUFFER_BAR_COUNT / barsPerSession)
-	);
+function getRingRetainedSessionStart(sessionCount: number, barsPerSession: number) {
+	return Math.max(0, sessionCount - Math.ceil(RING_BUFFER_BAR_COUNT / barsPerSession));
 }
 
 function countSessionBuckets(ticksPerSession: number, bucketMs: number) {

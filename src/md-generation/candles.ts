@@ -1,10 +1,5 @@
 import { ID_SEQUENCE_MULTIPLIER } from '../contracts/defaults.ts';
-import type {
-	MarketTick,
-	TradeSide,
-	MdCandle,
-	MdCandleVolumeByPrice
-} from '../contracts/types.ts';
+import type { MarketTick, TradeSide, MdCandle, MdCandleVolumeByPrice } from '../contracts/types.ts';
 import { floorTime } from './market-time.ts';
 
 type MutableCandle = {
@@ -20,9 +15,7 @@ type MutableCandle = {
 };
 
 export class PriceLevelAggregator {
-	private current:
-		| { candle: MutableCandle; prices: Map<number, number> }
-		| undefined;
+	private current: { candle: MutableCandle; prices: Map<number, number> } | undefined;
 	private pos = 0;
 
 	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
@@ -47,10 +40,7 @@ export class PriceLevelAggregator {
 			addTickValues(this.current.candle, price, volume, side);
 		}
 
-		this.current.prices.set(
-			price,
-			(this.current.prices.get(price) ?? 0) + volume
-		);
+		this.current.prices.set(price, (this.current.prices.get(price) ?? 0) + volume);
 	}
 
 	finish() {
@@ -66,11 +56,7 @@ export class PriceLevelAggregator {
 		}
 
 		emitted.push(
-			finalizeMutablePriceLevelCandle(
-				this.current.candle,
-				this.pos,
-				this.current.prices
-			)
+			finalizeMutablePriceLevelCandle(this.current.candle, this.pos, this.current.prices)
 		);
 		this.pos++;
 		this.current = undefined;
@@ -98,14 +84,7 @@ export class TimeAggregator {
 	}
 
 	pushTickForBucket(tick: MarketTick, bucket: number, emitted: MdCandle[]) {
-		this.pushTickValuesForBucket(
-			tick.time,
-			tick.price,
-			tick.volume,
-			bucket,
-			emitted,
-			tick.side
-		);
+		this.pushTickValuesForBucket(tick.time, tick.price, tick.volume, bucket, emitted, tick.side);
 	}
 
 	pushTickValues(
@@ -227,10 +206,7 @@ export class VolumeAggregator {
 	) {
 		let remaining = tickVolume;
 		while (remaining > 0) {
-			const volume = Math.min(
-				remaining,
-				this.targetVolume - (this.current?.volume ?? 0)
-			);
+			const volume = Math.min(remaining, this.targetVolume - (this.current?.volume ?? 0));
 			if (this.current === undefined) {
 				this.current = createMutableCandleForValues(price, time, volume, side);
 			} else {
@@ -327,11 +303,7 @@ function finalizeMutableCandle(candle: MutableCandle, pos: number): MdCandle {
 	return finalizeMutableCandleWithId(candle, pos, createBarId(candle.time, 0));
 }
 
-function finalizeMutableCandleWithId(
-	candle: MutableCandle,
-	pos: number,
-	id: bigint
-): MdCandle {
+function finalizeMutableCandleWithId(candle: MutableCandle, pos: number, id: bigint): MdCandle {
 	return {
 		askVolume: candle.askVolume,
 		bidVolume: candle.bidVolume,

@@ -11,17 +11,29 @@ files from those same ticks.
 - Node.js 24.16.0
 - pnpm 11.5.2
 
-Use Corepack so the pinned pnpm version is used:
+Use these files as the version sources of truth:
+
+- `.nvmrc` pins Node.js.
+- `package.json#packageManager` pins pnpm.
+
+Use the one-time setup command before first run:
 
 ```sh
-corepack enable
-corepack pnpm install
+pnpm run setup
 ```
+
+`pnpm run setup` handles:
+
+- switching to the required Node version via `nvm`
+- activating the pinned pnpm version with `corepack`
+- installing dependencies once with `pnpm install`
+
+It is intentionally not intended for CI.
 
 ## Run the CLI
 
 ```sh
-corepack pnpm generate
+pnpm generate
 ```
 
 The CLI prompts for:
@@ -31,7 +43,7 @@ The CLI prompts for:
 Example non-interactive run:
 
 ```sh
-printf "ES\n" | corepack pnpm generate
+printf "ES\n" | pnpm generate
 ```
 
 ## File Outputs
@@ -81,12 +93,11 @@ console.log(result.files);
 ## Development
 
 ```sh
-corepack pnpm check
-corepack pnpm lint
-corepack pnpm format:check
-corepack pnpm test
-corepack pnpm coverage
-corepack pnpm build
+pnpm run check
+pnpm lint
+pnpm format
+pnpm coverage
+pnpm build
 ```
 
 Useful scripts:
@@ -94,6 +105,19 @@ Useful scripts:
 - `generate`: run the interactive generator once.
 - `generate:without`: generate ES data without prompts.
 - `dev`: run the CLI in watch mode.
-- `check`: type-check with the configured TypeScript project.
-- `test`: run Vitest.
+- `check`: run `typecheck`, `lint`, `format`, and `knip`.
+- `coverage`: run unit tests with coverage (`vitest`).
+- `test:e2e:sierra`: run Sierra e2e flow checks.
+- `test:e2e:md-generation`: run md-generation e2e checks.
 - `build`: compile the package with `tsconfig.build.json`.
+
+### CI setup
+
+CI should not run `pnpm run setup`.
+
+Use explicit CI steps instead:
+
+1. `actions/setup-node` with `node-version-file: .nvmrc`
+2. `corepack prepare "$(node -p "require('./package.json').packageManager")" --activate`
+3. `pnpm install --frozen-lockfile`
+4. run checks via normal `pnpm` scripts

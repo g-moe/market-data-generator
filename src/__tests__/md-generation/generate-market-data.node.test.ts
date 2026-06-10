@@ -3,10 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import {
-	generateMarketData,
-	getOutputFiles
-} from '../../md-generation/generate-market-data.ts';
+import { generateMarketData, getOutputFiles } from '../../md-generation/generate-market-data.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
 
@@ -25,27 +22,13 @@ describe('generateMarketData', () => {
 
 			expect(result.counts.ticks).toBe(10);
 			expect(result.files).toEqual(getOutputFiles(inputs));
-			expect(result.files.scid).toBe(
-				join(outputRoot, 'ES', 'tradester_ES.scid')
-			);
-			expect(result.files.daily).toBe(
-				join(outputRoot, 'ES', 'tradester_ES_1d.csv')
-			);
-			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe(
-				'SCID'
-			);
-			expect(await readFirstLine(result.files.priceLevel)).toBe(
-				`${CANDLE_ROW_HEADER},prices`
-			);
-			expect(await readFirstLine(result.files.volume500)).toBe(
-				CANDLE_ROW_HEADER
-			);
-			expect(await readFirstLine(result.files.seconds15)).toBe(
-				CANDLE_ROW_HEADER
-			);
-			expect(await readFirstLine(result.files.minutes5)).toBe(
-				CANDLE_ROW_HEADER
-			);
+			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
+			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
+			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
+			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
+			expect(await readFirstLine(result.files.volume500)).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.seconds15)).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.minutes5)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.daily)).toBe(CANDLE_ROW_HEADER);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
@@ -53,12 +36,8 @@ describe('generateMarketData', () => {
 	});
 
 	it('keeps output deterministic for the same inputs', async () => {
-		const firstRoot = await mkdtemp(
-			join(tmpdir(), 'market-data-deterministic-')
-		);
-		const secondRoot = await mkdtemp(
-			join(tmpdir(), 'market-data-deterministic-')
-		);
+		const firstRoot = await mkdtemp(join(tmpdir(), 'market-data-deterministic-'));
+		const secondRoot = await mkdtemp(join(tmpdir(), 'market-data-deterministic-'));
 		const base = {
 			sessionCount: 3,
 			symbol: 'ES',
@@ -79,9 +58,7 @@ describe('generateMarketData', () => {
 				})
 			);
 
-			expect(await readFile(second.files.scid)).toEqual(
-				await readFile(first.files.scid)
-			);
+			expect(await readFile(second.files.scid)).toEqual(await readFile(first.files.scid));
 			expect(await readFile(second.files.priceLevel, 'utf8')).toBe(
 				await readFile(first.files.priceLevel, 'utf8')
 			);
@@ -131,9 +108,7 @@ describe('generateMarketData', () => {
 				.split('\n')
 				.slice(1)
 				.map((line) => line.split(','));
-			const padded = daily.filter(
-				(candle) => candle[1] === '0' && candle[6] === '0'
-			);
+			const padded = daily.filter((candle) => candle[1] === '0' && candle[6] === '0');
 
 			expect(daily).toHaveLength(10);
 			expect(padded.length).toBeGreaterThan(0);

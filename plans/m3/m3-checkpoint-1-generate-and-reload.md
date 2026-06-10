@@ -36,8 +36,8 @@ Running `generate:sierra` asks for a symbol and run name, writes generated marke
 ## Verified
 
 - `pnpm run test:e2e:sierra` passed against real Sierra.
-- `pnpm test -- --run src/__tests__/sierra-sync` passed after adding bridge coverage.
-- `pnpm run format:check`, `pnpm run lint`, `pnpm run check`, and `pnpm run knip` previously passed for the current flow.
+- `pnpm run test:e2e:md-generation` passed after adding md-generation coverage.
+- `pnpm run format`, `pnpm run lint`, `pnpm run check`, and `pnpm run knip` previously passed for the current flow.
 
 ## Done Criteria
 

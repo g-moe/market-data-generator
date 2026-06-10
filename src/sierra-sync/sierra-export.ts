@@ -65,14 +65,10 @@ export async function mergeValidatedSierraExport({
 	]);
 	const generated = parseGeneratedCsv(generatedText, inputFile);
 	const sierra = parseSierraExportRows(sierraText);
-	const comparableRows = generated.rows.filter(
-		(row) => !isGeneratedPaddingRow(row)
-	);
+	const comparableRows = generated.rows.filter((row) => !isGeneratedPaddingRow(row));
 
 	if (comparableRows.length === 0)
-		throw new Error(
-			`Cannot validate generated file without non-padding rows: ${inputFile}`
-		);
+		throw new Error(`Cannot validate generated file without non-padding rows: ${inputFile}`);
 
 	const tradesterHeaders = Object.keys(
 		sierra.find((row) => Object.keys(row.tradester).length > 0)?.tradester ?? {}
@@ -170,27 +166,20 @@ function indexSierraRowsByTime(rows: SierraExportRow[], filePath: string) {
 
 	for (const row of rows) {
 		if (byTime.has(row.time))
-			throw new Error(
-				`Duplicate Sierra bar in ${filePath}: timestamp ${row.time.toString()}`
-			);
+			throw new Error(`Duplicate Sierra bar in ${filePath}: timestamp ${row.time.toString()}`);
 		byTime.set(row.time, row);
 	}
 
 	return byTime;
 }
 
-function parseSierraExportRow(
-	line: string,
-	headers: string[]
-): SierraExportRow {
+function parseSierraExportRow(line: string, headers: string[]): SierraExportRow {
 	const fields = line.split(',').map((field) => field.trim());
-	if (fields.length < 13)
-		throw new Error('Expected at least 13 Sierra export fields');
+	if (fields.length < 13) throw new Error('Expected at least 13 Sierra export fields');
 
 	const tradester: Record<string, string> = {};
 	for (let i = 13; i < headers.length; i++) {
-		if (headers[i].startsWith('tradester_'))
-			tradester[headers[i]] = fields[i] ?? '';
+		if (headers[i].startsWith('tradester_')) tradester[headers[i]] = fields[i] ?? '';
 	}
 
 	return {
@@ -257,12 +246,10 @@ function compareValue(
 }
 
 function parseSierraDateTime(value: string) {
-	const match =
-		/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/u.exec(
-			value.trim()
-		);
-	if (match === null)
-		throw new Error(`Unexpected Sierra DateTime value: ${value}`);
+	const match = /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/u.exec(
+		value.trim()
+	);
+	if (match === null) throw new Error(`Unexpected Sierra DateTime value: ${value}`);
 	const millisecond = Number((match[7] ?? '').padEnd(3, '0').slice(0, 3));
 	return utcDateTimeToUnixMs(
 		Number(match[1]),

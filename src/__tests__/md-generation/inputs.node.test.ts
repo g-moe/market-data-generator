@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_OUTPUT_ROOT } from '../../contracts/defaults.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
@@ -44,20 +44,28 @@ describe('normalizeInputs', () => {
 
 	it('rejects invalid inputs', () => {
 		expect(() => normalizeInputs({ symbol: 'YM' })).toThrow(/symbol/i);
-		expect(() => normalizeInputs({ outputDir: ' ', symbol: 'ES' })).toThrow(
-			/outputDir/i
+		expect(() => normalizeInputs({ outputDir: ' ', symbol: 'ES' })).toThrow(/outputDir/i);
+		expect(() => normalizeInputs({ sessionCount: 0, symbol: 'ES' })).toThrow(/sessionCount/i);
+		expect(() => normalizeInputs({ startPrice: 0, symbol: 'ES' })).toThrow(/startPrice/i);
+		expect(() => normalizeInputs({ symbol: 'ES', ticksPerSession: 0 })).toThrow(/ticksPerSession/i);
+		expect(() => normalizeInputs({ anchorIso: 'not-a-date', symbol: 'ES' })).toThrow(/anchorIso/i);
+	});
+
+	it('re-throws non-RangeError date parser failures as-is', async () => {
+		vi.resetModules();
+		vi.doMock('../../shared/datetime/index.ts', async () => ({
+			...(await vi.importActual('../../shared/datetime/index.ts')),
+			parseIsoToUnixMs: () => {
+				throw new TypeError('timezone parse failure');
+			}
+		}));
+
+		const { normalizeInputs: importedNormalizeInputs } =
+			await import('../../md-generation/inputs.ts');
+
+		expect(() => importedNormalizeInputs({ anchorIso: 'bad-anchor', symbol: 'ES' })).toThrow(
+			'timezone parse failure'
 		);
-		expect(() => normalizeInputs({ sessionCount: 0, symbol: 'ES' })).toThrow(
-			/sessionCount/i
-		);
-		expect(() => normalizeInputs({ startPrice: 0, symbol: 'ES' })).toThrow(
-			/startPrice/i
-		);
-		expect(() => normalizeInputs({ symbol: 'ES', ticksPerSession: 0 })).toThrow(
-			/ticksPerSession/i
-		);
-		expect(() =>
-			normalizeInputs({ anchorIso: 'not-a-date', symbol: 'ES' })
-		).toThrow(/anchorIso/i);
+		vi.resetModules();
 	});
 });

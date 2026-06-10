@@ -59,10 +59,7 @@ export function isMarketOpen(time: number) {
 		return minuteOfDay < SESSION_END_HOUR * 60;
 	}
 
-	return !(
-		minuteOfDay >= SESSION_END_HOUR * 60 &&
-		minuteOfDay < SESSION_START_HOUR * 60
-	);
+	return !(minuteOfDay >= SESSION_END_HOUR * 60 && minuteOfDay < SESSION_START_HOUR * 60);
 }
 
 export function getDailySessionStart(time: number) {
@@ -73,7 +70,7 @@ export function floorTime(time: number, bucketMs: number) {
 	return Math.floor(time / bucketMs) * bucketMs;
 }
 
-export function getSessionDateParts(time: number): UtcSessionParts {
+function getSessionDateParts(time: number): UtcSessionParts {
 	const parts = toUtcParts(time);
 
 	return {
@@ -117,14 +114,7 @@ function getSessionStartForTime(time: number) {
 
 	const previous = addUtcCalendarDays(parts.year, parts.month, parts.day, -1);
 
-	return utcDateTimeToUnixMs(
-		previous.year,
-		previous.month,
-		previous.day,
-		SESSION_START_HOUR,
-		0,
-		0
-	);
+	return utcDateTimeToUnixMs(previous.year, previous.month, previous.day, SESSION_START_HOUR, 0, 0);
 }
 
 export function isTradingSessionStart(time: number) {
@@ -137,12 +127,5 @@ export function getPreviousSessionStart(sessionStart: number) {
 	const parts = getSessionDateParts(sessionStart);
 	const previous = addUtcCalendarDays(parts.year, parts.month, parts.day, -1);
 
-	return utcDateTimeToUnixMs(
-		previous.year,
-		previous.month,
-		previous.day,
-		SESSION_START_HOUR,
-		0,
-		0
-	);
+	return utcDateTimeToUnixMs(previous.year, previous.month, previous.day, SESSION_START_HOUR, 0, 0);
 }

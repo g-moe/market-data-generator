@@ -26,9 +26,7 @@ export async function runSierraSync(
 	const symbol = requireSymbol(rawSymbol);
 	const config = getSymbolConfig(symbol);
 	const paths = sierraSyncPaths(symbol);
-	const exportFiles = TIMEFRAMES.map((timeframe) =>
-		sierraExportFileName(symbol, timeframe.suffix)
-	);
+	const exportFiles = TIMEFRAMES.map((timeframe) => sierraExportFileName(symbol, timeframe.suffix));
 
 	log(`Checking data-in/${config.symbolId}`);
 	await assertInputDataExists(symbol, paths.files);
@@ -54,19 +52,12 @@ export async function runSierraSync(
 	await ops.buildBridge();
 
 	log('Installing SCID and chartbook');
-	log(
-		`Copying generated tick SCID into Data directory as ${paths.chartbookScidFileName}`
-	);
-	const scidInstalledPath = await ops.copyScid(
-		paths.files.scid,
-		paths.chartbookScidFileName
-	);
+	log(`Copying generated tick SCID into Data directory as ${paths.chartbookScidFileName}`);
+	const scidInstalledPath = await ops.copyScid(paths.files.scid, paths.chartbookScidFileName);
 
 	log(`SCID copy verified at ${scidInstalledPath}`);
 	log('Copying chartbook into Sierra Data directory');
-	const chartbookInstalledPath = await ops.copyChartbook(
-		paths.chartbookSourcePath
-	);
+	const chartbookInstalledPath = await ops.copyChartbook(paths.chartbookSourcePath);
 
 	log(
 		'Sierra startup setting required: General Settings >> Startup >> Open Files on Startup >> YES'

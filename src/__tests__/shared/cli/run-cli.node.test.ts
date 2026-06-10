@@ -27,18 +27,12 @@ describe('runCli', () => {
 			);
 
 			expect(result.counts.ticks).toBe(5);
-			expect(result.files.scid).toBe(
-				join(outputDir, 'ES', 'tradester_ES.scid')
-			);
+			expect(result.files.scid).toBe(join(outputDir, 'ES', 'tradester_ES.scid'));
 			expect(events).toContain('select:Choose symbol');
 			expect(events).toContain('start:Generating market data for /ES:XCME...');
 			expect(events).toContain('log:Completed sessions 1-1 of 1');
-			expect(events).toContain(
-				`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`
-			);
-			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe(
-				'SCID'
-			);
+			expect(events).toContain(`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`);
+			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
 		} finally {
 			await rm(outputDir, { force: true, recursive: true });
 		}
@@ -55,9 +49,7 @@ describe('runCli', () => {
 				})
 			)
 		).rejects.toThrow(/symbol/i);
-		expect(events).not.toContain(
-			'start:Generating market data for bad-symbol...'
-		);
+		expect(events).not.toContain('start:Generating market data for bad-symbol...');
 	});
 });
 
@@ -81,8 +73,7 @@ describe('runCli worker handling', () => {
 			}
 		}));
 
-		const { runCli: runCliWithMockWorker } =
-			await import('../../../shared/cli/run-cli.ts');
+		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
 		await expect(
 			runCliWithMockWorker(
@@ -109,8 +100,7 @@ describe('runCli worker handling', () => {
 			}
 		}));
 
-		const { runCli: runCliWithMockWorker } =
-			await import('../../../shared/cli/run-cli.ts');
+		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
 		await expect(
 			runCliWithMockWorker(
@@ -163,6 +153,67 @@ describe('createNodePorts', () => {
 
 		await expect(promptPorts.prompt('Run name')).resolves.toBe('my-run');
 		expect(output.chunks.join('')).toContain('Run name: ');
+	});
+
+	it('matches choices with case-insensitive labels', async () => {
+		const input = readable('es\n');
+		const output = writable();
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
+		const promptPorts = createNodePorts({ input, output });
+
+		await expect(
+			promptPorts.select('Choose symbol', [
+				{ label: 'ES', value: '/ES:XCME' },
+				{ label: 'NQ', value: '/NQ:XCME' }
+			])
+		).resolves.toBe('/ES:XCME');
+		expect(output.chunks.join('')).toContain('Choose symbol');
+	});
+
+	it('throws when select input ends before a valid choice is provided', async () => {
+		const output = writable();
+		vi.resetModules();
+
+		vi.doMock('node:readline/promises', async () => {
+			const actual =
+				await vi.importActual<typeof import('node:readline/promises')>('node:readline/promises');
+
+			return {
+				...actual,
+				createInterface: () => ({
+					close: vi.fn<() => void>(),
+					question: vi.fn<(question: string) => Promise<string>>(),
+					[Symbol.asyncIterator]: () => ({
+						next: vi.fn<() => Promise<IteratorResult<string, undefined>>>(async () => ({
+							done: true,
+							value: undefined
+						}))
+					})
+				})
+			};
+		});
+
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
+		const promptPorts = createNodePorts({ output });
+
+		try {
+			await expect(
+				promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
+			).rejects.toThrow('No symbol selected');
+		} finally {
+			vi.resetModules();
+		}
+	});
+
+	it('throws when the select stream has no input', async () => {
+		const input = readable('');
+		const output = writable();
+		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
+		const promptPorts = createNodePorts({ input, output });
+
+		await expect(
+			promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
+		).rejects.toThrow('No symbol selected');
 	});
 
 	it('prompts again until a valid choice is entered', async () => {

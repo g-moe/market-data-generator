@@ -7,16 +7,9 @@ import {
 	DEFAULT_SESSION_COUNT,
 	DEFAULT_TICKS_PER_SESSION
 } from '../contracts/defaults.ts';
-import {
-	ALLOWED_SYMBOLS,
-	findSymbol,
-	getSymbolConfig
-} from '../contracts/symbols.ts';
+import { ALLOWED_SYMBOLS, findSymbol, getSymbolConfig } from '../contracts/symbols.ts';
 import { parseIsoToUnixMs, toIsoString } from '../shared/datetime/index.ts';
-import type {
-	GeneratorInputs,
-	RawGeneratorInputs
-} from '../contracts/types.ts';
+import type { GeneratorInputs, RawGeneratorInputs } from '../contracts/types.ts';
 
 export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 	const symbol = findSymbol(raw.symbol ?? '');
@@ -35,11 +28,7 @@ export function normalizeInputs(raw: RawGeneratorInputs): GeneratorInputs {
 		outputDir: join(outputRoot, symbolConfig.symbolId),
 		outputRoot,
 		seed: readOptionalInteger(raw.seed, 'seed', DEFAULT_SEED),
-		sessionCount: readOptionalInteger(
-			raw.sessionCount,
-			'sessionCount',
-			DEFAULT_SESSION_COUNT
-		),
+		sessionCount: readOptionalInteger(raw.sessionCount, 'sessionCount', DEFAULT_SESSION_COUNT),
 		startPrice: readOptionalPositiveNumber(
 			raw.startPrice,
 			'startPrice',

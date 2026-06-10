@@ -78,9 +78,7 @@ export async function runCli(
 			}
 		});
 
-		task.stop(
-			`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`
-		);
+		task.stop(`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`);
 
 		return result;
 	} catch (error) {
@@ -252,8 +250,7 @@ export function createNodePorts({
 }
 
 function formatChoiceLine(choice: Choice, index: number) {
-	const description =
-		choice.description === undefined ? '' : `  ${choice.description}`;
+	const description = choice.description === undefined ? '' : `  ${choice.description}`;
 
 	return `${index + 1}. ${choice.label}${description}\n`;
 }
