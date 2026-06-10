@@ -29,6 +29,7 @@ import {
 } from './candles.ts';
 import {
 	getPreviousSessionStart,
+	SESSION_DURATION_MS,
 	getSessionEnd,
 	getSessionStart,
 	isTradingSessionStart
@@ -44,7 +45,6 @@ import {
 
 const PRICE_LEVEL_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
-const SESSION_DURATION_MS = 23 * 60 * 60 * 1000;
 const UNIX_EPOCH_MS = 0;
 
 type CandleEmissions = {

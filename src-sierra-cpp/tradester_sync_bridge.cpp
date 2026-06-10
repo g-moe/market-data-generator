@@ -7,8 +7,8 @@ namespace {
 
 const char* TargetSymbol() { return "__TRADESTER_TARGET_SYMBOL__"; }
 float TargetTickSize() { return __TRADESTER_TICK_SIZE__; }
-int TargetSessionStartTime() { return SCDateTime(17, 0, 0, 0).GetTime(); }
-int TargetSessionEndTime() { return SCDateTime(16, 0, 0, 0).GetTime(); }
+int TargetSessionStartTime() { return SCDateTime(22, 0, 0, 0).GetTime(); }
+int TargetSessionEndTime() { return SCDateTime(21, 0, 0, 0).GetTime(); }
 SCString ExportDirectory() { SCString path; path = "__TRADESTER_EXPORT_DIR__"; return path; }
 
 int ChartExportIndex(SCStudyInterfaceRef sc)
@@ -98,6 +98,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
     {
         sc.GraphName = "Tradester Sync Bridge";
         sc.StudyDescription = "Exports Sierra chart bars once for Tradester validation.";
+        sc.GraphRegion = 0;
         sc.AutoLoop = 0;
         return;
     }
@@ -125,10 +126,15 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
         sc.LoadChartDataByDateRange = 1;
         sc.ChartDataStartDate = StartDate(exportIndex);
         sc.ChartDataEndDate = EndDate(exportIndex);
+        sc.SetChartTimeZone(
+            sc.ChartNumber,
+            static_cast<TimeZonesEnum>(TIMEZONE_UTC)
+        );
         sc.StartTime1 = TargetSessionStartTime();
         sc.EndTime1 = TargetSessionEndTime();
         sc.UseSecondStartEndTimes = 0;
         sc.FlagToReloadChartData = 1;
+        sc.GraphRegion = 0;
         LogChartState(sc, exportIndex, "setup-reload");
         return;
     }

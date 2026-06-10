@@ -15,6 +15,7 @@ import {
 	floorTime,
 	getDailySessionStart
 } from '../../md-generation/market-time.ts';
+import { parseIsoToUnixMs } from '../../shared/datetime/index.ts';
 
 describe('streaming candle aggregators', () => {
 	it('returns empty series without ticks', () => {
@@ -67,10 +68,10 @@ describe('streaming candle aggregators', () => {
 
 	it('aggregates 15-second, 5-minute, and daily candles from ticks', () => {
 		const ticks = [
-			tick({ price: 6000, time: Date.parse('2026-06-01T22:00:00.000Z') }),
-			tick({ price: 6001, time: Date.parse('2026-06-01T22:00:14.000Z') }),
-			tick({ price: 6002, time: Date.parse('2026-06-01T22:00:15.000Z') }),
-			tick({ price: 6003, time: Date.parse('2026-06-01T22:05:00.000Z') })
+			tick({ price: 6000, time: parseIsoToUnixMs('2026-06-01T22:00:00.000Z') }),
+			tick({ price: 6001, time: parseIsoToUnixMs('2026-06-01T22:00:14.000Z') }),
+			tick({ price: 6002, time: parseIsoToUnixMs('2026-06-01T22:00:15.000Z') }),
+			tick({ price: 6003, time: parseIsoToUnixMs('2026-06-01T22:05:00.000Z') })
 		];
 		const seconds15 = aggregateTime(ticks, (time) => floorTime(time, 15_000));
 		const minutes5 = aggregateTime(ticks, (time) => floorTime(time, 300_000));

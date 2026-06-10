@@ -28,6 +28,7 @@ import {
 	VISUAL_STUDIO_BUILD_DIR,
 	WINDOWS_POWERSHELL_EXE
 } from './constants.ts';
+import { nowEpochMs } from '../shared/datetime/index.ts';
 
 const execFileAsync = promisify(execFile);
 const SIERRA_SCID_COPY_TIMEOUT_MS = 10 * 60_000;
@@ -42,7 +43,8 @@ export type SierraOps = {
 	openSierra: () => Promise<void>;
 	waitForFiles: (
 		directory: string,
-		fileNames: readonly string[]
+		fileNames: readonly string[],
+		waitTimeout: number
 	) => Promise<void>;
 };
 
@@ -117,10 +119,10 @@ async function copyScid(sourcePath: string, targetFileName: string) {
 
 async function waitForCopiedFile(sourcePath: string, targetPath: string) {
 	const sourceSize = (await stat(sourcePath)).size;
-	const deadline = Date.now() + SIERRA_SCID_COPY_TIMEOUT_MS;
+	const deadline = nowEpochMs() + SIERRA_SCID_COPY_TIMEOUT_MS;
 	let previous: { mtimeMs: number; size: number } | undefined;
 
-	while (Date.now() < deadline) {
+	while (nowEpochMs() < deadline) {
 		const target = await stat(targetPath).catch(() => undefined);
 		const current = target && { mtimeMs: target.mtimeMs, size: target.size };
 		if (
@@ -170,10 +172,10 @@ start "Sierra Chart" "${SIERRA_EXE_PATH}" "${join(SIERRA_DATA_DIR, SIERRA_CHARTB
 }
 
 async function waitForFiles(directory: string, fileNames: readonly string[]) {
-	const deadline = Date.now() + SIERRA_WAIT_TIMEOUT_MS;
+	const deadline = nowEpochMs() + SIERRA_WAIT_TIMEOUT_MS;
 	const stable = new Map<string, { mtimeMs: number; size: number }>();
 
-	while (Date.now() < deadline) {
+	while (nowEpochMs() < deadline) {
 		const names = new Set(await readdir(directory).catch(() => []));
 		let allStable = true;
 

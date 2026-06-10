@@ -16,7 +16,6 @@ export const SIERRA_OPEN_TASK_NAME = 'TradesterOpenSierraInteractive';
 export const SIERRA_OPEN_LAUNCHER_FILE_NAME = 'tradester-open-sierra.cmd';
 export const SIERRA_WAIT_TIMEOUT_MS = 60_000;
 export const SIERRA_WAIT_POLL_MS = 1_000;
-export const SIERRA_TIME_ZONE = 'America/Chicago';
 export const VISUAL_STUDIO_BUILD_DIR =
 	'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build';
 export const WINDOWS_POWERSHELL_EXE =
@@ -37,6 +36,7 @@ export const SIERRA_EXPORT_HEADER = [
 	'Ask Volume'
 ].join(', ');
 export const TIMEFRAMES = [
+	{ key: 'daily', suffix: '1d' },
 	{ key: 'minutes5', suffix: '5m' },
 	{ key: 'seconds15', suffix: '15s' },
 	{ key: 'volume500', suffix: '500v' },

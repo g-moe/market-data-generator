@@ -1,100 +1,105 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	getCentralParts,
 	getDailySessionStart,
 	getSessionEnd,
 	getSessionStart,
 	getUtcParts,
 	isMarketOpen
 } from '../../md-generation/market-time.ts';
+import {
+	parseIsoToUnixMs,
+	toIsoString,
+	toUtcParts
+} from '../../shared/datetime/index.ts';
 
 describe('futures market time', () => {
-	it('detects equity-index futures open and maintenance periods in Central time', () => {
-		expect(isMarketOpen(Date.parse('2026-06-07T21:59:59.000Z'))).toBe(false);
-		expect(isMarketOpen(Date.parse('2026-06-07T22:00:00.000Z'))).toBe(true);
-		expect(isMarketOpen(Date.parse('2026-06-08T21:30:00.000Z'))).toBe(false);
-		expect(isMarketOpen(Date.parse('2026-06-08T22:00:00.000Z'))).toBe(true);
-		expect(isMarketOpen(Date.parse('2026-06-12T21:00:00.000Z'))).toBe(false);
-		expect(isMarketOpen(Date.parse('2026-06-13T15:00:00.000Z'))).toBe(false);
+	it('detects futures open and maintenance periods in UTC', () => {
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T21:59:59.999Z'))).toBe(
+			false
+		);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T22:00:00.000Z'))).toBe(
+			true
+		);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T21:30:00.000Z'))).toBe(
+			false
+		);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T22:00:00.000Z'))).toBe(
+			true
+		);
 	});
 
-	it('walks backward by trading session starts', () => {
+	it('finds the current UTC trading session start', () => {
 		const start = getSessionStart('2026-06-05T21:00:00.000Z', 0);
 
-		expect(getCentralParts(new Date(start))).toMatchObject({
-			time: '17:00:00',
-			weekday: 'Thu'
-		});
+		expect(toIsoString(start)).toBe('2026-06-04T22:00:00.000Z');
 		expect(getSessionEnd(start) - start).toBe(23 * 60 * 60 * 1000);
 	});
 
-	it('skips non-trading weekend session starts when walking backward', () => {
-		const start = getSessionStart('2026-06-07T22:00:00.000Z', 1);
+	it('keeps UTC session starts fixed at 22:00', () => {
+		const starts = [
+			toIsoString(getSessionStart('2026-03-10T23:00:00.000Z', 0)),
+			toIsoString(getSessionStart('2006-10-29T23:00:00.000Z', 0)),
+			toIsoString(getSessionStart('1970-03-10T10:00:00.000Z', 0)),
+			toIsoString(getSessionStart('1969-12-31T21:00:00.000Z', 0)),
+			toIsoString(getSessionStart('1970-01-01T22:00:00.000Z', 0))
+		];
 
-		expect(getCentralParts(new Date(start))).toMatchObject({
-			time: '17:00:00',
-			weekday: 'Thu'
-		});
+		expect(
+			starts.map((start) => toUtcParts(parseIsoToUnixMs(start)).time)
+		).toEqual(Array(5).fill('22:00:00'));
 	});
 
-	it('keeps session starts at 17:00 CT across spring daylight saving time', () => {
-		const starts = Array.from({ length: 6 }, (_, sessionsBack) => {
-			return getCentralParts(
-				new Date(getSessionStart('2026-03-10T23:00:00.000Z', sessionsBack))
-			);
-		});
+	it('walks backward by trading session starts in UTC, skipping Fri/Sat starts', () => {
+		const starts = Array.from({ length: 5 }, (_, sessionsBack) =>
+			toIsoString(getSessionStart('2026-06-07T22:00:00.000Z', sessionsBack))
+		);
 
-		expect(starts.map((start) => `${start.weekday} ${start.time}`)).toEqual([
-			'Tue 17:00:00',
-			'Mon 17:00:00',
-			'Sun 17:00:00',
-			'Thu 17:00:00',
-			'Wed 17:00:00',
-			'Tue 17:00:00'
+		expect(starts).toEqual([
+			'2026-06-07T22:00:00.000Z',
+			'2026-06-04T22:00:00.000Z',
+			'2026-06-03T22:00:00.000Z',
+			'2026-06-02T22:00:00.000Z',
+			'2026-06-01T22:00:00.000Z'
 		]);
 	});
 
-	it('keeps session starts at 17:00 CT across fall daylight saving time', () => {
-		const starts = Array.from({ length: 5 }, (_, sessionsBack) => {
-			return getCentralParts(
-				new Date(getSessionStart('2026-11-04T23:00:00.000Z', sessionsBack))
-			);
-		});
+	it('uses epoch-safe UTC boundaries', () => {
+		expect(toIsoString(getSessionStart('1970-01-01T00:00:00.000Z', 0))).toBe(
+			'1969-12-31T22:00:00.000Z'
+		);
+		expect(toIsoString(getSessionStart('1969-12-31T21:59:59.999Z', 0))).toBe(
+			'1969-12-30T22:00:00.000Z'
+		);
+	});
 
-		expect(starts.map((start) => `${start.weekday} ${start.time}`)).toEqual([
-			'Wed 17:00:00',
-			'Tue 17:00:00',
-			'Mon 17:00:00',
-			'Sun 17:00:00',
-			'Thu 17:00:00'
-		]);
+	it('handles unix epoch values in UTC parts', () => {
+		expect(getUtcParts(0)).toMatchObject({
+			date: '1970-01-01',
+			time: '00:00:00'
+		});
 	});
 
 	it('finds the daily session start for intraday ticks', () => {
 		const sessionStart = getDailySessionStart(
-			Date.parse('2026-06-08T15:30:00.000Z')
+			parseIsoToUnixMs('2026-06-08T15:30:00.000Z')
 		);
-
-		expect(getCentralParts(new Date(sessionStart))).toMatchObject({
-			time: '17:00:00',
-			weekday: 'Sun'
+		expect(getUtcParts(sessionStart)).toMatchObject({
+			time: '22:00:00'
 		});
-	});
 
-	it('uses the same-day 17:00 CT session start for evening ticks', () => {
-		const sessionStart = getDailySessionStart(
-			Date.parse('2026-06-09T01:00:00.000Z')
+		const eveningSessionStart = getDailySessionStart(
+			parseIsoToUnixMs('2026-06-09T01:00:00.000Z')
 		);
-
-		expect(getCentralParts(new Date(sessionStart))).toMatchObject({
-			time: '17:00:00',
-			weekday: 'Mon'
+		expect(getUtcParts(eveningSessionStart)).toMatchObject({
+			time: '22:00:00'
 		});
 	});
 
 	it('formats UTC date and time parts', () => {
-		expect(getUtcParts(new Date('2026-06-08T17:00:00.000-05:00'))).toEqual({
+		expect(
+			getUtcParts(parseIsoToUnixMs('2026-06-08T17:00:00.000-05:00'))
+		).toEqual({
 			date: '2026-06-08',
 			time: '22:00:00'
 		});

@@ -35,7 +35,7 @@ export type MarketTick = {
 };
 
 export type ScidRecord = {
-	time: Date;
+	time: UnixMs;
 	open: number;
 	high: number;
 	low: number;

@@ -12,6 +12,7 @@ import {
 	findSymbol,
 	getSymbolConfig
 } from '../contracts/symbols.ts';
+import { parseIsoToUnixMs, toIsoString } from '../shared/datetime/index.ts';
 import type {
 	GeneratorInputs,
 	RawGeneratorInputs
@@ -85,9 +86,14 @@ function readOptionalPositiveNumber(
 
 function readOptionalIso(value: string | undefined, defaultValue: string) {
 	const iso = value?.trim() ?? defaultValue;
-	if (Number.isNaN(new Date(iso).getTime())) {
-		throw new Error('anchorIso must be a valid date');
-	}
 
-	return new Date(iso).toISOString();
+	try {
+		return toIsoString(parseIsoToUnixMs(iso));
+	} catch (error) {
+		if (error instanceof RangeError) {
+			throw new Error('anchorIso must be a valid date');
+		}
+
+		throw error;
+	}
 }

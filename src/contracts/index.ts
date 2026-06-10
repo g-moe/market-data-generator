@@ -16,7 +16,6 @@ export {
 	ID_SEQUENCE_MULTIPLIER,
 	VOLUME_BAR_SIZE
 } from './defaults.ts';
-export { CENTRAL_TIMEZONE } from './market-time.ts';
 export type {
 	GenerationResult,
 	GenerationProgress,

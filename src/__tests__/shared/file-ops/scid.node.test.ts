@@ -9,6 +9,7 @@ import {
 	tickToScidRecord,
 	toScDateTimeMs
 } from '../../../shared/file-ops/scid.ts';
+import { parseIsoToUnixMs } from '../../../shared/datetime/index.ts';
 
 describe('scid output', () => {
 	it('writes raw ticks as Sierra Chart intraday records', async () => {
@@ -21,7 +22,7 @@ describe('scid output', () => {
 			writer.pushTick(
 				tick({
 					side: 'bid',
-					time: Date.parse('2026-06-08T22:00:00.000Z'),
+					time: parseIsoToUnixMs('2026-06-08T22:00:00.000Z'),
 					volume: 15
 				})
 			);
@@ -35,7 +36,7 @@ describe('scid output', () => {
 
 			const offset = 56;
 			expect(output.readBigInt64LE(offset)).toBe(
-				toScDateTimeMs(new Date('2026-06-08T22:00:00.000Z'))
+				toScDateTimeMs(parseIsoToUnixMs('2026-06-08T22:00:00.000Z'))
 			);
 			expect(output.readFloatLE(offset + 8)).toBe(6000);
 			expect(output.readFloatLE(offset + 12)).toBe(6000);
@@ -59,7 +60,7 @@ describe('scid output', () => {
 			await writeFile(filePath, 'old data');
 			const writer = new ScidTickWriter(filePath);
 			await writer.open();
-			writer.pushTick(tick());
+			await writer.pushTick(tick());
 			writer.pushTick(tick({ price: 6000.25 }));
 			await writer.close();
 
@@ -86,7 +87,7 @@ function tick(overrides: Partial<MarketTick> = {}): MarketTick {
 		price: 6000,
 		sessionIndex: 0,
 		side: 'ask',
-		time: Date.parse('2026-06-08T22:00:00.000Z'),
+		time: parseIsoToUnixMs('2026-06-08T22:00:00.000Z'),
 		volume: 1,
 		...overrides
 	};

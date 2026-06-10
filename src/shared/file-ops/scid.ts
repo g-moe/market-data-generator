@@ -7,11 +7,12 @@ import type {
 	ScidRecord,
 	TradeSide
 } from '../../contracts/types.ts';
+import { utcDateTimeToUnixMs } from '../../shared/datetime/index.ts';
 
 const HEADER_SIZE = 56;
 const RECORD_SIZE = 40;
 const DEFAULT_BUFFER_RECORDS = 16_384;
-const SCID_EPOCH_MS = Date.UTC(1899, 11, 30);
+const SCID_EPOCH_MS = utcDateTimeToUnixMs(1899, 12, 30, 0, 0, 0);
 const UINT32_SIZE = 0x1_0000_0000;
 const MICROSECONDS_PER_MILLISECOND = 1000n;
 export const SCID_EPOCH_OFFSET_MS = SCID_EPOCH_MS;
@@ -142,7 +143,7 @@ export function tickToScidRecord(tick: MarketTick): ScidRecord {
 		high: tick.price,
 		low: tick.price,
 		open: tick.price,
-		time: new Date(tick.time),
+		time: tick.time,
 		transactions: 1,
 		volume: tick.volume
 	};
@@ -178,6 +179,6 @@ function writeTickValues(
 	output.setUint32(offset + 36, askVolume, true);
 }
 
-export function toScDateTimeMs(date: Date) {
-	return BigInt(date.getTime() - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
+export function toScDateTimeMs(time: number) {
+	return BigInt(time - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
 }

@@ -3,12 +3,19 @@ import { dirname, join } from 'node:path';
 
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
-import {
-	SIERRA_EXPORT_HEADER,
-	SIERRA_TIME_ZONE,
-	VALIDATED_TIMEFRAMES
-} from './constants.ts';
+import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
+import { SIERRA_EXPORT_HEADER, VALIDATED_TIMEFRAMES } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
+
+type GeneratedRow = {
+	close: number;
+	high: number;
+	low: number;
+	open: number;
+	raw: string;
+	time: number;
+	volume: number;
+};
 
 export type SierraExportRow = {
 	time: number;
@@ -58,16 +65,23 @@ export async function mergeValidatedSierraExport({
 	]);
 	const generated = parseGeneratedCsv(generatedText, inputFile);
 	const sierra = parseSierraExportRows(sierraText);
-	if (generated.rows.length === 0)
-		throw new Error(`Cannot validate empty generated file: ${inputFile}`);
+	const comparableRows = generated.rows.filter(
+		(row) => !isGeneratedPaddingRow(row)
+	);
+
+	if (comparableRows.length === 0)
+		throw new Error(
+			`Cannot validate generated file without non-padding rows: ${inputFile}`
+		);
+
 	const tradesterHeaders = Object.keys(
 		sierra.find((row) => Object.keys(row.tradester).length > 0)?.tradester ?? {}
 	);
 	const outputRows = [`${generated.header},${tradesterHeaders.join(',')}`];
 	const sierraByTime = indexSierraRowsByTime(sierra, inputFile);
 
-	for (let i = 0; i < generated.rows.length; i++) {
-		const generatedRow = generated.rows[i];
+	for (let i = 0; i < comparableRows.length; i++) {
+		const generatedRow = comparableRows[i];
 		const sierraRow = sierraByTime.get(generatedRow.time);
 		if (sierraRow === undefined)
 			throw new Error(
@@ -82,7 +96,7 @@ export async function mergeValidatedSierraExport({
 	await mkdir(dirname(outputFile), { recursive: true });
 	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
 
-	return { comparedRows: generated.rows.length, outputFile };
+	return { comparedRows: comparableRows.length, outputFile };
 }
 
 export function parseSierraExportRows(text: string): SierraExportRow[] {
@@ -102,7 +116,10 @@ export function parseSierraExportRows(text: string): SierraExportRow[] {
 function parseGeneratedCsv(text: string, filePath: string) {
 	const lines = text.trimEnd().split(/\r?\n/u);
 	if (lines.length <= 1)
-		return { header: lines[0] ?? CANDLE_ROW_HEADER, rows: [] };
+		return {
+			header: lines[0] ?? CANDLE_ROW_HEADER,
+			rows: [] as GeneratedRow[]
+		};
 
 	const headers = lines[0].split(',');
 	const indexes = {
@@ -135,6 +152,17 @@ function parseGeneratedCsv(text: string, filePath: string) {
 				};
 			})
 	};
+}
+
+function isGeneratedPaddingRow(row: GeneratedRow) {
+	return (
+		row.time === 0 &&
+		row.open === 0 &&
+		row.high === 0 &&
+		row.low === 0 &&
+		row.close === 0 &&
+		row.volume === 0
+	);
 }
 
 function indexSierraRowsByTime(rows: SierraExportRow[], filePath: string) {
@@ -236,45 +264,13 @@ function parseSierraDateTime(value: string) {
 	if (match === null)
 		throw new Error(`Unexpected Sierra DateTime value: ${value}`);
 	const millisecond = Number((match[7] ?? '').padEnd(3, '0').slice(0, 3));
-	const candidate = Date.UTC(
+	return utcDateTimeToUnixMs(
 		Number(match[1]),
-		Number(match[2]) - 1,
+		Number(match[2]),
 		Number(match[3]),
 		Number(match[4]),
 		Number(match[5]),
 		Number(match[6]),
 		millisecond
-	);
-
-	return candidate - timeZoneOffsetMs(candidate, SIERRA_TIME_ZONE);
-}
-
-function timeZoneOffsetMs(utcMs: number, timeZone: string) {
-	const wholeSecondUtcMs = utcMs - (utcMs % 1000);
-	const parts = new Intl.DateTimeFormat('en-US', {
-		day: '2-digit',
-		hour: '2-digit',
-		hour12: false,
-		minute: '2-digit',
-		month: '2-digit',
-		second: '2-digit',
-		timeZone,
-		year: 'numeric'
-	}).formatToParts(new Date(wholeSecondUtcMs));
-	const values = Object.fromEntries(
-		parts
-			.filter((part) => part.type !== 'literal')
-			.map((part) => [part.type, part.value])
-	) as Record<string, string>;
-
-	return (
-		Date.UTC(
-			Number(values.year),
-			Number(values.month) - 1,
-			Number(values.day),
-			Number(values.hour),
-			Number(values.minute),
-			Number(values.second)
-		) - wholeSecondUtcMs
 	);
 }

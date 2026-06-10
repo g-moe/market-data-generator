@@ -5,12 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 
+const DEFAULT_CSV =
+	'time,open,high,low,close,volume\n1760000000000,1,2,0,1.5,10\n1760000060000,1.5,3,1,2,12\n';
+
 async function withBridgeSource(
-	test: (source: string) => Promise<void> | void
+	test: (source: string) => Promise<void> | void,
+	csv: string = DEFAULT_CSV
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'sierra-bridge-'));
-	const csv =
-		'time,open,high,low,close,volume\n1760000000000,1,2,0,1.5,10\n1760000060000,1.5,3,1,2,12\n';
 	const file = join(root, 'bars.csv');
 
 	try {
@@ -39,6 +41,7 @@ describe('createBridgeSource', () => {
 		await withBridgeSource((source) => {
 			expect(source).toContain('const char* TargetSymbol()');
 			expect(source).toContain('return "tradester_ES";');
+			expect(source).not.toContain('return "tradester_ES_1d"');
 			expect(source).not.toContain('return "tradester_ES_5m"');
 			expect(source).not.toContain('return "tradester_ES_15s"');
 			expect(source).not.toContain('return "tradester_ES_500v"');
@@ -56,5 +59,20 @@ describe('createBridgeSource', () => {
 			expect(source).not.toContain('IntradayChartBarPeriodParameter1 = 86400');
 			expect(source).toContain('exportComplete = 0;');
 		});
+	});
+
+	it('matches Sierra daily charts as historical daily or 1440 minute intraday bars', async () => {
+		await withBridgeSource((source) => {
+			expect(source).toContain('barPeriod.ChartDataType == DAILY_DATA');
+			expect(source).toContain('IntradayChartBarPeriodParameter1 == 1440 * 60');
+			expect(source).toContain('return "tradester_ES_1d_GraphData.txt";');
+		});
+	});
+
+	it('uses first non-zero bar as Sierra bridge start time when zero-padding exists', async () => {
+		await withBridgeSource((source) => {
+			expect(source).toContain('case 0: return DateYMD(2025, 10, 9);');
+			expect(source).not.toContain('case 0: return DateYMD(1970, 1, 1);');
+		}, 'time,open,high,low,close,volume\n0,0,0,0,0,0\n1760000000000,1,2,0,1.5,10\n');
 	});
 });

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
+import { toUtcParts } from '../shared/datetime/index.ts';
 import {
 	SIERRA_BRIDGE_FILE_NAME,
 	SIERRA_SOURCE_ROOT,
@@ -70,9 +71,25 @@ async function readCsvTimeRange(filePath: string) {
 	if (timeIndex === -1)
 		throw new Error(`Generated file is missing time column: ${filePath}`);
 
+	const rows = lines.slice(1).map((line) => line.split(','));
+	const parseTime = (line: string[]) => Number(line[timeIndex]);
+	const isPaddingRow = (line: string[]) =>
+		parseTime(line) === 0 &&
+		Number(line[headers.indexOf('open')]) === 0 &&
+		Number(line[headers.indexOf('high')]) === 0 &&
+		Number(line[headers.indexOf('low')]) === 0 &&
+		Number(line[headers.indexOf('close')]) === 0 &&
+		Number(line[headers.indexOf('volume')]) === 0;
+
+	const comparableRows = rows.filter((row) => !isPaddingRow(row));
+	if (comparableRows.length === 0)
+		throw new Error(
+			`No valid Sierra date range available in generated file: ${filePath}`
+		);
+
 	return {
-		endTime: Number(lines[lines.length - 1].split(',')[timeIndex]),
-		startTime: Number(lines[1].split(',')[timeIndex])
+		endTime: parseTime(comparableRows.at(-1) ?? rows[rows.length - 1]),
+		startTime: parseTime(comparableRows[0])
 	};
 }
 
@@ -94,6 +111,9 @@ function replaceTemplateTokens(
 }
 
 function timeframeCondition(timeframe: { suffix: string }, index: number) {
+	if (timeframe.suffix === '1d')
+		return `    if (barPeriod.ChartDataType == DAILY_DATA || (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS && barPeriod.IntradayChartBarPeriodParameter1 == 1440 * 60)) return ${index};`;
+
 	if (timeframe.suffix.endsWith('v'))
 		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
 
@@ -111,10 +131,10 @@ function nextDateTime(time: number) {
 }
 
 function scDateCall(time: number) {
-	const date = new Date(time);
-	const year = date.getUTCFullYear();
-	const month = date.getUTCMonth() + 1;
-	const day = date.getUTCDate();
+	const date = toUtcParts(time);
+	const year = date.year;
+	const month = date.month;
+	const day = date.day;
 
 	return `DateYMD(${year}, ${month}, ${day})`;
 }

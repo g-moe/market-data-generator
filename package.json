@@ -11,7 +11,6 @@
 		"build": "tsc --project ./tsconfig.build.json",
 		"benchmark:generation": "node --expose-gc --import tsx scripts/benchmark-generation.ts",
 		"test": "vitest --project unit",
-		"test:e2e": "vitest run --project e2e",
 		"coverage": "vitest run --coverage --project unit",
 		"prepare": "husky",
 		"check": "tsgo --noEmit --project ./tsconfig.json",
@@ -20,8 +19,11 @@
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
-		"test:e2e:sierra": "pnpm run generate:sierra ES",
+		"test:e2e:sierra": "vitest run --project e2e src/__tests__/__e2e__/sierra/sierra.e2e.test.ts",
 		"test:e2e:md-generation": "vitest run --project e2e src/__tests__/__e2e__/md-generation/md-generation.e2e.test.ts"
+	},
+	"dependencies": {
+		"@js-temporal/polyfill": "0.5.1"
 	},
 	"devDependencies": {
 		"@types/node": "24.12.4",
