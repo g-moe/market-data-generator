@@ -1,24 +1,12 @@
-import { formatProgressMessage } from './shared/cli/progress.ts';
 import { runSierraSync } from './sierra-sync/sierra-sync.ts';
 
-console.log('Running Sierra sync for ES...');
+console.log('Running Sierra sync for existing ES data...');
 
-const result = await runSierraSync(
-	{
-		symbol: 'ES'
-	},
-	{
-		onSessionComplete: (progress) => {
-			const message = formatProgressMessage(progress);
-
-			if (message !== undefined) {
-				console.log(message);
-			}
-		}
-	}
-);
+const result = await runSierraSync({
+	symbol: 'ES'
+});
 
 console.log(
-	`Wrote ${result.generation.counts.ticks} ticks to ${result.generation.inputs.outputDir}`
+	`Loaded ${result.generation.counts.ticks} existing ticks from ${result.generation.inputs.outputDir}`
 );
 console.log(`Wrote Sierra exports to ${result.outputDir}`);

@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_OUTPUT_ROOT } from '../../contracts/defaults.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 
 describe('normalizeInputs', () => {
@@ -20,6 +21,13 @@ describe('normalizeInputs', () => {
 			startPrice: 6100.25,
 			symbol: '/ES:XCME',
 			ticksPerSession: 5
+		});
+	});
+
+	it('uses data-in as the default output root', () => {
+		expect(normalizeInputs({ symbol: 'ES' })).toMatchObject({
+			outputDir: join(DEFAULT_OUTPUT_ROOT, 'ES'),
+			outputRoot: DEFAULT_OUTPUT_ROOT
 		});
 	});
 

@@ -32,6 +32,13 @@ import {
 	buildSierraBridge,
 	installSierraBridgeSource
 } from '../../sierra-sync/bridge.ts';
+import {
+	DEFAULT_DATA_OUT_TEMP_ROOT,
+	SIERRA_BRIDGE_DLL_BASE_NAME,
+	SIERRA_BRIDGE_FILE_NAME,
+	SIERRA_BRIDGE_SOURCE_DIR,
+	SIERRA_LATEST_RUN_NAME
+} from '../../sierra-sync/constants.ts';
 
 describe('installSierraBridgeSource', () => {
 	afterEach(() => {
@@ -44,11 +51,11 @@ describe('installSierraBridgeSource', () => {
 		try {
 			const bridgeSourcePath = join(
 				root,
-				'src-sierra-cpp',
-				'tradester_sync_bridge.cpp'
+				SIERRA_BRIDGE_SOURCE_DIR,
+				SIERRA_BRIDGE_FILE_NAME
 			);
 			const acsSourceDir = join(root, 'Sierra Chart', 'ACS_Source');
-			await mkdir(join(root, 'src-sierra-cpp'), { recursive: true });
+			await mkdir(join(root, SIERRA_BRIDGE_SOURCE_DIR), { recursive: true });
 			await writeFile(
 				bridgeSourcePath,
 				'const char* path = "__TRADESTER_SIERRA_EXPORT_DIR__";'
@@ -57,12 +64,10 @@ describe('installSierraBridgeSource', () => {
 			const installedPath = await installSierraBridgeSource({
 				acsSourceDir,
 				bridgeSourcePath,
-				latestOutputDir: 'C:\\data-out-temp\\ES\\latest\\"quoted"'
+				latestOutputDir: `C:\\${DEFAULT_DATA_OUT_TEMP_ROOT}\\ES\\${SIERRA_LATEST_RUN_NAME}\\"quoted"`
 			});
 
-			expect(installedPath).toBe(
-				join(acsSourceDir, 'tradester_sync_bridge.cpp')
-			);
+			expect(installedPath).toBe(join(acsSourceDir, SIERRA_BRIDGE_FILE_NAME));
 			await expect(readFile(installedPath, 'utf8')).resolves.toContain(
 				'quoted'
 			);
@@ -83,32 +88,28 @@ describe('buildSierraBridge', () => {
 		try {
 			mockSierraMessages();
 			mockSuccessfulCompile();
-			await writeFile('tradester_sync_bridge.obj', 'old artifact');
+			await writeFile(`${SIERRA_BRIDGE_DLL_BASE_NAME}.obj`, 'old artifact');
 
 			const dllPaths = await buildSierraBridge({
-				bridgeInstalledPath: join(
-					root,
-					'ACS_Source',
-					'tradester_sync_bridge.cpp'
-				),
+				bridgeInstalledPath: join(root, 'ACS_Source', SIERRA_BRIDGE_FILE_NAME),
 				reloadDelayMs: 0,
 				sierraDataDir: join(root, 'Data')
 			});
 
 			expect(dllPaths).toEqual([
-				join(root, 'Data', 'tradester_sync_bridge_ARM64.dll'),
-				join(root, 'Data', 'tradester_sync_bridge_64.dll')
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_ARM64.dll`),
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_64.dll`)
 			]);
 			expect(processCalls.exec).toHaveBeenCalledTimes(2);
 			expect(processCalls.execFile).toHaveBeenCalledTimes(2);
 			await expect(
-				readFile('tradester_sync_bridge.obj', 'utf8')
+				readFile(`${SIERRA_BRIDGE_DLL_BASE_NAME}.obj`, 'utf8')
 			).rejects.toMatchObject({
 				code: 'ENOENT'
 			});
 		} finally {
 			await rm(root, { force: true, recursive: true });
-			await rm('tradester_sync_bridge.obj', { force: true });
+			await rm(`${SIERRA_BRIDGE_DLL_BASE_NAME}.obj`, { force: true });
 		}
 	});
 
@@ -126,11 +127,11 @@ describe('buildSierraBridge', () => {
 			});
 			await mkdir(join(root, 'Data'), { recursive: true });
 			await writeFile(
-				join(root, 'Data', 'tradester_sync_bridge_ARM64.dll'),
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_ARM64.dll`),
 				'existing'
 			);
 			await writeFile(
-				join(root, 'Data', 'tradester_sync_bridge_64.dll'),
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_64.dll`),
 				'existing'
 			);
 
@@ -139,14 +140,14 @@ describe('buildSierraBridge', () => {
 					bridgeInstalledPath: join(
 						root,
 						'ACS_Source',
-						'tradester_sync_bridge.cpp'
+						SIERRA_BRIDGE_FILE_NAME
 					),
 					reloadDelayMs: 0,
 					sierraDataDir: join(root, 'Data')
 				})
 			).resolves.toEqual([
-				join(root, 'Data', 'tradester_sync_bridge_ARM64.dll'),
-				join(root, 'Data', 'tradester_sync_bridge_64.dll')
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_ARM64.dll`),
+				join(root, 'Data', `${SIERRA_BRIDGE_DLL_BASE_NAME}_64.dll`)
 			]);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -172,7 +173,7 @@ describe('buildSierraBridge', () => {
 					bridgeInstalledPath: join(
 						root,
 						'ACS_Source',
-						'tradester_sync_bridge.cpp'
+						SIERRA_BRIDGE_FILE_NAME
 					),
 					reloadDelayMs: 0,
 					sierraDataDir: join(root, 'Data')

@@ -1,13 +1,13 @@
-import type {
-	GenerationProgress,
-	GenerationResult
-} from '../contracts/types.ts';
-import { generateMarketData } from '../md-generation/generate-market-data.ts';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+
+import type { GenerationResult } from '../contracts/types.ts';
 import {
 	buildSierraBridge,
 	installSierraBridgeSource,
 	type SierraBridgeBuildInputs
 } from './bridge.ts';
+import { loadExistingGenerationResult } from './existing-generation.ts';
 import {
 	copySierraOutputsToRun,
 	resetLatestSierraOutputs,
@@ -19,21 +19,25 @@ import {
 	normalizeSierraSyncInputs,
 	type RawSierraSyncInputs
 } from './inputs.ts';
+import {
+	validateSierraOneSecondBars,
+	type SierraBarValidationResult
+} from './validation.ts';
 
 export type SierraSyncResult = {
 	generation: GenerationResult;
 	bridgeSourcePath: string;
 	bridgeInstalledPath: string;
 	bridgeDllPaths: string[];
+	sierraScidPath: string;
 	latestOutputDir: string;
 	outputDir: string;
 	exportFiles: SierraExportFiles;
 	copiedFiles: SierraExportFiles;
+	validation: SierraBarValidationResult;
 };
 
 type SierraSyncOptions = {
-	generate?: typeof generateMarketData;
-	onSessionComplete?: (progress: GenerationProgress) => void;
 	now?: () => Date;
 	buildSierraBridge?: (inputs: SierraBridgeBuildInputs) => Promise<string[]>;
 };
@@ -44,11 +48,20 @@ export async function runSierraSync(
 ): Promise<SierraSyncResult> {
 	const startedAt = Date.now();
 	const normalized = normalizeSierraSyncInputs(raw, options.now);
-	const generate = options.generate ?? generateMarketData;
-	const generation = await generate(normalized.generationInputs, {
-		onSessionComplete: options.onSessionComplete
-	});
+	const generation = await loadExistingGenerationResult(
+		normalized.generationInputs
+	);
+
 	await resetLatestSierraOutputs(normalized.latestOutputDir);
+	await mkdir(normalized.sierraDataDir, { recursive: true });
+
+	const sierraScidPath = join(
+		normalized.sierraDataDir,
+		basename(generation.files.scid)
+	);
+
+	await copyFile(generation.files.scid, sierraScidPath);
+
 	const bridgeInstalledPath = await installSierraBridgeSource({
 		acsSourceDir: normalized.acsSourceDir,
 		bridgeSourcePath: normalized.bridgeSourcePath,
@@ -62,16 +75,26 @@ export async function runSierraSync(
 			})
 		: [];
 	const exportFiles = sierraExportFiles(generation.inputs.symbol);
+
 	await waitForFreshSierraOutputs({
 		directory: normalized.latestOutputDir,
 		exportFiles,
-		startedAt
+		pollIntervalMs: normalized.exportPollIntervalMs,
+		startedAt,
+		timeoutMs: normalized.exportTimeoutMs
 	});
+
+	const validation = await validateSierraOneSecondBars({
+		generatedFilePath: generation.files.priceLevel,
+		sierraFilePath: join(normalized.latestOutputDir, exportFiles.priceLevel)
+	});
+
 	const copiedFiles = await copySierraOutputsToRun({
 		exportFiles,
 		fromDir: normalized.latestOutputDir,
 		toDir: normalized.outputDir
 	});
+
 	return {
 		bridgeDllPaths,
 		bridgeInstalledPath,
@@ -80,6 +103,8 @@ export async function runSierraSync(
 		exportFiles,
 		generation,
 		latestOutputDir: normalized.latestOutputDir,
-		outputDir: normalized.outputDir
+		outputDir: normalized.outputDir,
+		sierraScidPath,
+		validation
 	};
 }

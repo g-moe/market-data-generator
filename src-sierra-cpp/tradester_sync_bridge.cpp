@@ -1,62 +1,75 @@
 #include "sierrachart.h"
 
-#include <filesystem>
-#include <fstream>
+#include <cctype>
 #include <string>
 
 SCDLLName("Tradester Sync Bridge")
 
 namespace {
 
-const char* ExportFileNameForChartNumber(int chartNumber)
+std::string SafeFilePart(const char* value)
 {
-    switch (chartNumber)
+    std::string result;
+    for (const unsigned char character : std::string(value))
     {
-        case 1:
-            return "tradester_ES_1s_GraphData.txt";
-        case 2:
-            return "tradester_ES_15s_GraphData.txt";
-        case 3:
-            return "tradester_ES_500v_GraphData.txt";
-        case 4:
-            return "tradester_ES_5m_GraphData.txt";
-        case 5:
-            return "tradester_ES_1d_GraphData.txt";
-        default:
-            return "";
+        if (std::isalnum(character))
+            result.push_back(static_cast<char>(character));
+        else if (!result.empty() && result.back() != '_')
+            result.push_back('_');
     }
+
+    while (!result.empty() && result.back() == '_')
+        result.pop_back();
+
+    return result.empty() ? "unknown" : result;
 }
 
-std::filesystem::path ExportDirectory()
+std::string BarPeriodSuffix(SCStudyInterfaceRef sc)
 {
-    return std::filesystem::path("__TRADESTER_SIERRA_EXPORT_DIR__");
-}
+    n_ACSIL::s_BarPeriod barPeriod;
+    sc.GetBarPeriodParameters(barPeriod);
 
-void WriteChartDataExport(const std::filesystem::path& exportPath, SCStudyInterfaceRef sc)
-{
-    std::filesystem::create_directories(exportPath.parent_path());
-    std::ofstream output(exportPath, std::ios::out | std::ios::binary | std::ios::trunc);
-    if (!output.is_open())
-        return;
+    if (barPeriod.ChartDataType == DAILY_DATA)
+        return "1d";
 
-    output << "DateTime\tOpen\tHigh\tLow\tLast\tVolume\tNumberOfTrades\tBidVolume\tAskVolume\n";
-    for (int index = 0; index < sc.ArraySize; ++index)
+    if (barPeriod.ChartDataType == INTRADAY_DATA)
     {
-        SCString dateTime;
-        dateTime = sc.FormatDateTime(sc.BaseDateTimeIn[index]);
-        output << dateTime.GetChars() << '\t'
-               << sc.Open[index] << '\t'
-               << sc.High[index] << '\t'
-               << sc.Low[index] << '\t'
-               << sc.Close[index] << '\t'
-               << sc.Volume[index] << '\t'
-               << sc.NumberOfTrades[index] << '\t'
-               << sc.BidVolume[index] << '\t'
-               << sc.AskVolume[index] << '\n';
+        const int parameter = barPeriod.IntradayChartBarPeriodParameter1;
+
+        if (barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS)
+        {
+            if (parameter == 24 * 60 * 60)
+                return "1d";
+
+            if (parameter % 60 == 0)
+                return std::to_string(parameter / 60) + "m";
+
+            return std::to_string(parameter) + "s";
+        }
+
+        if (barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR)
+            return std::to_string(parameter) + "v";
     }
+
+    return "chart_" + std::to_string(sc.ChartNumber);
 }
 
-} // namespace
+SCString ExportPath(SCStudyInterfaceRef sc)
+{
+    const std::string symbol = SafeFilePart(sc.Symbol.GetChars());
+    const std::string period = BarPeriodSuffix(sc);
+
+    SCString path;
+    path.Format(
+        "__TRADESTER_SIERRA_EXPORT_DIR__\\%s_%s_GraphData.txt",
+        symbol.c_str(),
+        period.c_str()
+    );
+
+    return path;
+}
+
+}
 
 SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
 {
@@ -65,15 +78,20 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
         sc.GraphName = "Tradester Sync Bridge";
         sc.StudyDescription = "Writes fixed temporary chart data exports for Tradester validation.";
         sc.AutoLoop = 0;
-        sc.UpdateAlways = 1;
         return;
     }
 
-    const char* fileName = ExportFileNameForChartNumber(sc.ChartNumber);
-    if (fileName[0] == '\0')
+    int& hasExported = sc.GetPersistentInt(1);
+    if (sc.IsFullRecalculation && sc.UpdateStartIndex == 0)
+        hasExported = 0;
+
+    if (hasExported != 0 || sc.ArraySize == 0)
         return;
 
-    sc.FlagToReloadChartData = 1;
-    sc.FlagFullRecalculate = 1;
-    WriteChartDataExport(ExportDirectory() / fileName, sc);
+    if (sc.ChartIsDownloadingHistoricalData(sc.ChartNumber) != 0)
+        return;
+
+    SCString outputPath = ExportPath(sc);
+    sc.WriteBarAndStudyDataToFile(0, outputPath, 1, 1);
+    hasExported = 1;
 }

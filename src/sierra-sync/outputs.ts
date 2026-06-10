@@ -44,6 +44,7 @@ export function latestSierraOutputDir({
 }
 
 export async function resetLatestSierraOutputs(directory: string) {
+	await rm(directory, { force: true, recursive: true });
 	await mkdir(directory, { recursive: true });
 }
 

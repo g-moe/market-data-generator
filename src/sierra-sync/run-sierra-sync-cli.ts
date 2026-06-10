@@ -1,6 +1,5 @@
 import { SYMBOL_OPTIONS } from '../contracts/symbols.ts';
 import { createNodePorts, type CliPorts } from '../shared/cli/run-cli.ts';
-import { formatProgressMessage } from '../shared/cli/progress.ts';
 import type { RawSierraSyncInputs } from './inputs.ts';
 import { runSierraSync } from './sierra-sync.ts';
 
@@ -25,24 +24,15 @@ export async function runSierraSyncCli(
 
 	const task = ports.spinner();
 
-	task.start(`Running Sierra sync for ${symbol}...`);
-	try {
-		const result = await runSierraSync(
-			{
-				...options,
-				symbol,
-				syncRunId: syncRunId.trim()
-			},
-			{
-				onSessionComplete: (progress) => {
-					const message = formatProgressMessage(progress);
+	task.start(`Running Sierra sync for existing ${symbol} data...`);
 
-					if (message !== undefined) {
-						ports.log(message);
-					}
-				}
-			}
-		);
+	try {
+		const result = await runSierraSync({
+			...options,
+			symbol,
+			syncRunId: syncRunId.trim()
+		});
+
 		task.stop(`Wrote Sierra exports to ${result.outputDir}`);
 
 		return result;

@@ -6,7 +6,8 @@ import { promisify } from 'node:util';
 import {
 	SIERRA_BRIDGE_DLL_BASE_NAME,
 	SIERRA_BRIDGE_FILE_NAME,
-	VISUAL_STUDIO_BUILD_DIR
+	VISUAL_STUDIO_BUILD_DIR,
+	WINDOWS_POWERSHELL_EXE
 } from './constants.ts';
 
 const execAsync = promisify(exec);
@@ -132,9 +133,9 @@ function isLockedExistingDllBuildFailure(output: string) {
 async function cleanSierraBridgeBuildArtifacts() {
 	await Promise.all(
 		[
-			'tradester_sync_bridge.exp',
-			'tradester_sync_bridge.lib',
-			'tradester_sync_bridge.obj'
+			`${SIERRA_BRIDGE_DLL_BASE_NAME}.exp`,
+			`${SIERRA_BRIDGE_DLL_BASE_NAME}.lib`,
+			`${SIERRA_BRIDGE_DLL_BASE_NAME}.obj`
 		].map(async (artifact) => {
 			await rm(artifact, { force: true });
 		})
@@ -148,9 +149,13 @@ async function sendSierraMessage(message: string) {
 		'$client.Send($bytes, $bytes.Length, "127.0.0.1", 22910) | Out-Null',
 		'$client.Close()'
 	].join('; ');
-	await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
-		windowsHide: true
-	});
+	await execFileAsync(
+		WINDOWS_POWERSHELL_EXE,
+		['-NoProfile', '-Command', script],
+		{
+			windowsHide: true
+		}
+	);
 }
 
 function sleep(milliseconds: number) {

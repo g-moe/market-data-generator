@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 
+import { DEFAULT_OUTPUT_ROOT } from '../contracts/defaults.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import type { RawGeneratorInputs } from '../contracts/types.ts';
 import { normalizeInputs } from '../md-generation/inputs.ts';
 import {
-	DEFAULT_DATA_IN_ROOT,
 	DEFAULT_DATA_OUT_ROOT,
 	DEFAULT_DATA_OUT_TEMP_ROOT,
 	DEFAULT_SIERRA_INSTALL_DIR,
@@ -32,7 +32,7 @@ export function normalizeSierraSyncInputs(
 	raw: RawSierraSyncInputs,
 	now: (() => Date) | undefined
 ) {
-	const dataInRoot = raw.dataInRoot?.trim() || DEFAULT_DATA_IN_ROOT;
+	const dataInRoot = raw.dataInRoot?.trim() || DEFAULT_OUTPUT_ROOT;
 	const dataOutRoot = raw.dataOutRoot?.trim() || DEFAULT_DATA_OUT_ROOT;
 	const dataOutTempRoot =
 		raw.dataOutTempRoot?.trim() || DEFAULT_DATA_OUT_TEMP_ROOT;

@@ -75,7 +75,9 @@ describe('full ES generation', () => {
 });
 
 async function hashGeneratedFiles(directory: string) {
-	const fileNames = (await readdir(directory)).sort();
+	const fileNames = (await readdir(directory))
+		.filter((fileName) => fileName.endsWith('.csv'))
+		.sort();
 	const hashes: Record<string, string> = {};
 
 	for (const fileName of fileNames) {
