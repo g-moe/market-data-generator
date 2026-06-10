@@ -21,7 +21,6 @@ export async function createBridgeSource({
 			...(await readCsvTimeRange(files[timeframe.key]))
 		}))
 	);
-	const intradayStartTime = Math.min(...ranges.map((range) => range.startTime));
 
 	return `#include "sierrachart.h"
 #include <cstring>

@@ -5,7 +5,7 @@ import { getSymbolConfig } from '../contracts/symbols.ts';
 import {
 	DATA_IN_ROOT,
 	DATA_OUT_ROOT,
-	DATA_TEMP_ROOT,
+	DATA_OUT_TEMP_ROOT,
 	SIERRA_BRIDGE_FILE_NAME,
 	SIERRA_CHARTBOOK_FILE_NAME,
 	SIERRA_SOURCE_ROOT
@@ -43,7 +43,7 @@ export function sierraSyncPaths(symbol: Symbol): SierraSyncPaths {
 		},
 		inputDir,
 		outputDir: resolve(DATA_OUT_ROOT, config.symbolId),
-		tempDir: resolve(DATA_TEMP_ROOT, config.symbolId)
+		tempDir: resolve(DATA_OUT_TEMP_ROOT, config.symbolId)
 	};
 }
 

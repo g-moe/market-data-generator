@@ -1,10 +1,9 @@
 export const DATA_IN_ROOT = 'data-in';
 export const DATA_OUT_ROOT = 'data-out';
-export const DATA_TEMP_ROOT = 'data-temp';
+export const DATA_OUT_TEMP_ROOT = 'data-out-temp';
 export const SIERRA_SOURCE_ROOT = 'src-sierra-cpp';
 export const SIERRA_BRIDGE_FILE_NAME = 'tradester_sync_bridge.cpp';
 export const SIERRA_BRIDGE_DLL_FILE_NAME = 'tradester_sync_bridge_ARM64.dll';
-export const SIERRA_BRIDGE_PDB_FILE_NAME = 'tradester_sync_bridge_ARM64.pdb';
 export const SIERRA_CHARTBOOK_FILE_NAME = '!tradester.Cht';
 export const SIERRA_INSTALL_DIR =
 	'C:\\Trading Software\\DEV-Sierra-Chart\\Sierra Chart';
@@ -44,4 +43,6 @@ export const TIMEFRAMES = [
 	{ key: 'priceLevel', suffix: '1s_pl0.25' }
 ] as const;
 
-export type SierraTimeframe = (typeof TIMEFRAMES)[number];
+export const VALIDATED_TIMEFRAMES = TIMEFRAMES.filter(
+	(timeframe) => timeframe.suffix !== '500v'
+);

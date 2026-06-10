@@ -6,7 +6,7 @@ import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import {
 	SIERRA_EXPORT_HEADER,
 	SIERRA_TIME_ZONE,
-	TIMEFRAMES
+	VALIDATED_TIMEFRAMES
 } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
@@ -33,9 +33,7 @@ export async function mergeValidatedSierraExports({
 }) {
 	await mkdir(outputDir, { recursive: true });
 
-	for (const timeframe of TIMEFRAMES) {
-		if (timeframe.suffix === '500v') continue;
-
+	for (const timeframe of VALIDATED_TIMEFRAMES) {
 		const inputFile = inputFiles[timeframe.key];
 		await mergeValidatedSierraExport({
 			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),

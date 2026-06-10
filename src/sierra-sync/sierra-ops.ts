@@ -91,9 +91,13 @@ cl /JMC /MP /analyze- /Zc:wchar_t /Z7 /Od /GS /W3 /RTC1 /Zc:inline /D _WINDOWS /
 
 `
 	);
-	await execFileAsync('cmd.exe', ['/d', '/c', 'build_tradester_bridge.cmd'], {
-		cwd: SIERRA_ACS_SOURCE_DIR
-	});
+	try {
+		await execFileAsync('cmd.exe', ['/d', '/c', 'build_tradester_bridge.cmd'], {
+			cwd: SIERRA_ACS_SOURCE_DIR
+		});
+	} finally {
+		await rm(scriptPath, { force: true });
+	}
 }
 
 async function copyScid(sourcePath: string, targetFileName: string) {
@@ -133,6 +137,7 @@ async function waitForCopiedFile(sourcePath: string, targetPath: string) {
 
 	throw new Error(`Timed out waiting for copied SCID to settle: ${targetPath}`);
 }
+
 async function copyChartbook(sourcePath: string) {
 	await mkdir(SIERRA_DATA_DIR, { recursive: true });
 	const target = join(SIERRA_DATA_DIR, SIERRA_CHARTBOOK_FILE_NAME);

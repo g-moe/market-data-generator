@@ -7,7 +7,6 @@
 		"generate": "tsx src/run.ts",
 		"generate:without": "tsx src/run-without-cli.ts",
 		"generate:sierra": "tsx src/run-sierra-sync.ts",
-		"generate:sierra:without": "tsx src/run-sierra-sync-without-cli.ts",
 		"dev": "tsx watch src/run.ts",
 		"build": "tsc --project ./tsconfig.build.json",
 		"benchmark:generation": "node --expose-gc --import tsx scripts/benchmark-generation.ts",
