@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
-import { TIMEFRAMES } from './constants.ts';
+import {
+	SIERRA_BRIDGE_FILE_NAME,
+	SIERRA_SOURCE_ROOT,
+	TIMEFRAMES
+} from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
 export async function createBridgeSource({
@@ -15,6 +19,10 @@ export async function createBridgeSource({
 	tempDir: string;
 }) {
 	const config = getSymbolConfig(symbol);
+	const template = await readFile(
+		`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`,
+		'utf8'
+	);
 	const ranges = await Promise.all(
 		TIMEFRAMES.map(async (timeframe) => ({
 			...timeframe,
@@ -22,179 +30,32 @@ export async function createBridgeSource({
 		}))
 	);
 
-	return `#include "sierrachart.h"
-#include <cstring>
-
-SCDLLName("Tradester Sync Bridge")
-
-namespace {
-
-const char* TargetSymbol() { return "tradester_${config.symbolId}"; }
-float TargetTickSize() { return ${config.tickSize}; }
-int TargetSessionStartTime() { return SCDateTime(17, 0, 0, 0).GetTime(); }
-int TargetSessionEndTime() { return SCDateTime(16, 0, 0, 0).GetTime(); }
-SCString ExportDirectory() { SCString path; path = "${escapeCppString(tempDir)}"; return path; }
-
-int ChartExportIndex(SCStudyInterfaceRef sc)
-{
-    n_ACSIL::s_BarPeriod barPeriod;
-    sc.GetBarPeriodParameters(barPeriod);
-
-${ranges.map((range, index) => timeframeCondition(range, index)).join('\n\n')}
-
-    return -1;
-}
-
-void LogChartState(SCStudyInterfaceRef sc, int exportIndex, const char* stage)
-{
-    n_ACSIL::s_BarPeriod barPeriod;
-    sc.GetBarPeriodParameters(barPeriod);
-
-    SCString message;
-    message.Format(
-        "Tradester Sync Bridge %s | chart=%d exportIndex=%d arraySize=%d downloading=%d dataType=%d periodType=%d periodParam1=%d symbol=%s start=%d end=%d",
-        stage,
-        sc.ChartNumber,
-        exportIndex,
-        sc.ArraySize,
-        sc.ChartIsDownloadingHistoricalData(sc.ChartNumber),
-        barPeriod.ChartDataType,
-        barPeriod.IntradayChartBarPeriodType,
-        barPeriod.IntradayChartBarPeriodParameter1,
-        sc.Symbol.GetChars(),
-        sc.ChartDataStartDate,
-        sc.ChartDataEndDate
-    );
-    sc.AddMessageToLog(message, 0);
-}
-
-SCString ExportFileName(int index)
-{
-    switch (index)
-    {
-${ranges.map((range, index) => `        case ${index}: return "${sierraExportFileName(symbol, range.suffix)}";`).join('\n')}
-        default: return "unknown_GraphData.txt";
-    }
-}
-
-int DateYMD(int year, int month, int day)
-{
-    SCDateTime date;
-    date.SetDateYMD(year, month, day);
-    return date.GetDate();
-}
-
-int StartDate(int index)
-{
-    switch (index)
-    {
-${ranges.map((range, index) => `        case ${index}: return ${scDateCall(range.startTime)};`).join('\n')}
-        default: return 0;
-    }
-}
-
-int EndDate(int index)
-{
-    switch (index)
-    {
-${ranges.map((range, index) => `        case ${index}: return ${scDateCall(nextDateTime(range.endTime))};`).join('\n')}
-        default: return 0;
-    }
-}
-
-bool ChartNeedsSetup(SCStudyInterfaceRef sc, int exportIndex)
-{
-    return std::strcmp(sc.Symbol.GetChars(), TargetSymbol()) != 0 ||
-        sc.TickSize != TargetTickSize() ||
-        sc.LoadChartDataByDateRange == 0 ||
-        sc.ChartDataStartDate != StartDate(exportIndex) ||
-        sc.ChartDataEndDate != EndDate(exportIndex) ||
-        sc.StartTime1 != TargetSessionStartTime() ||
-        sc.EndTime1 != TargetSessionEndTime() ||
-        sc.UseSecondStartEndTimes != 0;
-}
-
-}
-
-SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
-{
-    if (sc.SetDefaults)
-    {
-        sc.GraphName = "Tradester Sync Bridge";
-        sc.StudyDescription = "Exports Sierra chart bars once for Tradester validation.";
-        sc.AutoLoop = 0;
-        return;
-    }
-
-    int& exportComplete = sc.GetPersistentInt(1);
-    int& lastLoggedArraySize = sc.GetPersistentInt(2);
-    const int exportIndex = ChartExportIndex(sc);
-
-    if (exportIndex < 0)
-    {
-        if (lastLoggedArraySize != -1)
-        {
-            LogChartState(sc, exportIndex, "unmatched-period");
-            lastLoggedArraySize = -1;
-        }
-        return;
-    }
-
-    if (ChartNeedsSetup(sc, exportIndex))
-    {
-        exportComplete = 0;
-        lastLoggedArraySize = -2;
-        sc.Symbol = TargetSymbol();
-        sc.TickSize = TargetTickSize();
-        sc.LoadChartDataByDateRange = 1;
-        sc.ChartDataStartDate = StartDate(exportIndex);
-        sc.ChartDataEndDate = EndDate(exportIndex);
-        sc.StartTime1 = TargetSessionStartTime();
-        sc.EndTime1 = TargetSessionEndTime();
-        sc.UseSecondStartEndTimes = 0;
-        sc.FlagToReloadChartData = 1;
-        LogChartState(sc, exportIndex, "setup-reload");
-        return;
-    }
-
-    if (exportComplete != 0)
-        return;
-
-    if (sc.ArraySize == 0)
-    {
-        if (lastLoggedArraySize != 0)
-        {
-            LogChartState(sc, exportIndex, "empty-array");
-            lastLoggedArraySize = 0;
-        }
-        return;
-    }
-
-    if (sc.ChartIsDownloadingHistoricalData(sc.ChartNumber) != 0)
-    {
-        if (lastLoggedArraySize != sc.ArraySize)
-        {
-            LogChartState(sc, exportIndex, "downloading");
-            lastLoggedArraySize = sc.ArraySize;
-        }
-        return;
-    }
-
-    SCString path = ExportDirectory();
-    path += "\\\\";
-    path += ExportFileName(exportIndex);
-    LogChartState(sc, exportIndex, "write-export");
-
-    n_ACSIL::s_WriteBarAndStudyDataToFile writeParams;
-    writeParams.StartingIndex = 0;
-    writeParams.OutputPathAndFileName = path;
-    writeParams.IncludeHiddenStudies = 1;
-    writeParams.IncludeHiddenSubgraphs = 1;
-    writeParams.IncludeLastBar = 1;
-    sc.WriteBarAndStudyDataToFileEx(writeParams);
-    exportComplete = 1;
-}
-`;
+	return replaceTemplateTokens(template, {
+		__TRADESTER_CHART_EXPORT_CASES__: ranges
+			.map((range, index) => timeframeCondition(range, index))
+			.join('\n\n'),
+		__TRADESTER_END_DATE_CASES__: ranges
+			.map(
+				(range, index) =>
+					`        case ${index}: return ${scDateCall(nextDateTime(range.endTime))};`
+			)
+			.join('\n'),
+		__TRADESTER_EXPORT_DIR__: escapeCppString(tempDir),
+		__TRADESTER_EXPORT_FILE_CASES__: ranges
+			.map(
+				(range, index) =>
+					`        case ${index}: return "${sierraExportFileName(symbol, range.suffix)}";`
+			)
+			.join('\n'),
+		__TRADESTER_START_DATE_CASES__: ranges
+			.map(
+				(range, index) =>
+					`        case ${index}: return ${scDateCall(range.startTime)};`
+			)
+			.join('\n'),
+		__TRADESTER_TARGET_SYMBOL__: `tradester_${config.symbolId}`,
+		__TRADESTER_TICK_SIZE__: config.tickSize.toString()
+	});
 }
 
 async function readCsvTimeRange(filePath: string) {
@@ -215,9 +76,24 @@ async function readCsvTimeRange(filePath: string) {
 	};
 }
 
+function replaceTemplateTokens(
+	template: string,
+	replacements: Record<string, string>
+) {
+	let source = template;
+
+	for (const [token, replacement] of Object.entries(replacements)) {
+		source = source.replaceAll(token, replacement);
+	}
+
+	const missingToken = source.match(/__TRADESTER_[A-Z_]+__/u)?.[0];
+	if (missingToken !== undefined)
+		throw new Error(`Missing Sierra bridge token replacement: ${missingToken}`);
+
+	return source;
+}
+
 function timeframeCondition(timeframe: { suffix: string }, index: number) {
-	if (timeframe.suffix === '1d')
-		return `    if (sc.ChartNumber == 5 || barPeriod.ChartDataType == DAILY_DATA || (barPeriod.HistoricalChartBarPeriodType == HISTORICAL_CHART_PERIOD_DAYS && barPeriod.HistoricalChartDaysPerBar == 1)) return ${index};`;
 	if (timeframe.suffix.endsWith('v'))
 		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
 
@@ -244,5 +120,5 @@ function scDateCall(time: number) {
 }
 
 function escapeCppString(value: string) {
-	return value.replaceAll('\\', '\\\\');
+	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }

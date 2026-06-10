@@ -1,72 +1,93 @@
 #include "sierrachart.h"
-
-#include <cctype>
-#include <string>
+#include <cstring>
 
 SCDLLName("Tradester Sync Bridge")
 
 namespace {
 
-std::string SafeFilePart(const char* value)
-{
-    std::string result;
-    for (const unsigned char character : std::string(value))
-    {
-        if (std::isalnum(character))
-            result.push_back(static_cast<char>(character));
-        else if (!result.empty() && result.back() != '_')
-            result.push_back('_');
-    }
+const char* TargetSymbol() { return "__TRADESTER_TARGET_SYMBOL__"; }
+float TargetTickSize() { return __TRADESTER_TICK_SIZE__; }
+int TargetSessionStartTime() { return SCDateTime(17, 0, 0, 0).GetTime(); }
+int TargetSessionEndTime() { return SCDateTime(16, 0, 0, 0).GetTime(); }
+SCString ExportDirectory() { SCString path; path = "__TRADESTER_EXPORT_DIR__"; return path; }
 
-    while (!result.empty() && result.back() == '_')
-        result.pop_back();
-
-    return result.empty() ? "unknown" : result;
-}
-
-std::string BarPeriodSuffix(SCStudyInterfaceRef sc)
+int ChartExportIndex(SCStudyInterfaceRef sc)
 {
     n_ACSIL::s_BarPeriod barPeriod;
     sc.GetBarPeriodParameters(barPeriod);
 
-    if (barPeriod.ChartDataType == DAILY_DATA)
-        return "1d";
+__TRADESTER_CHART_EXPORT_CASES__
 
-    if (barPeriod.ChartDataType == INTRADAY_DATA)
-    {
-        const int parameter = barPeriod.IntradayChartBarPeriodParameter1;
-
-        if (barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS)
-        {
-            if (parameter == 24 * 60 * 60)
-                return "1d";
-
-            if (parameter % 60 == 0)
-                return std::to_string(parameter / 60) + "m";
-
-            return std::to_string(parameter) + "s";
-        }
-
-        if (barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR)
-            return std::to_string(parameter) + "v";
-    }
-
-    return "chart_" + std::to_string(sc.ChartNumber);
+    return -1;
 }
 
-SCString ExportPath(SCStudyInterfaceRef sc)
+void LogChartState(SCStudyInterfaceRef sc, int exportIndex, const char* stage)
 {
-    const std::string symbol = SafeFilePart(sc.Symbol.GetChars());
-    const std::string period = BarPeriodSuffix(sc);
+    n_ACSIL::s_BarPeriod barPeriod;
+    sc.GetBarPeriodParameters(barPeriod);
 
-    SCString path;
-    path.Format(
-        "__TRADESTER_SIERRA_EXPORT_DIR__\\%s_%s_GraphData.txt",
-        symbol.c_str(),
-        period.c_str()
+    SCString message;
+    message.Format(
+        "Tradester Sync Bridge %s | chart=%d exportIndex=%d arraySize=%d downloading=%d dataType=%d periodType=%d periodParam1=%d symbol=%s start=%d end=%d",
+        stage,
+        sc.ChartNumber,
+        exportIndex,
+        sc.ArraySize,
+        sc.ChartIsDownloadingHistoricalData(sc.ChartNumber),
+        barPeriod.ChartDataType,
+        barPeriod.IntradayChartBarPeriodType,
+        barPeriod.IntradayChartBarPeriodParameter1,
+        sc.Symbol.GetChars(),
+        sc.ChartDataStartDate,
+        sc.ChartDataEndDate
     );
+    sc.AddMessageToLog(message, 0);
+}
 
-    return path;
+SCString ExportFileName(int index)
+{
+    switch (index)
+    {
+__TRADESTER_EXPORT_FILE_CASES__
+        default: return "unknown_GraphData.txt";
+    }
+}
+
+int DateYMD(int year, int month, int day)
+{
+    SCDateTime date;
+    date.SetDateYMD(year, month, day);
+    return date.GetDate();
+}
+
+int StartDate(int index)
+{
+    switch (index)
+    {
+__TRADESTER_START_DATE_CASES__
+        default: return 0;
+    }
+}
+
+int EndDate(int index)
+{
+    switch (index)
+    {
+__TRADESTER_END_DATE_CASES__
+        default: return 0;
+    }
+}
+
+bool ChartNeedsSetup(SCStudyInterfaceRef sc, int exportIndex)
+{
+    return std::strcmp(sc.Symbol.GetChars(), TargetSymbol()) != 0 ||
+        sc.TickSize != TargetTickSize() ||
+        sc.LoadChartDataByDateRange == 0 ||
+        sc.ChartDataStartDate != StartDate(exportIndex) ||
+        sc.ChartDataEndDate != EndDate(exportIndex) ||
+        sc.StartTime1 != TargetSessionStartTime() ||
+        sc.EndTime1 != TargetSessionEndTime() ||
+        sc.UseSecondStartEndTimes != 0;
 }
 
 }
@@ -76,22 +97,76 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
     if (sc.SetDefaults)
     {
         sc.GraphName = "Tradester Sync Bridge";
-        sc.StudyDescription = "Writes fixed temporary chart data exports for Tradester validation.";
+        sc.StudyDescription = "Exports Sierra chart bars once for Tradester validation.";
         sc.AutoLoop = 0;
         return;
     }
 
-    int& hasExported = sc.GetPersistentInt(1);
-    if (sc.IsFullRecalculation && sc.UpdateStartIndex == 0)
-        hasExported = 0;
+    int& exportComplete = sc.GetPersistentInt(1);
+    int& lastLoggedArraySize = sc.GetPersistentInt(2);
+    const int exportIndex = ChartExportIndex(sc);
 
-    if (hasExported != 0 || sc.ArraySize == 0)
+    if (exportIndex < 0)
+    {
+        if (lastLoggedArraySize != -1)
+        {
+            LogChartState(sc, exportIndex, "unmatched-period");
+            lastLoggedArraySize = -1;
+        }
         return;
+    }
+
+    if (ChartNeedsSetup(sc, exportIndex))
+    {
+        exportComplete = 0;
+        lastLoggedArraySize = -2;
+        sc.Symbol = TargetSymbol();
+        sc.TickSize = TargetTickSize();
+        sc.LoadChartDataByDateRange = 1;
+        sc.ChartDataStartDate = StartDate(exportIndex);
+        sc.ChartDataEndDate = EndDate(exportIndex);
+        sc.StartTime1 = TargetSessionStartTime();
+        sc.EndTime1 = TargetSessionEndTime();
+        sc.UseSecondStartEndTimes = 0;
+        sc.FlagToReloadChartData = 1;
+        LogChartState(sc, exportIndex, "setup-reload");
+        return;
+    }
+
+    if (exportComplete != 0)
+        return;
+
+    if (sc.ArraySize == 0)
+    {
+        if (lastLoggedArraySize != 0)
+        {
+            LogChartState(sc, exportIndex, "empty-array");
+            lastLoggedArraySize = 0;
+        }
+        return;
+    }
 
     if (sc.ChartIsDownloadingHistoricalData(sc.ChartNumber) != 0)
+    {
+        if (lastLoggedArraySize != sc.ArraySize)
+        {
+            LogChartState(sc, exportIndex, "downloading");
+            lastLoggedArraySize = sc.ArraySize;
+        }
         return;
+    }
 
-    SCString outputPath = ExportPath(sc);
-    sc.WriteBarAndStudyDataToFile(0, outputPath, 1, 1);
-    hasExported = 1;
+    SCString path = ExportDirectory();
+    path += "\\";
+    path += ExportFileName(exportIndex);
+    LogChartState(sc, exportIndex, "write-export");
+
+    n_ACSIL::s_WriteBarAndStudyDataToFile writeParams;
+    writeParams.StartingIndex = 0;
+    writeParams.OutputPathAndFileName = path;
+    writeParams.IncludeHiddenStudies = 1;
+    writeParams.IncludeHiddenSubgraphs = 1;
+    writeParams.IncludeLastBar = 1;
+    sc.WriteBarAndStudyDataToFileEx(writeParams);
+    exportComplete = 1;
 }

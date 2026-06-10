@@ -1,6 +1,5 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
-	"ignore": ["src/sierra-sync-old/**"],
 	"entry": [
 		"src/shared/cli/run-cli.ts",
 		"src/shared/cli/generation-worker.ts",
