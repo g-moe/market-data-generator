@@ -33,11 +33,7 @@ export type SierraOps = {
 	copyScid: (sourcePath: string, targetFileName: string) => Promise<string>;
 	copyChartbook: (sourcePath: string) => Promise<string>;
 	openSierra: () => Promise<void>;
-	waitForFiles: (
-		directory: string,
-		fileNames: readonly string[],
-		waitTimeout: number
-	) => Promise<void>;
+	waitForFiles: (directory: string, fileNames: readonly string[]) => Promise<void>;
 };
 
 export function createNodeSierraOps(): SierraOps {
