@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
 
+import { TIMEFRAME_DEFINITIONS } from '../../../contracts/timeframes.ts';
 import { generateMarketData } from '../../../md-generation/generate-market-data.ts';
 import { normalizeInputs } from '../../../md-generation/inputs.ts';
+import { countGeneratedTickTimeBuckets } from '../../../md-generation/ticks.ts';
 
 const REQUESTED_DAILY_SESSIONS = 20_000;
 const GENERATED_TICK_SESSIONS = 14_721; // this is not 20k because session before Unix epoch are padded
@@ -30,23 +32,24 @@ describe('md-generation e2e', () => {
 				symbol
 			})
 		);
+		const priceLevelRowsPerSession = countGeneratedTickTimeBuckets(
+			TICKS_PER_GENERATED_SESSION,
+			TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+		);
+		const retainedPriceLevelRows = RETAINED_PRICE_LEVEL_SESSIONS * priceLevelRowsPerSession;
 
 		expect(first.inputs.sessionCount).toBe(REQUESTED_DAILY_SESSIONS);
 		expect(first.inputs.ticksPerSession).toBe(TICKS_PER_GENERATED_SESSION);
 		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION);
 		expect(first.counts.daily).toBe(REQUESTED_DAILY_SESSIONS);
-		expect(first.counts.priceLevel).toBe(
-			RETAINED_PRICE_LEVEL_SESSIONS * TICKS_PER_GENERATED_SESSION
-		);
+		expect(first.counts.priceLevel).toBe(retainedPriceLevelRows);
 		expect(first.counts.seconds15).toBe(RETAINED_RING_BARS);
 		expect(first.counts.minutes5).toBe(RETAINED_RING_BARS);
 		expect(first.counts.range10).toBe(RETAINED_RING_BARS);
 		expect(first.counts.tick100).toBe(RETAINED_RING_BARS);
 		expect(first.counts.volume500).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.daily)).toBe(REQUESTED_DAILY_SESSIONS);
-		expect(await countRows(first.files.priceLevel)).toBe(
-			RETAINED_PRICE_LEVEL_SESSIONS * TICKS_PER_GENERATED_SESSION
-		);
+		expect(await countRows(first.files.priceLevel)).toBe(retainedPriceLevelRows);
 		expect(await countRows(first.files.seconds15)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.minutes5)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.range10)).toBe(RETAINED_RING_BARS);
