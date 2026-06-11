@@ -29,18 +29,14 @@ import {
 	TickAggregator,
 	VolumeAggregator
 } from './candles.ts';
-import {
-	getPreviousSessionStart,
-	SESSION_DURATION_MS,
-	getSessionEnd,
-	getSessionStart,
-	isTradingSessionStart
-} from './market-time.ts';
+import { getPreviousSessionStart, getSessionStart, isTradingSessionStart } from './market-time.ts';
 import { RingBuffer } from './ring-buffer.ts';
 import {
+	countGeneratedTickTimeBuckets,
 	deriveSessionSeed,
 	getFirstSessionTickPrice,
 	getSessionOpenPrice,
+	getSessionTickTime,
 	RANDOM_INCREMENT,
 	RANDOM_MULTIPLIER,
 	RANDOM_UNIT
@@ -348,9 +344,7 @@ function generateSessionTicksIntoOutputs(
 	priceLevelAggregator: PriceLevelAggregator,
 	emitted: CandleEmissions
 ) {
-	const sessionEnd = getSessionEnd(sessionStart);
 	const ticksPerSession = inputs.ticksPerSession;
-	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
 	const openVolatilityEnd = ticksPerSession * 0.1;
 	const closingVolatilityStart = ticksPerSession * 0.85;
 	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
@@ -360,7 +354,7 @@ function generateSessionTicksIntoOutputs(
 
 	for (let index = 0; index < ticksPerSession; index++) {
 		// Time and volatility schedule.
-		const time = Math.floor(sessionStart + index * timeStep);
+		const time = getSessionTickTime(sessionStart, ticksPerSession, index);
 		const volatility = index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 
 		// Advance price.
@@ -615,22 +609,7 @@ function getRingRetainedSessionStart(sessionCount: number, barsPerSession: numbe
 }
 
 function countSessionBuckets(ticksPerSession: number, bucketMs: number) {
-	const timeStep = (SESSION_DURATION_MS - 1) / ticksPerSession;
-	let count = 0;
-	let previousBucket: number | undefined;
-
-	// Count buckets from generated tick timestamps instead of assuming perfect divisibility.
-	for (let index = 0; index < ticksPerSession; index++) {
-		const time = Math.floor(index * timeStep);
-		const bucket = Math.floor(time / bucketMs) * bucketMs;
-
-		if (bucket !== previousBucket) {
-			count++;
-			previousBucket = bucket;
-		}
-	}
-
-	return count;
+	return countGeneratedTickTimeBuckets(ticksPerSession, bucketMs);
 }
 
 function createZeroDailyCandle(sequence: number): MdCandle {

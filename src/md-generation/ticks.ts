@@ -2,12 +2,13 @@ import { createHash } from 'node:crypto';
 
 import type { SymbolConfig } from '../contracts/symbols.ts';
 import type { GeneratorInputs, MarketTick } from '../contracts/types.ts';
-import { getSessionEnd } from './market-time.ts';
+import { SESSION_DURATION_MS } from './market-time.ts';
 import { roundToTick } from './price.ts';
 import { createRandom, randomSigned } from './random.ts';
 
 export const RANDOM_MULTIPLIER = 1_664_525;
 export const RANDOM_INCREMENT = 1_013_904_223;
+export const TARGET_TICKS_PER_ACTIVE_SECOND = 8;
 const RANDOM_DIVISOR = 0x1_0000_0000;
 export const RANDOM_UNIT = 1 / RANDOM_DIVISOR;
 
@@ -51,9 +52,7 @@ function generateSessionTickValuesForStart(
 	sessionStartPrice: number,
 	onTick: OnTickValues
 ) {
-	const sessionEnd = getSessionEnd(sessionStart);
 	const ticksPerSession = inputs.ticksPerSession;
-	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
 	const openVolatilityEnd = ticksPerSession * 0.1;
 	const closingVolatilityStart = ticksPerSession * 0.85;
 	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
@@ -61,7 +60,7 @@ function generateSessionTickValuesForStart(
 	const toPrice = (ticks: number) => ticks * symbolConfig.tickSize;
 
 	for (let index = 0; index < ticksPerSession; index++) {
-		const time = Math.floor(sessionStart + index * timeStep);
+		const time = getSessionTickTime(sessionStart, ticksPerSession, index);
 		const volatility = index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
@@ -90,6 +89,42 @@ function generateSessionTickValuesForStart(
 	}
 
 	return toPrice(priceTicks);
+}
+
+export function getSessionTickTime(sessionStart: number, ticksPerSession: number, index: number) {
+	const ticksPerActiveSecond = getTicksPerActiveSecond(ticksPerSession);
+	const activeSecondIndex = Math.floor(index / ticksPerActiveSecond);
+	const tickIndexInSecond = index % ticksPerActiveSecond;
+	const activeSecondCount = Math.ceil(ticksPerSession / ticksPerActiveSecond);
+	const sessionSeconds = Math.max(1, Math.floor(SESSION_DURATION_MS / 1000));
+	const maxSecondOffset = sessionSeconds - 1;
+	const secondOffset =
+		activeSecondCount <= 1
+			? 0
+			: Math.floor((activeSecondIndex * maxSecondOffset) / (activeSecondCount - 1));
+	const offsetWithinSecond = Math.floor((tickIndexInSecond * 1000) / ticksPerActiveSecond);
+
+	return Math.min(
+		sessionStart + SESSION_DURATION_MS - 1,
+		sessionStart + secondOffset * 1000 + offsetWithinSecond
+	);
+}
+
+export function countGeneratedTickTimeBuckets(ticksPerSession: number, bucketMs: number) {
+	let count = 0;
+	let previousBucket: number | undefined;
+
+	for (let index = 0; index < ticksPerSession; index++) {
+		const time = getSessionTickTime(0, ticksPerSession, index);
+		const bucket = Math.floor(time / bucketMs) * bucketMs;
+
+		if (bucket === previousBucket) continue;
+
+		count++;
+		previousBucket = bucket;
+	}
+
+	return count;
 }
 
 export function deriveSessionSeed(baseSeed: number, symbolId: string, sessionIndex: number) {
@@ -132,4 +167,10 @@ export function getFirstSessionTickPrice(
 
 function getSessionGapTicks(sessionIndex: number) {
 	return 1 + Math.floor(Math.log2(sessionIndex + 1));
+}
+
+function getTicksPerActiveSecond(ticksPerSession: number) {
+	const sessionSeconds = Math.max(1, Math.floor(SESSION_DURATION_MS / 1000));
+
+	return Math.max(TARGET_TICKS_PER_ACTIVE_SECOND, Math.ceil(ticksPerSession / sessionSeconds));
 }
