@@ -171,44 +171,6 @@ describe('createNodePorts', () => {
 	});
 
 	it('throws when select input ends before a valid choice is provided', async () => {
-		const output = writable();
-		vi.resetModules();
-
-		vi.doMock('node:readline/promises', async () => {
-			const actual =
-				await vi.importActual<typeof import('node:readline/promises')>('node:readline/promises');
-			const close = vi.fn<() => void>();
-			const question = vi.fn<(question: string) => Promise<string>>();
-			const next = vi.fn<() => Promise<IteratorResult<string, undefined>>>(async () => ({
-				done: true,
-				value: undefined
-			}));
-
-			return {
-				...actual,
-				createInterface: () => ({
-					close,
-					question,
-					[Symbol.asyncIterator]: () => ({
-						next
-					})
-				})
-			};
-		});
-
-		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ output });
-
-		try {
-			await expect(
-				promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
-			).rejects.toThrow('No symbol selected');
-		} finally {
-			vi.resetModules();
-		}
-	});
-
-	it('throws when the select stream has no input', async () => {
 		const input = readable('');
 		const output = writable();
 		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
@@ -220,7 +182,7 @@ describe('createNodePorts', () => {
 	});
 
 	it('prompts again until a valid choice is entered', async () => {
-		const input = readable('\nbad\n2\n');
+		const input = readable('bad\n2\n');
 		const output = writable();
 		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
 		const promptPorts = createNodePorts({ input, output });

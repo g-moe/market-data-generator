@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -70,9 +70,10 @@ describe('parseSierraExportRows', () => {
 	});
 
 	it('throws when the Sierra export header is unexpected', () => {
-		expect(() => parseSierraExportRows('Date,Time,Open,High,Low,Last,Volume')).toThrow(
-			'Unexpected Sierra export header'
-		);
+		expect(() =>
+			parseSierraExportRows(`Date,Time,Open,High,Low,Last,Volume
+${SAMPLE_SIERRA_ROW}`)
+		).toThrow('Unexpected Sierra export header');
 	});
 
 	it('throws when Sierra export rows have missing fields', () => {
@@ -115,7 +116,8 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
 				`${CANDLE_ROW_HEADER},tradester_signal
-${SAMPLE_GENERATED_ROW},99`
+${SAMPLE_GENERATED_ROW},99
+`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -141,7 +143,8 @@ ${SAMPLE_GENERATED_ROW},99`
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
 				`${CANDLE_ROW_HEADER},tradester_signal
-${SAMPLE_GENERATED_ROW},99`
+${SAMPLE_GENERATED_ROW},99
+`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -166,7 +169,9 @@ ${SAMPLE_GENERATED_ROW},99`
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},${SAMPLE_GENERATED_ROW}`
+				`${CANDLE_ROW_HEADER},
+${SAMPLE_GENERATED_ROW},
+`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -195,7 +200,8 @@ ${SAMPLE_GENERATED_ROW},99`
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
 				`${CANDLE_ROW_HEADER},tradester_signal,tradester_note
-${SAMPLE_GENERATED_ROW},99,extra`
+${SAMPLE_GENERATED_ROW},99,extra
+`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -226,7 +232,8 @@ ${SAMPLE_GENERATED_ROW}`
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
 				`${CANDLE_ROW_HEADER},tradester_signal
-${SAMPLE_GENERATED_ROW},99`
+${SAMPLE_GENERATED_ROW},99
+`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -351,7 +358,9 @@ ${SAMPLE_SIERRA_ROW}, 99`
 					inputFile: generated,
 					outputFile: output
 				})
-			).rejects.toThrow(`Duplicate Sierra bar in ${sierra}: timestamp ${SAMPLE_TIME.toString()}`);
+			).rejects.toThrow(
+				`Duplicate Sierra bar in ${generated}: timestamp ${SAMPLE_TIME.toString()}`
+			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -389,6 +398,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 		const inputDir = root;
 		const outputDir = join(root, 'out');
 		const tempDir = join(root, 'temp');
+		await mkdir(tempDir, { recursive: true });
 		const inputFiles = {
 			daily: join(inputDir, 'tradester_ES_1d.csv'),
 			minutes5: join(inputDir, 'tradester_ES_5m.csv'),

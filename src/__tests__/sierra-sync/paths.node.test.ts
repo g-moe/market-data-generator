@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -16,18 +16,18 @@ describe('sierraSyncPaths', () => {
 		const paths = sierraSyncPaths('/ES:XCME');
 
 		expect(paths).toMatchObject({
-			bridgeSourcePath: join(SIERRA_SOURCE_ROOT, SIERRA_BRIDGE_FILE_NAME),
+			bridgeSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_BRIDGE_FILE_NAME),
 			chartbookScidFileName: 'tradester_ES.scid',
-			chartbookSourcePath: join(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
-			inputDir: join(DATA_IN_ROOT, 'ES'),
-			outputDir: join(DATA_OUT_ROOT, 'ES'),
-			tempDir: join(DATA_OUT_TEMP_ROOT, 'ES')
+			chartbookSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
+			inputDir: resolve(DATA_IN_ROOT, 'ES'),
+			outputDir: resolve(DATA_OUT_ROOT, 'ES'),
+			tempDir: resolve(DATA_OUT_TEMP_ROOT, 'ES')
 		});
-		expect(paths.files.daily).toBe(join(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.csv'));
-		expect(paths.files.priceLevel).toBe(join(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
-		expect(paths.files.minutes5).toBe(join(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
-		expect(paths.files.seconds15).toBe(join(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));
-		expect(paths.files.volume500).toBe(join(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'));
+		expect(paths.files.daily).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.csv'));
+		expect(paths.files.priceLevel).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
+		expect(paths.files.minutes5).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
+		expect(paths.files.seconds15).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));
+		expect(paths.files.volume500).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'));
 	});
 
 	it('builds Sierra bridge export names by suffix', () => {

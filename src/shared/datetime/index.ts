@@ -11,15 +11,7 @@ const MILLISECONDS_PER_SECOND = 1000;
 const MILLISECONDS_PER_MINUTE = 60 * MILLISECONDS_PER_SECOND;
 export const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
 const UTC_TIME_ZONE = 'UTC';
-const WEEKDAY_ABBREVIATIONS = [
-	'Sun',
-	'Mon',
-	'Tue',
-	'Wed',
-	'Thu',
-	'Fri',
-	'Sat'
-] as const;
+const WEEKDAY_ABBREVIATIONS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export type UtcDateParts = {
 	year: number;
@@ -48,10 +40,7 @@ export function toIsoString(unixMs: number) {
 }
 
 export function toUtcParts(unixMs: number): UtcDateParts {
-	const zdt =
-		TemporalLib.Instant.fromEpochMilliseconds(unixMs).toZonedDateTimeISO(
-			UTC_TIME_ZONE
-		);
+	const zdt = TemporalLib.Instant.fromEpochMilliseconds(unixMs).toZonedDateTimeISO(UTC_TIME_ZONE);
 
 	return {
 		date: `${zdt.year}-${pad2(zdt.month)}-${pad2(zdt.day)}`,
@@ -92,12 +81,7 @@ export function utcDateTimeToUnixMs(
 	return Number(zdt.epochMilliseconds);
 }
 
-export function addUtcCalendarDays(
-	year: number,
-	month: number,
-	day: number,
-	days: number
-) {
+export function addUtcCalendarDays(year: number, month: number, day: number, days: number) {
 	const date = TemporalLib.PlainDate.from({ day, month, year }).add({ days });
 
 	return {

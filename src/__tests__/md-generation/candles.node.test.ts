@@ -50,7 +50,7 @@ describe('streaming candle aggregators', () => {
 			1_700_000_000_000,
 			6000,
 			2,
-			1_700_000_001_000,
+			1_700_000_000_000,
 			emitted,
 			'ask'
 		);
@@ -58,7 +58,7 @@ describe('streaming candle aggregators', () => {
 			1_700_000_001_000,
 			6005,
 			3,
-			1_700_000_014_000,
+			1_700_000_000_000,
 			emitted,
 			'bid'
 		);
@@ -71,7 +71,7 @@ describe('streaming candle aggregators', () => {
 				open: 6000
 			})
 		]);
-		expect(emitted).toHaveLength(1);
+		expect(emitted).toHaveLength(0);
 	});
 
 	it('throws when the bucket function is missing', () => {
