@@ -34,7 +34,7 @@ Swap when review type is specialized. Always keep four; never merge two into one
 
 1. **Algorithmic Complexity** — hot paths, N+1, data-size growth.
 2. **IO & Network** — round trips, fan-out, caching, payload size.
-3. **Rendering & Client** — reactivity cost, hydration, bundle size. *(Swap for **Concurrency & Scheduling** — worker pools, task ordering, backpressure — when the target is server-only.)*
+3. **Rendering & Client** — reactivity cost, hydration, bundle size. _(Swap for **Concurrency & Scheduling** — worker pools, task ordering, backpressure — when the target is server-only.)_
 4. **Measurement Gaps** — missing traces, missing metrics, missing load signals.
 
 ### Migration / schema review
@@ -166,12 +166,12 @@ Example: Convex migration + support app UI + new env keys →
 
 This table is canonical. `SKILL.md § Right-size the swarm` links here.
 
-| Size | Trigger | Swarm shape | Notes |
-| ---- | ------- | ----------- | ----- |
-| **Tiny** | <50 LoC diff, single function, ≤200-line skill or doc file | 2 parents × 2 children, or single-agent review | Skip two-pass grounding for purely readability findings; keep rubric and file:line discipline. |
-| **Medium** | one route, one component, one module, one schema slice, or ~50–500 LoC diff | default 4 × 4 | The common case. |
-| **Large** | >500 LoC diff, cross-package refactor, multi-feature PR, whole-subsystem review, or >~15 distinct files | 4 × 4 with broader parent swaths | If one lens returns noise that can't merge cleanly, run a second pass scoped to that lens only. |
-| **Very large** | >~1500 LoC diff or >3 package boundaries | sequential passes chunked by package or critical-dep edge | Budget the remainder as an explicit backlog; do not try to one-shot. |
+| Size           | Trigger                                                                                                 | Swarm shape                                               | Notes                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Tiny**       | <50 LoC diff, single function, ≤200-line skill or doc file                                              | 2 parents × 2 children, or single-agent review            | Skip two-pass grounding for purely readability findings; keep rubric and file:line discipline.  |
+| **Medium**     | one route, one component, one module, one schema slice, or ~50–500 LoC diff                             | default 4 × 4                                             | The common case.                                                                                |
+| **Large**      | >500 LoC diff, cross-package refactor, multi-feature PR, whole-subsystem review, or >~15 distinct files | 4 × 4 with broader parent swaths                          | If one lens returns noise that can't merge cleanly, run a second pass scoped to that lens only. |
+| **Very large** | >~1500 LoC diff or >3 package boundaries                                                                | sequential passes chunked by package or critical-dep edge | Budget the remainder as an explicit backlog; do not try to one-shot.                            |
 
 Size class is named in Step 1 (see `SKILL.md`), not inferred after spawn.
 

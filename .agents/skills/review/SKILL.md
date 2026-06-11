@@ -32,13 +32,13 @@ Multi-agent review. Spawns parallel read-only subagents with non-overlapping len
 
 ## References
 
-| Link | Use when |
-| ---- | -------- |
-| [references/lenses.md](./references/lenses.md) | Picking parent lenses and planning novel child angles by review type |
-| [references/grounding.md](./references/grounding.md) | Deriving a target rubric, running draft-then-ground children, and self-verification |
-| [references/prompts.md](./references/prompts.md) | Writing subagent prompts for children, parents, and final synthesis |
-| [references/report-format.md](./references/report-format.md) | Shaping child reports, parent summaries, and the final executive review |
-| [../coding/SKILL.md](../coding/SKILL.md) | Checking repo coding conventions during code reviews |
+| Link                                                         | Use when                                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [references/lenses.md](./references/lenses.md)               | Picking parent lenses and planning novel child angles by review type                |
+| [references/grounding.md](./references/grounding.md)         | Deriving a target rubric, running draft-then-ground children, and self-verification |
+| [references/prompts.md](./references/prompts.md)             | Writing subagent prompts for children, parents, and final synthesis                 |
+| [references/report-format.md](./references/report-format.md) | Shaping child reports, parent summaries, and the final executive review             |
+| [../coding/SKILL.md](../coding/SKILL.md)                     | Checking repo coding conventions during code reviews                                |
 
 ## Process
 
@@ -60,7 +60,7 @@ Name what "good" looks like for THIS artifact, not "good code in general". Follo
 
 Produce 8–16 short, verifiable yes/no items. When the target exposes fewer than eight distinct surfaces, widen scope to callers/tests or collapse to 4–7 items and record why (do not pad).
 
-Partition `R1…Rn` across the four parents. Within each parent, assign 2–3 items per child. Rubric-item overlap *across parents* is expected (e.g. R11 may be touched by risk and practicality); overlap *between children of the same parent* is a planning defect. Findings cite the rubric item they fail.
+Partition `R1…Rn` across the four parents. Within each parent, assign 2–3 items per child. Rubric-item overlap _across parents_ is expected (e.g. R11 may be touched by risk and practicality); overlap _between children of the same parent_ is a planning defect. Findings cite the rubric item they fail.
 
 ### Step 3: Pick parent lenses (Main)
 
@@ -75,7 +75,7 @@ Swap lenses when review type changes. See the full menu — security, performanc
 
 ### Step 4: Plan child angles (Main)
 
-For each parent, pre-assign four **orthogonal** child angles. Angles slice by *failure class*, *data flow*, or *subsystem* — not by "files 1–5, files 6–10". Overlap between children means the plan failed.
+For each parent, pre-assign four **orthogonal** child angles. Angles slice by _failure class_, _data flow_, or _subsystem_ — not by "files 1–5, files 6–10". Overlap between children means the plan failed.
 
 Write down, before spawning:
 
@@ -219,7 +219,7 @@ Key-points:
 Why this is good:
 
 - Directly fights the "shallow, formulaic" failure mode of LLM reviewers.
-- Evidence accumulates *before* commitment, so confidence labels stay honest.
+- Evidence accumulates _before_ commitment, so confidence labels stay honest.
 - Catches convention drift that pure diff-reading misses.
 
 ## Anti-patterns

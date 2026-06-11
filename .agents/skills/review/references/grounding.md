@@ -28,7 +28,7 @@ A rubric names what "good" looks like for THIS target. 8–16 short, verifiable 
 ### Sizing
 
 - Target 8–16 items for medium targets.
-- If the target exposes fewer than eight distinct surfaces (small component, short migration, skill file), widen scope to direct callers and tests. If the widened scope still yields fewer than eight, collapse to 4–7 items and record *why* in the rubric header. Do not pad.
+- If the target exposes fewer than eight distinct surfaces (small component, short migration, skill file), widen scope to direct callers and tests. If the widened scope still yields fewer than eight, collapse to 4–7 items and record _why_ in the rubric header. Do not pad.
 - If the target exposes more than 16 surfaces cleanly, split into two swarms or raise to ~20 items with a sibling pointer to the partition map.
 
 ### Each rubric item

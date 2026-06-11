@@ -7,19 +7,19 @@ Each stage synthesizes the previous, never concatenates.
 
 Field names stay consistent across stages. When a stage summarizes, it keeps the same name, not a rename.
 
-| Child report | Parent summary | Final executive review |
-| ------------ | -------------- | ---------------------- |
-| Location | Location | `path:line` in finding heading |
-| Reasoning | Reasoning | Why |
-| Evidence | Grounding | (elided; Why carries the gist) |
-| Grounding check | Grounding | (elided; Why carries the gist) |
-| Confidence | Confidence | Confidence |
-| Severity (heading) | Severity (heading) | Severity (heading) |
-| Rubric item (`[Rn]`) | Rubric item | Rubric item |
-| — | **Verified** (required on CRITICAL / HIGH) | **Verified** (required on Must-fix) |
-| Suggested action | Suggested action | Action |
+| Child report         | Parent summary                             | Final executive review              |
+| -------------------- | ------------------------------------------ | ----------------------------------- |
+| Location             | Location                                   | `path:line` in finding heading      |
+| Reasoning            | Reasoning                                  | Why                                 |
+| Evidence             | Grounding                                  | (elided; Why carries the gist)      |
+| Grounding check      | Grounding                                  | (elided; Why carries the gist)      |
+| Confidence           | Confidence                                 | Confidence                          |
+| Severity (heading)   | Severity (heading)                         | Severity (heading)                  |
+| Rubric item (`[Rn]`) | Rubric item                                | Rubric item                         |
+| —                    | **Verified** (required on CRITICAL / HIGH) | **Verified** (required on Must-fix) |
+| Suggested action     | Suggested action                           | Action                              |
 
-A compliance check that *passes* lives only in the rubric check-list at the final stage. It never becomes a severity-labelled finding.
+A compliance check that _passes_ lives only in the rubric check-list at the final stage. It never becomes a severity-labelled finding.
 
 ## Severity and confidence vocabulary
 
@@ -51,6 +51,7 @@ Every child returns this shape. No prose walls.
 # Child {letter} report — Parent {N} ({lens})
 
 ## Scope
+
 - files or diff hunks the child read
 - grounding checks performed (callers read, tests checked, skills consulted)
 - skipped areas with one-line reason
@@ -58,6 +59,7 @@ Every child returns this shape. No prose walls.
 ## Findings
 
 ### C1. [{SEVERITY}][{lens}] [R{n}] {short title}
+
 - Location: `path/to/file.ts:LINE` (or hunk range)
 - Reasoning: one or two lines tying code to defect
 - Evidence: short exact quote from the cited line(s)
@@ -66,9 +68,11 @@ Every child returns this shape. No prose walls.
 - Suggested action: one specific change, not "consider refactoring"
 
 ### C2. [{SEVERITY}][{lens}] [R{n}] {next finding}
+
 - ...
 
 ## Uncertainties
+
 - open questions you could not answer from code alone
 - dropped hypotheses (one line each: what you drafted, why grounding killed it)
 - items you noticed outside your angle (do not turn into findings)
@@ -93,33 +97,40 @@ Each parent merges its four children into one summary.
 # Parent {N} summary — {lens}
 
 ## Swarm completion
-- children_completed: [A, B, C, D]  <!-- list only returned children -->
-- children_failed: []  <!-- record any with one-line reason -->
+
+- children_completed: [A, B, C, D] <!-- list only returned children -->
+- children_failed: [] <!-- record any with one-line reason -->
 
 ## Rubric items owned
+
 - R{n}, R{n}, ... (from the global rubric)
 
 ## Merged findings
+
 List findings after dedupe, rank, and self-verification. Each item:
 
 ### P1. [{SEVERITY}][{lens}] [R{n}] {short title}
+
 - Location: `path:line`
 - Merged from: children [A, C]
 - Reasoning: one line, strongest framing
 - Grounding: one line naming the check that held
 - Confidence: high|medium|low
-- Verified: short note on what "would make this wrong" check produced  <!-- REQUIRED on CRITICAL / HIGH; omit for MEDIUM / LOW / INFO -->
+- Verified: short note on what "would make this wrong" check produced <!-- REQUIRED on CRITICAL / HIGH; omit for MEDIUM / LOW / INFO -->
 - Suggested action: one specific change
 
 ## Strongest conclusions
+
 - 3–5 bullets: what this lens is most confident about
 
 ## Key disagreements or uncertainty
+
 - contradictions between children, with both sides
 - CRITICAL / HIGH findings downgraded or dropped during self-verification
 - any failed / timed-out / empty child and the coverage gap it creates
 
 ## Top takeaways
+
 - 3 bullets max: what the main agent should carry forward
 ```
 
@@ -142,41 +153,50 @@ Main agent produces this from the parent summaries.
 # Review: {target}
 
 ## Executive summary
+
 - ≤5 lines: what is good, what must change, headline risks
 - include a one-line swarm-completeness note if any parent or child failed
 
 ## Must-fix (CRITICAL / HIGH)
+
 F1. [{SEVERITY}] [R{n}] `path:line` — {title}
+
 - Lenses: [correctness, risk]
 - Confidence: high|medium|low
-- Verified: one line tracing the parent's self-verification result  <!-- REQUIRED -->
+- Verified: one line tracing the parent's self-verification result <!-- REQUIRED -->
 - Why: one line
 - Action: one specific change
 
 F2. ...
 
 ## Should-fix (MEDIUM)
+
 F3. [MEDIUM] [R{n}] `path:line` — {title}
+
 - Lenses: [...]
 - Confidence: high|medium|low
 - Why / Action: one line each
 
 ## Nice-to-fix (LOW) and suggestions
+
 F4. [LOW] [R{n}] `path:line` — {one line specific change} (confidence: {...})
 
 F5. ...
 
 ## Rubric check-list
+
 - R1. {item} — pass | fail (see finding F{n}) | not-checked (reason, e.g. "parent failed")
 - R2. {item} — ...
 - ...
 
 ## Risks and open questions
+
 - known unknowns
 - items that need reviewer decision
 - items worth logging as follow-up work
 
 ## Explicit uncertainty
+
 - areas the swarm could not verify from code alone
 - assumptions that, if wrong, change the review
 - any Must-fix downgraded this turn because a `Verified:` trace was missing
@@ -196,6 +216,7 @@ F5. ...
 
 ```md
 ### F1. [HIGH] [R3] `apps/support/src/routes/(logged-in)/tickets/[currentView]/[id]/+page.server.ts:58` — Missing authz on ticket fetch
+
 - Lenses: [risk, correctness]
 - Confidence: high
 - Verified: "what would make this wrong?" → confirmed by reading the
@@ -215,26 +236,26 @@ Each box names the **actor** (who runs the check) and the **rejection rule** (wh
 
 ### Per finding (actor: child, before return; rechecked by parent before inclusion)
 
-- [ ] Cites `file:line` for a line the author read. *Fail → drop finding.*
-- [ ] Anchors to a rubric item `Rn` that maps to the defect. *Fail → drop.*
-- [ ] Quotes exact code, no paraphrase. *Fail → rewrite quote or drop.*
-- [ ] Has a grounding check recorded. The check must name the artifact type (caller, test, skill section, sibling file) and why it confirms the hypothesis. *Fail → move to uncertainties, not findings.*
-- [ ] Has a specific suggested action, not "consider refactoring". *Fail → rewrite action or drop.*
-- [ ] Confidence reflects evidence depth, not conviction. *Fail → downgrade one step.*
-- [ ] Has a stable local finding number (`C*` or `P*`) or final finding number (`F*`). *Fail → add one before emitting.*
-- [ ] Not a generic style nit without substantive impact. *Fail → drop.*
+- [ ] Cites `file:line` for a line the author read. _Fail → drop finding._
+- [ ] Anchors to a rubric item `Rn` that maps to the defect. _Fail → drop._
+- [ ] Quotes exact code, no paraphrase. _Fail → rewrite quote or drop._
+- [ ] Has a grounding check recorded. The check must name the artifact type (caller, test, skill section, sibling file) and why it confirms the hypothesis. _Fail → move to uncertainties, not findings._
+- [ ] Has a specific suggested action, not "consider refactoring". _Fail → rewrite action or drop._
+- [ ] Confidence reflects evidence depth, not conviction. _Fail → downgrade one step._
+- [ ] Has a stable local finding number (`C*` or `P*`) or final finding number (`F*`). _Fail → add one before emitting._
+- [ ] Not a generic style nit without substantive impact. _Fail → drop._
 
 ### Per parent summary (actor: parent, before return)
 
-- [ ] Every CRITICAL / HIGH carries a non-empty `Verified:` trace. *Fail → downgrade to MEDIUM, add to "Key disagreements or uncertainty".*
-- [ ] `children_completed` / `children_failed` is populated. *Fail → refuse to emit.*
+- [ ] Every CRITICAL / HIGH carries a non-empty `Verified:` trace. _Fail → downgrade to MEDIUM, add to "Key disagreements or uncertainty"._
+- [ ] `children_completed` / `children_failed` is populated. _Fail → refuse to emit._
 - [ ] No invented APIs, imports, or symbols anywhere in the summary.
 
 ### Per final report (actor: main agent, before delivery)
 
 - [ ] Report contains at least one substantive finding OR clearly states "no substantive findings".
 - [ ] Rubric check-list is present and every item has `pass` / `fail` / `not-checked` with reason.
-- [ ] Must-fix items are truly CRITICAL / HIGH (not MEDIUM dressed up) AND every Must-fix carries a `Verified:` trace. *Fail → downgrade and note under Explicit uncertainty.*
+- [ ] Must-fix items are truly CRITICAL / HIGH (not MEDIUM dressed up) AND every Must-fix carries a `Verified:` trace. _Fail → downgrade and note under Explicit uncertainty._
 - [ ] Contradictions are surfaced, not hidden.
 - [ ] Swarm completion is disclosed. Any failed or skipped parent / child is surfaced, and affected rubric items are marked `not-checked (parent/child failed)`.
 - [ ] No invented APIs, imports, or symbols anywhere in the report.
