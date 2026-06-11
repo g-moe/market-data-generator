@@ -7,26 +7,14 @@ import {
 	getUtcParts,
 	isMarketOpen
 } from '../../md-generation/market-time.ts';
-import {
-	parseIsoToUnixMs,
-	toIsoString,
-	toUtcParts
-} from '../../shared/datetime/index.ts';
+import { parseIsoToUnixMs, toIsoString, toUtcParts } from '../../shared/datetime/index.ts';
 
 describe('futures market time', () => {
 	it('detects futures open and maintenance periods in UTC', () => {
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T21:59:59.999Z'))).toBe(
-			false
-		);
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T22:00:00.000Z'))).toBe(
-			true
-		);
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T21:30:00.000Z'))).toBe(
-			false
-		);
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T22:00:00.000Z'))).toBe(
-			true
-		);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T21:59:59.999Z'))).toBe(false);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T22:00:00.000Z'))).toBe(true);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T21:30:00.000Z'))).toBe(false);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-08T22:00:00.000Z'))).toBe(true);
 	});
 
 	it('finds the current UTC trading session start', () => {
@@ -45,9 +33,9 @@ describe('futures market time', () => {
 			toIsoString(getSessionStart('1970-01-01T22:00:00.000Z', 0))
 		];
 
-		expect(
-			starts.map((start) => toUtcParts(parseIsoToUnixMs(start)).time)
-		).toEqual(Array(5).fill('22:00:00'));
+		expect(starts.map((start) => toUtcParts(parseIsoToUnixMs(start)).time)).toEqual(
+			Array(5).fill('22:00:00')
+		);
 	});
 
 	it('walks backward by trading session starts in UTC, skipping Fri/Sat starts', () => {
@@ -62,6 +50,16 @@ describe('futures market time', () => {
 			'2026-06-02T22:00:00.000Z',
 			'2026-06-01T22:00:00.000Z'
 		]);
+	});
+
+	it('keeps Saturday closed for all times', () => {
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-06T21:00:00.000Z'))).toBe(false);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-07T21:00:00.000Z'))).toBe(false);
+	});
+
+	it('forces Friday open to close by 21:00 UTC', () => {
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T20:59:59.999Z'))).toBe(true);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T21:00:00.000Z'))).toBe(false);
 	});
 
 	it('uses epoch-safe UTC boundaries', () => {
@@ -81,25 +79,19 @@ describe('futures market time', () => {
 	});
 
 	it('finds the daily session start for intraday ticks', () => {
-		const sessionStart = getDailySessionStart(
-			parseIsoToUnixMs('2026-06-08T15:30:00.000Z')
-		);
+		const sessionStart = getDailySessionStart(parseIsoToUnixMs('2026-06-08T15:30:00.000Z'));
 		expect(getUtcParts(sessionStart)).toMatchObject({
 			time: '22:00:00'
 		});
 
-		const eveningSessionStart = getDailySessionStart(
-			parseIsoToUnixMs('2026-06-09T01:00:00.000Z')
-		);
+		const eveningSessionStart = getDailySessionStart(parseIsoToUnixMs('2026-06-09T01:00:00.000Z'));
 		expect(getUtcParts(eveningSessionStart)).toMatchObject({
 			time: '22:00:00'
 		});
 	});
 
 	it('formats UTC date and time parts', () => {
-		expect(
-			getUtcParts(parseIsoToUnixMs('2026-06-08T17:00:00.000-05:00'))
-		).toEqual({
+		expect(getUtcParts(parseIsoToUnixMs('2026-06-08T17:00:00.000-05:00'))).toEqual({
 			date: '2026-06-08',
 			time: '22:00:00'
 		});

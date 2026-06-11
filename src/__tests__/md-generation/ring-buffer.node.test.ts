@@ -22,6 +22,14 @@ describe('RingBuffer', () => {
 		expect(buffer.values()).toEqual([3, 4, 5]);
 	});
 
+	it('skips undefined values while iterating', () => {
+		const buffer = new RingBuffer<number | undefined>(3);
+
+		buffer.pushMany([1, undefined, 2, 3]);
+
+		expect(buffer.values()).toEqual([2, 3]);
+	});
+
 	it('rejects invalid capacity', () => {
 		expect(() => new RingBuffer(0)).toThrow(/capacity/i);
 	});

@@ -54,11 +54,8 @@ const SCENARIOS: Scenario[] = [
 	}
 ];
 
-const iterationsArg = process.argv.find((arg) =>
-	arg.startsWith('--iterations=')
-);
-const iterations =
-	iterationsArg === undefined ? 1 : Number(iterationsArg.split('=')[1]);
+const iterationsArg = process.argv.find((arg) => arg.startsWith('--iterations='));
+const iterations = iterationsArg === undefined ? 1 : Number(iterationsArg.split('=')[1]);
 if (!Number.isInteger(iterations) || iterations < 1) {
 	throw new Error('--iterations must be a positive integer');
 }
@@ -66,8 +63,7 @@ if (!Number.isInteger(iterations) || iterations < 1) {
 const sampleMemory = !process.argv.includes('--no-memory-sampling');
 const isolated = process.argv.includes('--isolated');
 const scenarioArg = process.argv.find((arg) => arg.startsWith('--scenario='));
-const scenarioName =
-	scenarioArg === undefined ? undefined : scenarioArg.split('=')[1];
+const scenarioName = scenarioArg === undefined ? undefined : scenarioArg.split('=')[1];
 
 const selectedScenarios =
 	scenarioName === undefined
@@ -209,9 +205,7 @@ function summarize(results: ScenarioResult[]) {
 	const heapPeak = results
 		.map((result) => result.heapUsedPeakMb)
 		.filter((value) => value !== undefined);
-	const peakRss = results
-		.map((result) => result.rssPeakMb)
-		.filter((value) => value !== undefined);
+	const peakRss = results.map((result) => result.rssPeakMb).filter((value) => value !== undefined);
 	const throughput = results.map((result) => result.ticksPerSecond);
 	const rss = results.map((result) => result.rssMb);
 
@@ -220,8 +214,7 @@ function summarize(results: ScenarioResult[]) {
 		elapsedMsMedian: median(elapsed),
 		elapsedMsMin: Math.min(...elapsed),
 		hashes: [...new Set(results.map((result) => result.hash))],
-		heapUsedPeakMbMax:
-			heapPeak.length === 0 ? undefined : Math.max(...heapPeak),
+		heapUsedPeakMbMax: heapPeak.length === 0 ? undefined : Math.max(...heapPeak),
 		heapUsedPeakMbMedian: heapPeak.length === 0 ? undefined : median(heapPeak),
 		iterations: results.length,
 		name: `${results[0].name}-summary`,
@@ -246,10 +239,7 @@ async function fingerprintDirectory(directory: string) {
 	return { bytes, hash: hash.digest('hex') };
 }
 
-async function updateHashFromFile(
-	hash: ReturnType<typeof createHash>,
-	path: string
-) {
+async function updateHashFromFile(hash: ReturnType<typeof createHash>, path: string) {
 	for await (const chunk of createReadStream(path)) {
 		hash.update(chunk);
 	}

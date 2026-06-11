@@ -33,9 +33,7 @@ describe('md-generation e2e', () => {
 
 		expect(first.inputs.sessionCount).toBe(REQUESTED_DAILY_SESSIONS);
 		expect(first.inputs.ticksPerSession).toBe(TICKS_PER_GENERATED_SESSION);
-		expect(first.counts.ticks).toBe(
-			GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION
-		);
+		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION);
 		expect(first.counts.daily).toBe(REQUESTED_DAILY_SESSIONS);
 		expect(first.counts.priceLevel).toBe(
 			RETAINED_PRICE_LEVEL_SESSIONS * TICKS_PER_GENERATED_SESSION
@@ -51,10 +49,7 @@ describe('md-generation e2e', () => {
 		expect(await countRows(first.files.minutes5)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.volume500)).toBe(RETAINED_RING_BARS);
 		expect((await stat(first.files.scid)).size).toBe(
-			SCID_HEADER_BYTES +
-				GENERATED_TICK_SESSIONS *
-					TICKS_PER_GENERATED_SESSION *
-					SCID_RECORD_BYTES
+			SCID_HEADER_BYTES + GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION * SCID_RECORD_BYTES
 		);
 
 		const firstHashes = await hashGeneratedFiles(first.inputs.outputDir);
@@ -63,9 +58,7 @@ describe('md-generation e2e', () => {
 				symbol
 			})
 		);
-		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(
-			firstHashes
-		);
+		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(firstHashes);
 	});
 });
 

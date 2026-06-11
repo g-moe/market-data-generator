@@ -2,11 +2,7 @@ import { writeSync } from 'node:fs';
 import { open, mkdir, type FileHandle } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import type {
-	MarketTick,
-	ScidRecord,
-	TradeSide
-} from '../../contracts/types.ts';
+import type { MarketTick, ScidRecord, TradeSide } from '../../contracts/types.ts';
 import { utcDateTimeToUnixMs } from '../../shared/datetime/index.ts';
 
 const HEADER_SIZE = 56;
@@ -59,20 +55,10 @@ export class ScidTickWriter {
 	}
 
 	pushTickValues(time: number, price: number, volume: number, side: TradeSide) {
-		this.pushScDateTimeMsValue(
-			(time - SCID_EPOCH_MS) * 1000,
-			price,
-			volume,
-			side
-		);
+		this.pushScDateTimeMsValue((time - SCID_EPOCH_MS) * 1000, price, volume, side);
 	}
 
-	pushScDateTimeMsValue(
-		scDateTimeMs: number,
-		price: number,
-		volume: number,
-		side: TradeSide
-	) {
+	pushScDateTimeMsValue(scDateTimeMs: number, price: number, volume: number, side: TradeSide) {
 		this.pushScDateTimeMsVolumeValues(
 			scDateTimeMs,
 			price,

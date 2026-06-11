@@ -45,9 +45,6 @@ export function findSymbol(value: string): Symbol | undefined {
 	return ALLOWED_SYMBOLS.find((symbol) => {
 		const config = getSymbolConfig(symbol);
 
-		return (
-			config.symbolId === normalized ||
-			config.aliases.some((alias) => alias === normalized)
-		);
+		return config.symbolId === normalized || config.aliases.some((alias) => alias === normalized);
 	});
 }

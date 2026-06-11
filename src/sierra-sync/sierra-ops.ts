@@ -1,13 +1,5 @@
 import { execFile } from 'node:child_process';
-import {
-	copyFile,
-	mkdir,
-	readdir,
-	rename,
-	rm,
-	stat,
-	writeFile
-} from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -204,9 +196,5 @@ async function waitForFiles(directory: string, fileNames: readonly string[]) {
 }
 
 async function execPowerShell(command: string) {
-	await execFileAsync(WINDOWS_POWERSHELL_EXE, [
-		'-NoProfile',
-		'-Command',
-		command
-	]);
+	await execFileAsync(WINDOWS_POWERSHELL_EXE, ['-NoProfile', '-Command', command]);
 }

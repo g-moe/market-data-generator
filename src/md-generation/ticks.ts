@@ -56,15 +56,13 @@ function generateSessionTickValuesForStart(
 	const timeStep = (sessionEnd - sessionStart - 1) / ticksPerSession;
 	const openVolatilityEnd = ticksPerSession * 0.1;
 	const closingVolatilityStart = ticksPerSession * 0.85;
-	let randomState =
-		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
+	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
 	const toPrice = (ticks: number) => ticks * symbolConfig.tickSize;
 
 	for (let index = 0; index < ticksPerSession; index++) {
 		const time = Math.floor(sessionStart + index * timeStep);
-		const volatility =
-			index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
+		const volatility = index < openVolatilityEnd ? 4 : index > closingVolatilityStart ? 3 : 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
 		const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
 		randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
@@ -94,14 +92,8 @@ function generateSessionTickValuesForStart(
 	return toPrice(priceTicks);
 }
 
-export function deriveSessionSeed(
-	baseSeed: number,
-	symbolId: string,
-	sessionIndex: number
-) {
-	const hash = createHash('sha256')
-		.update(`${baseSeed}:${symbolId}:${sessionIndex}`)
-		.digest();
+export function deriveSessionSeed(baseSeed: number, symbolId: string, sessionIndex: number) {
+	const hash = createHash('sha256').update(`${baseSeed}:${symbolId}:${sessionIndex}`).digest();
 
 	return hash.readUInt32LE(0);
 }
@@ -112,16 +104,10 @@ export function getSessionOpenPrice(
 	symbolConfig: SymbolConfig,
 	sessionIndex: number
 ) {
-	if (sessionIndex === 0)
-		return roundToTick(previousClose, symbolConfig.tickSize);
+	if (sessionIndex === 0) return roundToTick(previousClose, symbolConfig.tickSize);
 
-	const random = createRandom(
-		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
-	);
-	const gap =
-		randomSigned(random) *
-		symbolConfig.tickSize *
-		getSessionGapTicks(sessionIndex);
+	const random = createRandom(deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex));
+	const gap = randomSigned(random) * symbolConfig.tickSize * getSessionGapTicks(sessionIndex);
 
 	return roundToTick(previousClose + gap, symbolConfig.tickSize);
 }

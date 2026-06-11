@@ -4,11 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { MarketTick } from '../../../contracts/types.ts';
-import {
-	ScidTickWriter,
-	tickToScidRecord,
-	toScDateTimeMs
-} from '../../../shared/file-ops/scid.ts';
+import { ScidTickWriter, tickToScidRecord, toScDateTimeMs } from '../../../shared/file-ops/scid.ts';
 import { parseIsoToUnixMs } from '../../../shared/datetime/index.ts';
 
 describe('scid output', () => {
@@ -46,6 +42,63 @@ describe('scid output', () => {
 			expect(output.readUInt32LE(offset + 28)).toBe(15);
 			expect(output.readUInt32LE(offset + 32)).toBe(15);
 			expect(output.readUInt32LE(offset + 36)).toBe(0);
+		} finally {
+			await rm(directory, { force: true, recursive: true });
+		}
+	});
+
+	it('flushes without writes when no ticks are pending', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-flush-'));
+		const filePath = join(directory, 'tradester_ES.scid');
+
+		try {
+			const writer = new ScidTickWriter(filePath);
+			await writer.open();
+			await writer.flush();
+			await writer.close();
+
+			const output = await readFile(filePath);
+			expect(output.toString('ascii', 0, 4)).toBe('SCID');
+			expect(output).toHaveLength(56);
+		} finally {
+			await rm(directory, { force: true, recursive: true });
+		}
+	});
+
+	it('errors when writing after close', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-closed-'));
+		const filePath = join(directory, 'tradester_ES.scid');
+
+		try {
+			const writer = new ScidTickWriter(filePath);
+			await writer.open();
+			await writer.close();
+
+			expect(() => writer.pushTick(tick())).not.toThrow();
+			await expect(writer.flush()).rejects.toThrow('SCID writer is not open');
+		} finally {
+			await rm(directory, { force: true, recursive: true });
+		}
+	});
+
+	it('skips syncing when the buffered tick count is zero', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-empty-sync-'));
+		const filePath = join(directory, 'tradester_ES.scid');
+
+		try {
+			const writer = new ScidTickWriter(filePath, 1);
+			await writer.open();
+			writer.pushTick(tick());
+
+			await writer.flush();
+			const withOutput = await readFile(filePath);
+
+			await (writer as unknown as { writeBufferedTicksSync: () => void }).writeBufferedTicksSync();
+
+			await writer.close();
+			const finalOutput = await readFile(filePath);
+
+			expect(finalOutput).toEqual(withOutput);
 		} finally {
 			await rm(directory, { force: true, recursive: true });
 		}
