@@ -19,10 +19,13 @@
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run knip",
 		"run-md-generate": "tsx src/run-md-generate.ts",
 		"run-sierra-generate": "tsx src/run-sierra-generate.ts",
+		"run:calc-key": "tsx src/run-calc-key-helper.ts",
 		"run:options": "tsx src/run-options.ts"
 	},
 	"dependencies": {
-		"@js-temporal/polyfill": "0.5.1"
+		"@inquirer/prompts": "8.5.2",
+		"@js-temporal/polyfill": "0.5.1",
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
 		"@types/node": "24.12.4",

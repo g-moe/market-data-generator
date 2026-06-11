@@ -18,14 +18,16 @@ const SAMPLE_TIME = parseIsoToUnixMs('2026-06-05T21:00:04.000Z');
 const SAMPLE_GENERATED_ROW = `id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`;
 const SAMPLE_SIERRA_TIME = '2026-06-05, 21:00:04.000000';
 const SAMPLE_SIERRA_ROW = `${SAMPLE_SIERRA_TIME}, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6`;
+const SAMPLE_CALC_SIGNAL = 'calc__name:Signal__tf:5m__id:sma__src:close__len:20__out:value';
+const SAMPLE_CALC_RSI = 'calc__name:Rsi__tf:same__id:rsi__src:close__len:14__out:value';
 
 function withGeneratedFile(line: string): string {
 	return `${CANDLE_ROW_HEADER}
 ${line}`;
 }
 
-function withSierraFile(line: string, tradesterHeaders: string[] = []): string {
-	const extras = tradesterHeaders.length === 0 ? '' : `, ${tradesterHeaders.join(', ')}`;
+function withSierraFile(line: string, calcHeaders: string[] = []): string {
+	const extras = calcHeaders.length === 0 ? '' : `, ${calcHeaders.join(', ')}`;
 
 	return `${SIERRA_EXPORT_HEADER}${extras}
 ${line}`;
@@ -40,23 +42,32 @@ function createSierraFile(filePath: string) {
 }
 
 describe('parseSierraExportRows', () => {
-	it('parses OHLCV and tradester-prefixed fields', () => {
+	it('parses OHLCV and calc-prefixed fields', () => {
 		expect(
 			parseSierraExportRows(
-				`${SIERRA_EXPORT_HEADER}, tradester_signal
+				`${SIERRA_EXPORT_HEADER}, ${SAMPLE_CALC_SIGNAL}, ignored_extra
 2026-06-05, 21:00:04.000000, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6, 99, nope`
 			)
 		).toEqual([
 			{
+				calc: { [SAMPLE_CALC_SIGNAL]: '99' },
 				close: 1.5,
 				high: 2,
 				low: 0.5,
 				open: 1,
 				time: SAMPLE_TIME,
-				tradester: { tradester_signal: '99' },
 				volume: 10
 			}
 		]);
+	});
+
+	it('ignores legacy tradester-prefixed fields', () => {
+		expect(
+			parseSierraExportRows(
+				`${SIERRA_EXPORT_HEADER}, tradester_signal
+2026-06-05, 21:00:04.000000, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6, 99`
+			)[0].calc
+		).toEqual({});
 	});
 
 	it('preserves Sierra fractional seconds as milliseconds', () => {
@@ -68,6 +79,12 @@ describe('parseSierraExportRows', () => {
 
 	it('returns empty rows when header-only export data is provided', () => {
 		expect(parseSierraExportRows(SIERRA_EXPORT_HEADER)).toEqual([]);
+	});
+
+	it('validates calc headers even when header-only export data is provided', () => {
+		expect(() =>
+			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__name:Signal__tf:5m__id:sma`)
+		).toThrow('Invalid calc column');
 	});
 
 	it('throws when the Sierra export header is unexpected', () => {
@@ -82,6 +99,44 @@ ${SAMPLE_SIERRA_ROW}`)
 			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}
 2026-06-05, 21:00:04.000000, 1`)
 		).toThrow('Expected at least 13 Sierra export fields');
+	});
+
+	it('throws when calc headers do not match the output format', () => {
+		expect(() =>
+			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__name:Bad-Name__tf:5m__id:sma__out:value
+${SAMPLE_SIERRA_ROW}, 99`)
+		).toThrow('Invalid calc column');
+	});
+
+	it('throws when calc headers repeat singleton keys', () => {
+		const cases = [
+			{
+				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__name:Other',
+				message: 'duplicate name segment'
+			},
+			{
+				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__id:ema',
+				message: 'duplicate id segment'
+			},
+			{
+				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__out:hist',
+				message: 'duplicate out segment'
+			}
+		];
+
+		for (const testCase of cases) {
+			expect(() =>
+				parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, ${testCase.header}
+${SAMPLE_SIERRA_ROW}, 99`)
+			).toThrow(testCase.message);
+		}
+	});
+
+	it('throws when calc fields are missing from Sierra rows', () => {
+		expect(() =>
+			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, ${SAMPLE_CALC_SIGNAL}
+${SAMPLE_SIERRA_ROW}`)
+		).toThrow(`Missing Sierra calc field "${SAMPLE_CALC_SIGNAL}"`);
 	});
 
 	it('throws when Sierra date parsing fails', () => {
@@ -103,7 +158,7 @@ describe('mergeValidatedSierraExport', () => {
 			await createGeneratedFile(generated);
 			await writeFile(
 				sierra,
-				`${SIERRA_EXPORT_HEADER}, tradester_signal
+				`${SIERRA_EXPORT_HEADER}, ${SAMPLE_CALC_SIGNAL}
 2026-06-05, 20:55:04.000000, 9, 9, 9, 9, 9, 1, 1, 1, 1, 9, 9, ignored
 ${SAMPLE_SIERRA_ROW}, 99`
 			);
@@ -116,7 +171,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},tradester_signal
+				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL}
 ${SAMPLE_GENERATED_ROW},99
 `
 			);
@@ -155,7 +210,7 @@ id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
 		}
 	});
 
-	it('writes generated columns plus tradester-prefixed Sierra fields', async () => {
+	it('writes generated columns plus calc-prefixed Sierra fields', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -163,7 +218,7 @@ id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
 
 		try {
 			await createGeneratedFile(generated);
-			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, ['tradester_signal']));
+			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
 				mergeValidatedSierraExport({
@@ -173,7 +228,7 @@ id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},tradester_signal
+				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL}
 ${SAMPLE_GENERATED_ROW},99
 `
 			);
@@ -182,7 +237,7 @@ ${SAMPLE_GENERATED_ROW},99
 		}
 	});
 
-	it('keeps the generated CSV unchanged when Sierra has no tradester columns', async () => {
+	it('keeps the generated CSV unchanged when Sierra has no calc columns', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -209,7 +264,7 @@ ${SAMPLE_GENERATED_ROW}
 		}
 	});
 
-	it('collects tradester headers even when multiple fields exist', async () => {
+	it('collects calc headers even when multiple fields exist', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -219,7 +274,7 @@ ${SAMPLE_GENERATED_ROW}
 			await createGeneratedFile(generated);
 			await writeFile(
 				sierra,
-				withSierraFile(`${SAMPLE_SIERRA_ROW}, 99, extra`, ['tradester_signal', 'tradester_note'])
+				withSierraFile(`${SAMPLE_SIERRA_ROW}, 99, 45`, [SAMPLE_CALC_SIGNAL, SAMPLE_CALC_RSI])
 			);
 
 			await expect(
@@ -230,8 +285,8 @@ ${SAMPLE_GENERATED_ROW}
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},tradester_signal,tradester_note
-${SAMPLE_GENERATED_ROW},99,extra
+				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL},${SAMPLE_CALC_RSI}
+${SAMPLE_GENERATED_ROW},99,45
 `
 			);
 		} finally {
@@ -252,7 +307,7 @@ ${SAMPLE_GENERATED_ROW},99,extra
 id,0,0,0,0,0,0,0,0,0
 ${SAMPLE_GENERATED_ROW}`
 			);
-			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, ['tradester_signal']));
+			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
 				mergeValidatedSierraExport({
@@ -262,7 +317,7 @@ ${SAMPLE_GENERATED_ROW}`
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},tradester_signal
+				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL}
 ${SAMPLE_GENERATED_ROW},99
 `
 			);
@@ -279,7 +334,7 @@ ${SAMPLE_GENERATED_ROW},99
 
 		try {
 			await writeFile(generated, withGeneratedFile('id,0,0,0,0,0,0,0,0,0,0'));
-			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, ['tradester_signal']));
+			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
 				mergeValidatedSierraExport({
@@ -301,7 +356,7 @@ ${SAMPLE_GENERATED_ROW},99
 
 		try {
 			await writeFile(generated, CANDLE_ROW_HEADER);
-			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, ['tradester_signal']));
+			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
 				mergeValidatedSierraExport({
@@ -352,7 +407,7 @@ id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`
 			await writeFile(
 				sierra,
 				withSierraFile('2026-06-05, 21:00:05.000000, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6, 99', [
-					'tradester_signal'
+					SAMPLE_CALC_SIGNAL
 				])
 			);
 
@@ -406,7 +461,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			await writeFile(
 				sierra,
 				withSierraFile('2026-06-05, 21:00:04.000000, 1, 2, 0.5, 1.49, 10, 1, 1, 1, 1, 4, 6, 99', [
-					'tradester_signal'
+					SAMPLE_CALC_SIGNAL
 				])
 			);
 

@@ -5,6 +5,7 @@ import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
 import { getTimeframes } from '../contracts/index.ts';
+import { isCalcColumnKey, validateCalcColumnKey } from '../shared/calc-column-key.ts';
 import { SIERRA_EXPORT_HEADER } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
@@ -18,6 +19,11 @@ type GeneratedRow = {
 	volume: number;
 };
 
+type CalcColumn = {
+	header: string;
+	index: number;
+};
+
 export type SierraExportRow = {
 	time: number;
 	open: number;
@@ -25,7 +31,7 @@ export type SierraExportRow = {
 	low: number;
 	close: number;
 	volume: number;
-	tradester: Record<string, string>;
+	calc: Record<string, string>;
 };
 
 export async function mergeValidatedSierraExports({
@@ -71,12 +77,12 @@ export async function mergeValidatedSierraExport({
 	if (comparableRows.length === 0)
 		throw new Error(`Cannot validate generated file without non-padding rows: ${inputFile}`);
 
-	const tradesterHeaders = Object.keys(
-		sierra.find((row) => Object.keys(row.tradester).length > 0)?.tradester ?? {}
+	const calcHeaders = Object.keys(
+		sierra.find((row) => Object.keys(row.calc).length > 0)?.calc ?? {}
 	);
-	const hasTradesterColumns = tradesterHeaders.length > 0;
+	const hasCalcColumns = calcHeaders.length > 0;
 	const sierraByTime = groupSierraRowsByTime(sierra);
-	const outputRows = [buildMergedHeader(generated.header, tradesterHeaders)];
+	const outputRows = [buildMergedHeader(generated.header, calcHeaders)];
 
 	for (let i = 0; i < comparableRows.length; i++) {
 		const generatedRow = comparableRows[i];
@@ -88,9 +94,7 @@ export async function mergeValidatedSierraExport({
 			);
 
 		compareGeneratedToSierra(generatedRow, sierraRow, i, inputFile);
-		outputRows.push(
-			buildMergedRow(generatedRow.raw, sierraRow.tradester, tradesterHeaders, hasTradesterColumns)
-		);
+		outputRows.push(buildMergedRow(generatedRow.raw, sierraRow.calc, calcHeaders, hasCalcColumns));
 	}
 	await mkdir(dirname(outputFile), { recursive: true });
 	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
@@ -99,17 +103,20 @@ export async function mergeValidatedSierraExport({
 }
 
 export function parseSierraExportRows(text: string): SierraExportRow[] {
-	const lines = text.trimEnd().split(/\r?\n/u);
-	if (lines.length <= 1) return [];
+	const trimmed = text.trimEnd();
+	if (trimmed.length === 0) return [];
 
+	const lines = trimmed.split(/\r?\n/u);
 	const headers = lines[0].split(',').map((field) => field.trim());
 	if (headers.slice(0, 13).join(', ') !== SIERRA_EXPORT_HEADER)
 		throw new Error('Unexpected Sierra export header');
 
+	const calcColumns = parseCalcColumns(headers);
+
 	return lines
 		.slice(1)
 		.filter(Boolean)
-		.map((line) => parseSierraExportRow(line, headers));
+		.map((line) => parseSierraExportRow(line, calcColumns));
 }
 
 function parseGeneratedCsv(text: string, filePath: string) {
@@ -153,21 +160,21 @@ function parseGeneratedCsv(text: string, filePath: string) {
 	};
 }
 
-function buildMergedHeader(generatedHeader: string, tradesterHeaders: string[]) {
-	if (tradesterHeaders.length === 0) return generatedHeader;
+function buildMergedHeader(generatedHeader: string, calcHeaders: string[]) {
+	if (calcHeaders.length === 0) return generatedHeader;
 
-	return `${generatedHeader},${tradesterHeaders.join(',')}`;
+	return `${generatedHeader},${calcHeaders.join(',')}`;
 }
 
 function buildMergedRow(
 	generatedRow: string,
-	tradester: Record<string, string>,
-	tradesterHeaders: string[],
-	hasTradesterColumns: boolean
+	calc: Record<string, string>,
+	calcHeaders: string[],
+	hasCalcColumns: boolean
 ) {
-	if (!hasTradesterColumns) return generatedRow;
+	if (!hasCalcColumns) return generatedRow;
 
-	return `${generatedRow},${tradesterHeaders.map((header) => tradester[header] ?? '').join(',')}`;
+	return `${generatedRow},${calcHeaders.map((header) => calc[header] ?? '').join(',')}`;
 }
 
 function isGeneratedPaddingRow(row: GeneratedRow) {
@@ -197,22 +204,39 @@ function groupSierraRowsByTime(rows: SierraExportRow[]) {
 	return byTime;
 }
 
-function parseSierraExportRow(line: string, headers: string[]): SierraExportRow {
+function parseCalcColumns(headers: string[]): CalcColumn[] {
+	const columns: CalcColumn[] = [];
+
+	for (let i = 13; i < headers.length; i++) {
+		const header = headers[i];
+		if (!isCalcColumnKey(header)) continue;
+
+		validateCalcColumnKey(header);
+		columns.push({ header, index: i });
+	}
+
+	return columns;
+}
+
+function parseSierraExportRow(line: string, calcColumns: CalcColumn[]): SierraExportRow {
 	const fields = line.split(',').map((field) => field.trim());
 	if (fields.length < 13) throw new Error('Expected at least 13 Sierra export fields');
 
-	const tradester: Record<string, string> = {};
-	for (let i = 13; i < headers.length; i++) {
-		if (headers[i].startsWith('tradester_')) tradester[headers[i]] = fields[i] ?? '';
+	const calc: Record<string, string> = {};
+	for (const column of calcColumns) {
+		if (column.index >= fields.length)
+			throw new Error(`Missing Sierra calc field "${column.header}"`);
+
+		calc[column.header] = fields[column.index] ?? '';
 	}
 
 	return {
+		calc,
 		close: Number(fields[5]),
 		high: Number(fields[3]),
 		low: Number(fields[4]),
 		open: Number(fields[2]),
 		time: parseSierraDateTime(`${fields[0]} ${fields[1]}`),
-		tradester,
 		volume: Number(fields[6])
 	};
 }

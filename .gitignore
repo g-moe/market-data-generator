@@ -6,6 +6,5 @@ dist/
 node_modules/
 data/
 data-in/
-data-out/
 data-out-temp/
 Microsoft Windows \[Version *

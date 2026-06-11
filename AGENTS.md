@@ -52,7 +52,7 @@ These principles are things our team has previously agreed upon. All team-member
 
 # WORKFLOWS
 
-**TMUX ONLY** - assume there is a tmux session running either locally or we are ssh'd into a server; if you cannot find the correct tmux session, you must stop whatever you are currently doing and tell the user to create the tmux session;
+**TMUX ONLY** - DEPRECATED! IGNORE THIS RULE! assume there is a tmux session running either locally or we are ssh'd into a server; if you cannot find the correct tmux session, you must stop whatever you are currently doing and tell the user to create the tmux session;
 
 **SELF-CLEANUP** - after completing a task, clean up after yourself by making sure tests pass, lints pass, documentation is up to date, junk is removed (`pnpm run knip`), etc. You do not need to cleanup work that did not come from your actions.
 

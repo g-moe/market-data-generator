@@ -24,7 +24,7 @@ describe('sierra-sync e2e', () => {
 		// 2) copy bridge/scid/chartbook into Sierra
 		// 3) open Sierra
 		// 4) wait for data-out-temp export files
-		// 5) validate and write data-out with tradester_ columns
+		// 5) validate and write data-out with calc__ columns
 		const result = await runSierraSync(rawSymbol);
 
 		expect(result.inputDir).toBe(expectedPaths.inputDir);
