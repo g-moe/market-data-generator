@@ -5,10 +5,12 @@ import type { GeneratorInputs, MarketTick } from '../../contracts/types.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { getSessionStart } from '../../md-generation/market-time.ts';
 import {
+	countGeneratedTickTimeBuckets,
 	deriveSessionSeed,
 	generateSessionTicksForStart,
 	getFirstSessionTickPrice,
-	getSessionOpenPrice
+	getSessionOpenPrice,
+	TARGET_TICKS_PER_ACTIVE_SECOND
 } from '../../md-generation/ticks.ts';
 
 describe('generateSessionTicksForStart', () => {
@@ -36,6 +38,20 @@ describe('generateSessionTicksForStart', () => {
 				return Number.isInteger(tick.price / symbol.tickSize);
 			})
 		).toBe(true);
+	});
+
+	it('clusters generated ticks into deterministic active seconds', () => {
+		const inputs = normalizeInputs({
+			sessionCount: 1,
+			symbol: 'ES',
+			ticksPerSession: TARGET_TICKS_PER_ACTIVE_SECOND * 2
+		});
+		const ticks = collectSessionTicks(inputs, 0);
+		const buckets = ticks.map((tick) => Math.floor(tick.time / 1000));
+
+		expect(new Set(buckets)).toHaveLength(2);
+		expect(new Set(buckets.slice(0, TARGET_TICKS_PER_ACTIVE_SECOND))).toHaveLength(1);
+		expect(countGeneratedTickTimeBuckets(inputs.ticksPerSession, 1000)).toBe(2);
 	});
 
 	it('carries the previous close into the next session open with a small deterministic gap', () => {

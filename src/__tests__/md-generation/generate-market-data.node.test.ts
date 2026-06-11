@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { TIMEFRAME_DEFINITIONS } from '../../contracts/timeframes.ts';
 import { generateMarketData, getOutputFiles } from '../../md-generation/generate-market-data.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
+import { countGeneratedTickTimeBuckets } from '../../md-generation/ticks.ts';
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
 
 describe('generateMarketData', () => {
@@ -131,16 +133,20 @@ describe('generateMarketData', () => {
 		const outputRoot = await mkdtemp(join(tmpdir(), 'market-data-tail-'));
 		const inputs = normalizeInputs({
 			outputDir: outputRoot,
-			sessionCount: 80,
+			sessionCount: 600,
 			symbol: 'ES',
 			ticksPerSession: 300
 		});
 
 		try {
 			const result = await generateMarketData(inputs);
+			const priceLevelBucketsPerSession = countGeneratedTickTimeBuckets(
+				inputs.ticksPerSession,
+				TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+			);
 
-			expect(result.counts.daily).toBe(80);
-			expect(result.counts.priceLevel).toBe(9_000);
+			expect(result.counts.daily).toBe(600);
+			expect(result.counts.priceLevel).toBe(30 * priceLevelBucketsPerSession);
 			expect(result.counts.seconds15).toBe(20_000);
 			expect(result.counts.minutes5).toBe(20_000);
 			expect(await countRows(result.files.seconds15)).toBe(20_000);
