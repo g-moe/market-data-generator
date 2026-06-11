@@ -28,6 +28,7 @@ describe('sierraSyncPaths', () => {
 		expect(paths.files.metadata).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES.json'));
 		expect(paths.files.priceLevel).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
 		expect(paths.files.minutes5).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
+		expect(paths.files.range10).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_10r.csv'));
 		expect(paths.files.seconds15).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));
 		expect(paths.files.tick100).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_100t.csv'));
 		expect(paths.files.volume500).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'));
@@ -35,6 +36,7 @@ describe('sierraSyncPaths', () => {
 
 	it('builds Sierra bridge export names by suffix', () => {
 		expect(sierraExportFileName('/ES:XCME', '15s')).toBe('tradester_ES_15s_GraphData.txt');
+		expect(sierraExportFileName('/ES:XCME', '10r')).toBe('tradester_ES_10r_GraphData.txt');
 		expect(sierraExportFileName('/ES:XCME', '100t')).toBe('tradester_ES_100t_GraphData.txt');
 		expect(sierraExportFileName('/ES:XCME', '1d')).toBe('tradester_ES_1d_GraphData.txt');
 	});

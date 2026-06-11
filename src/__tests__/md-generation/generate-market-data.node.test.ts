@@ -25,6 +25,7 @@ describe('generateMarketData', () => {
 			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
 			expect(result.files.metadata).toBe(join(outputRoot, 'ES', 'tradester_ES.json'));
 			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
+			expect(result.files.range10).toBe(join(outputRoot, 'ES', 'tradester_ES_10r.csv'));
 			expect(result.files.tick100).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
 			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
@@ -35,12 +36,14 @@ describe('generateMarketData', () => {
 					}),
 					minutes5: expect.any(Object),
 					priceLevel: expect.any(Object),
+					range10: expect.any(Object),
 					seconds15: expect.any(Object),
 					tick100: expect.any(Object),
 					volume500: expect.any(Object)
 				}
 			});
 			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
+			expect(await readFirstLine(result.files.range10)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.tick100)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.volume500)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.seconds15)).toBe(CANDLE_ROW_HEADER);

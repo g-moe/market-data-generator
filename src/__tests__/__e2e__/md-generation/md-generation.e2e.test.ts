@@ -40,6 +40,7 @@ describe('md-generation e2e', () => {
 		);
 		expect(first.counts.seconds15).toBe(RETAINED_RING_BARS);
 		expect(first.counts.minutes5).toBe(RETAINED_RING_BARS);
+		expect(first.counts.range10).toBe(RETAINED_RING_BARS);
 		expect(first.counts.tick100).toBe(RETAINED_RING_BARS);
 		expect(first.counts.volume500).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.daily)).toBe(REQUESTED_DAILY_SESSIONS);
@@ -48,6 +49,7 @@ describe('md-generation e2e', () => {
 		);
 		expect(await countRows(first.files.seconds15)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.minutes5)).toBe(RETAINED_RING_BARS);
+		expect(await countRows(first.files.range10)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.tick100)).toBe(RETAINED_RING_BARS);
 		expect(await countRows(first.files.volume500)).toBe(RETAINED_RING_BARS);
 		expect((await stat(first.files.scid)).size).toBe(

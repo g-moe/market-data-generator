@@ -112,6 +112,24 @@ export function getSessionOpenPrice(
 	return roundToTick(previousClose + gap, symbolConfig.tickSize);
 }
 
+export function getFirstSessionTickPrice(
+	inputs: GeneratorInputs,
+	symbolConfig: SymbolConfig,
+	sessionIndex: number,
+	sessionStartPrice: number
+) {
+	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
+	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
+
+	randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+	const signedMove = (randomState / RANDOM_DIVISOR) * 2 - 1;
+	randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) >>> 0;
+	const moveTicks = Math.round(signedMove * 4 * (randomState / RANDOM_DIVISOR > 0.7 ? 2 : 1));
+	priceTicks += moveTicks;
+
+	return priceTicks * symbolConfig.tickSize;
+}
+
 function getSessionGapTicks(sessionIndex: number) {
 	return 1 + Math.floor(Math.log2(sessionIndex + 1));
 }

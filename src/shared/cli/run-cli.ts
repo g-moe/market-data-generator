@@ -112,13 +112,21 @@ function generateAndWriteMarketData(
 }
 
 function getGenerationWorkerUrl() {
-	const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-
-	return new URL(`./generation-worker.${extension}`, import.meta.url);
+	return getGenerationWorkerUrlForModuleUrl(import.meta.url);
 }
 
 function getGenerationWorkerExecArgv() {
-	return import.meta.url.endsWith('.ts') ? ['--import', 'tsx'] : undefined;
+	return getGenerationWorkerExecArgvForModuleUrl(import.meta.url);
+}
+
+export function getGenerationWorkerUrlForModuleUrl(moduleUrl: string) {
+	const extension = moduleUrl.endsWith('.ts') ? 'ts' : 'js';
+
+	return new URL(`./generation-worker.${extension}`, moduleUrl);
+}
+
+export function getGenerationWorkerExecArgvForModuleUrl(moduleUrl: string) {
+	return moduleUrl.endsWith('.ts') ? ['--import', 'tsx'] : undefined;
 }
 
 function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {

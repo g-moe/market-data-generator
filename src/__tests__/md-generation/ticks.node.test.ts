@@ -7,6 +7,7 @@ import { getSessionStart } from '../../md-generation/market-time.ts';
 import {
 	deriveSessionSeed,
 	generateSessionTicksForStart,
+	getFirstSessionTickPrice,
 	getSessionOpenPrice
 } from '../../md-generation/ticks.ts';
 
@@ -84,6 +85,19 @@ describe('generateSessionTicksForStart', () => {
 		expect(oneTick).toHaveLength(1);
 		expect(manyTicks.some((tick) => tick.volume > 250)).toBe(true);
 		expect(manyTicks.some((tick) => tick.volume > 25 && tick.volume <= 250)).toBe(true);
+	});
+
+	it('returns the first generated tick price for a session start', () => {
+		const inputs = normalizeInputs({
+			sessionCount: 2,
+			symbol: 'NQ',
+			ticksPerSession: 5
+		});
+		const symbol = getSymbolConfig(inputs.symbol);
+		const sessionStartPrice = 18_000;
+		const ticks = collectSessionTicks(inputs, 1, sessionStartPrice);
+
+		expect(getFirstSessionTickPrice(inputs, symbol, 1, sessionStartPrice)).toBe(ticks[0].price);
 	});
 
 	it('derives distinct deterministic seeds per session', () => {

@@ -13,6 +13,10 @@ export const TIMEFRAME_DEFINITIONS = {
 		milliseconds: 1_000,
 		type: 'price-level'
 	},
+	range10: {
+		size: 10,
+		type: 'range'
+	},
 	seconds15: {
 		milliseconds: 15_000,
 		type: 'time'
@@ -37,6 +41,7 @@ export function getTimeframes(symbol: Symbol) {
 		withKey('minutes5'),
 		withKey('seconds15'),
 		withKey('tick100'),
+		withKey('range10'),
 		withKey('volume500'),
 		withPriceLevelSuffix(config.tickSize)
 	] as const;
@@ -65,6 +70,8 @@ function getSuffix(definition: (typeof TIMEFRAME_DEFINITIONS)[TimeframeKey]) {
 		case 'price-level':
 		case 'time':
 			return getTimeSuffix(definition.milliseconds);
+		case 'range':
+			return `${definition.size}r`;
 		case 'tick':
 			return `${definition.size}t`;
 		case 'volume':

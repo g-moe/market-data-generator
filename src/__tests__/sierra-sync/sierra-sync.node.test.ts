@@ -88,7 +88,7 @@ describe('runSierraSync', () => {
 				'copyScid:tradester_ES.scid',
 				'copyChartbook',
 				'openSierra',
-				'waitForFiles:tradester_ES_1d_GraphData.txt|tradester_ES_5m_GraphData.txt|tradester_ES_15s_GraphData.txt|tradester_ES_100t_GraphData.txt|tradester_ES_500v_GraphData.txt|tradester_ES_1s_pl0.25_GraphData.txt'
+				'waitForFiles:tradester_ES_1d_GraphData.txt|tradester_ES_5m_GraphData.txt|tradester_ES_15s_GraphData.txt|tradester_ES_100t_GraphData.txt|tradester_ES_10r_GraphData.txt|tradester_ES_500v_GraphData.txt|tradester_ES_1s_pl0.25_GraphData.txt'
 			]);
 			expect(logs.at(0)).toBe('Checking data-in/ES');
 			expect(mergeValidatedSierraExports).toHaveBeenCalledWith(

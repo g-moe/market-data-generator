@@ -91,6 +91,9 @@ function timeframeCondition(timeframe: { suffix: string }, index: number) {
 	if (timeframe.suffix.endsWith('t'))
 		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_NUM_TRADES_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
 
+	if (timeframe.suffix.endsWith('r'))
+		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_RANGE_IN_TICKS_STANDARD && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
+
 	let seconds: number;
 	if (timeframe.suffix.startsWith('1s_')) seconds = 1;
 	else if (timeframe.suffix.endsWith('m')) seconds = Number(timeframe.suffix.slice(0, -1)) * 60;

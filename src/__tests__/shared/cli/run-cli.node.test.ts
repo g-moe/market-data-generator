@@ -5,7 +5,12 @@ import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { listSymbolOptions } from '../../../shared/cli/symbol-args.ts';
-import { runCli, type CliPorts } from '../../../shared/cli/run-cli.ts';
+import {
+	getGenerationWorkerExecArgvForModuleUrl,
+	getGenerationWorkerUrlForModuleUrl,
+	runCli,
+	type CliPorts
+} from '../../../shared/cli/run-cli.ts';
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -112,6 +117,7 @@ describe('createNodePorts', () => {
 		const spinner = ports.spinner();
 		vi.useFakeTimers();
 		try {
+			ports.log('Before start');
 			spinner.start('Working');
 			ports.log('Progress');
 			vi.advanceTimersByTime(100);
@@ -122,9 +128,30 @@ describe('createNodePorts', () => {
 		}
 
 		const chunks = output.chunks.join('');
+		expect(chunks).toContain('Before start');
 		expect(chunks).toContain('Progress');
 		expect(chunks).toContain('Done');
 		expect(chunks).toContain('Failed');
+	});
+});
+
+describe('generation worker module helpers', () => {
+	it('uses tsx for TypeScript worker modules', () => {
+		const moduleUrl = 'file:///repo/src/shared/cli/run-cli.ts';
+
+		expect(getGenerationWorkerUrlForModuleUrl(moduleUrl).href).toBe(
+			'file:///repo/src/shared/cli/generation-worker.ts'
+		);
+		expect(getGenerationWorkerExecArgvForModuleUrl(moduleUrl)).toEqual(['--import', 'tsx']);
+	});
+
+	it('uses plain JavaScript worker modules after build output', () => {
+		const moduleUrl = 'file:///repo/dist/shared/cli/run-cli.js';
+
+		expect(getGenerationWorkerUrlForModuleUrl(moduleUrl).href).toBe(
+			'file:///repo/dist/shared/cli/generation-worker.js'
+		);
+		expect(getGenerationWorkerExecArgvForModuleUrl(moduleUrl)).toBeUndefined();
 	});
 });
 

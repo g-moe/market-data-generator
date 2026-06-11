@@ -15,6 +15,7 @@ export function getOutputFiles(symbol: Symbol, outputDir: string): OutputFiles {
 		metadata: join(outputDir, `${prefix}.json`),
 		minutes5: join(outputDir, `${prefix}_${suffixes.minutes5}.csv`),
 		priceLevel: join(outputDir, `${prefix}_${suffixes.priceLevel}.csv`),
+		range10: join(outputDir, `${prefix}_${suffixes.range10}.csv`),
 		scid: join(outputDir, `${prefix}.scid`),
 		seconds15: join(outputDir, `${prefix}_${suffixes.seconds15}.csv`),
 		tick100: join(outputDir, `${prefix}_${suffixes.tick100}.csv`),

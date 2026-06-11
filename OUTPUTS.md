@@ -91,7 +91,7 @@ export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
 
 # Calculations JSON
 
-This record is automatically created at the end of validation for each `data-out/<symbol>/tradester_<smybol>_<timeframe>.csv`. Indicators are determined from which columns are present inside the sierra exported .txt file. The only manual steps are adding indicators and proper calc keys to the `!tradester.Cht` chartbook file 
+This record is automatically created at the end of validation for each `data-out/<symbol>/tradester_<symbol>_<timeframe>.csv`. Indicators are determined from which columns are present inside the sierra exported .txt file. The only manual steps are adding indicators and proper calc keys to the `!tradester.Cht` chartbook file
 
 ```typescript
 // Example Filename
