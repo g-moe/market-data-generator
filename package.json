@@ -11,6 +11,7 @@
 		"coverage": "vitest run --coverage --project unit",
 		"test:e2e:sierra": "vitest run --project e2e src/__tests__/__e2e__/sierra/sierra.e2e.test.ts",
 		"test:e2e:md-generation": "vitest run --project e2e src/__tests__/__e2e__/md-generation/md-generation.e2e.test.ts",
+        "test:e2e": "pnpm run test:e2e:md-generation -- && pnpm run test:e2e:sierra --",
 		"knip": "knip",
 		"typecheck": "tsgo --noEmit --project ./tsconfig.json",
 		"lint": "oxlint --fix",
