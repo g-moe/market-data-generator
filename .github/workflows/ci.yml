@@ -18,13 +18,8 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Activate pinned package manager
-        run: |
-          corepack enable
-          corepack prepare "$(node -p "require('./package.json').packageManager")" --activate
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup package manager and dependencies
+        run: bash ./scripts/setup/.setup-ci.sh
 
       - name: Run checks
         run: pnpm run check

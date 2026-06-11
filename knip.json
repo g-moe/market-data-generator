@@ -1,5 +1,6 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"ignoreDependencies": ["@typescript/native-preview"],
 	"entry": [
 		"src/shared/cli/run-cli.ts",
 		"src/shared/cli/generation-worker.ts",

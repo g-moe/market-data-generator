@@ -1,0 +1,12 @@
+{
+	"$schema": "./decisions.schema.json",
+	"version": 1,
+	"updated": "2026-06-11",
+	"decisions": [
+		{
+			"topic": "knip-ignore-native-preview",
+			"note": "Keep @typescript/native-preview for tsgo editor tooling, but ignore it in knip because it is not imported in app code."
+		}
+	],
+	"technicalDebt": []
+}

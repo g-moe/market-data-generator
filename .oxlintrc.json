@@ -17,6 +17,7 @@
 			}
 		],
 		"sort-keys": "error",
+		"typescript/no-useless-default-assignment": "off",
 		"custom-no-js-date-time/no-js-date-time": "error"
 	}
 }
