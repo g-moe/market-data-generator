@@ -1,11 +1,20 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import type { OutputFiles, Symbol } from '../contracts/index.ts';
+import {
+	getSymbolConfig,
+	getTimeframes,
+	type OutputFiles,
+	type Symbol
+} from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
-import { getTimeframes } from '../contracts/index.ts';
-import { isCalcColumnKey, validateCalcColumnKey } from '../shared/calc-column-key.ts';
+import {
+	buildCalculationIndicators,
+	buildCalculationsJson,
+	isCalcColumnKey,
+	type CalculationsJson
+} from '../shared/calc-column-key.ts';
 import { SIERRA_EXPORT_HEADER } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
@@ -22,6 +31,11 @@ type GeneratedRow = {
 type CalcColumn = {
 	header: string;
 	index: number;
+};
+
+type ParsedSierraExport = {
+	calcHeaders: string[];
+	rows: SierraExportRow[];
 };
 
 export type SierraExportRow = {
@@ -46,13 +60,16 @@ export async function mergeValidatedSierraExports({
 	tempDir: string;
 }) {
 	await mkdir(outputDir, { recursive: true });
+	const symbolId = getSymbolConfig(symbol).symbolId;
 
 	for (const timeframe of getTimeframes(symbol)) {
 		const inputFile = inputFiles[timeframe.key];
 		await mergeValidatedSierraExport({
 			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),
 			inputFile,
-			outputFile: join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? inputFile)
+			outputFile: join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? inputFile),
+			symbol: symbolId,
+			timeframe: timeframe.suffix
 		});
 	}
 }
@@ -60,26 +77,34 @@ export async function mergeValidatedSierraExports({
 export async function mergeValidatedSierraExport({
 	exportFile,
 	inputFile,
-	outputFile
+	outputFile,
+	symbol,
+	timeframe
 }: {
 	exportFile: string;
 	inputFile: string;
 	outputFile: string;
+	symbol: string;
+	timeframe: string;
 }) {
 	const [generatedText, sierraText] = await Promise.all([
 		readFile(inputFile, 'utf8'),
 		readFile(exportFile, 'utf8')
 	]);
 	const generated = parseGeneratedCsv(generatedText, inputFile);
-	const sierra = parseSierraExportRows(sierraText);
+	const sierraExport = parseSierraExport(sierraText);
+	const sierra = sierraExport.rows;
 	const comparableRows = generated.rows.filter((row) => !isGeneratedPaddingRow(row));
 
 	if (comparableRows.length === 0)
 		throw new Error(`Cannot validate generated file without non-padding rows: ${inputFile}`);
 
-	const calcHeaders = Object.keys(
-		sierra.find((row) => Object.keys(row.calc).length > 0)?.calc ?? {}
-	);
+	const calcHeaders = sierraExport.calcHeaders;
+	const calculationsJson = buildCalculationsJson({
+		calcColumnKeys: calcHeaders,
+		symbol,
+		timeframe
+	});
 	const hasCalcColumns = calcHeaders.length > 0;
 	const sierraByTime = groupSierraRowsByTime(sierra);
 	const outputRows = [buildMergedHeader(generated.header, calcHeaders)];
@@ -97,14 +122,25 @@ export async function mergeValidatedSierraExport({
 		outputRows.push(buildMergedRow(generatedRow.raw, sierraRow.calc, calcHeaders, hasCalcColumns));
 	}
 	await mkdir(dirname(outputFile), { recursive: true });
-	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
+	const calculationsFile = buildCalculationsJsonFilePath(outputFile);
 
-	return { comparedRows: comparableRows.length, outputFile };
+	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
+	await writeCalculationsJson(calculationsFile, calculationsJson);
+
+	return {
+		calculationsFile,
+		comparedRows: comparableRows.length,
+		outputFile
+	};
 }
 
 export function parseSierraExportRows(text: string): SierraExportRow[] {
+	return parseSierraExport(text).rows;
+}
+
+function parseSierraExport(text: string): ParsedSierraExport {
 	const trimmed = text.trimEnd();
-	if (trimmed.length === 0) return [];
+	if (trimmed.length === 0) return { calcHeaders: [], rows: [] };
 
 	const lines = trimmed.split(/\r?\n/u);
 	const headers = lines[0].split(',').map((field) => field.trim());
@@ -113,10 +149,13 @@ export function parseSierraExportRows(text: string): SierraExportRow[] {
 
 	const calcColumns = parseCalcColumns(headers);
 
-	return lines
-		.slice(1)
-		.filter(Boolean)
-		.map((line) => parseSierraExportRow(line, calcColumns));
+	return {
+		calcHeaders: calcColumns.map((column) => column.header),
+		rows: lines
+			.slice(1)
+			.filter(Boolean)
+			.map((line) => parseSierraExportRow(line, calcColumns))
+	};
 }
 
 function parseGeneratedCsv(text: string, filePath: string) {
@@ -211,9 +250,10 @@ function parseCalcColumns(headers: string[]): CalcColumn[] {
 		const header = headers[i];
 		if (!isCalcColumnKey(header)) continue;
 
-		validateCalcColumnKey(header);
 		columns.push({ header, index: i });
 	}
+
+	buildCalculationIndicators(columns.map((column) => column.header));
 
 	return columns;
 }
@@ -308,4 +348,16 @@ function parseSierraDateTime(value: string) {
 		Number(match[6]),
 		millisecond
 	);
+}
+
+async function writeCalculationsJson(filePath: string, calculations: CalculationsJson) {
+	await mkdir(dirname(filePath), { recursive: true });
+	await writeFile(filePath, `${JSON.stringify(calculations, null, '\t')}\n`);
+}
+
+function buildCalculationsJsonFilePath(outputFile: string) {
+	if (!outputFile.endsWith('.csv'))
+		throw new Error(`Cannot write calculations JSON for non-CSV output: ${outputFile}`);
+
+	return outputFile.replace(/\.csv$/u, '.json');
 }

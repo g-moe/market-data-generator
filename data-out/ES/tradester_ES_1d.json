@@ -1,0 +1,18 @@
+{
+	"indicators": [
+		{
+			"id": "sma",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "100"
+			},
+			"name": "100sma",
+			"outputKeys": [
+				"value"
+			]
+		}
+	],
+	"symbol": "ES",
+	"timeframe": "1d"
+}

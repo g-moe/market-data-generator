@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	buildCalcColumnKeys,
+	buildCalculationsJson,
 	isCalcColumnKey,
 	parseCalcColumnName,
 	validateCalcColumnKey
@@ -100,6 +101,62 @@ describe('parseCalcColumnName', () => {
 	});
 });
 
+describe('buildCalculationsJson', () => {
+	it('groups output keys by indicator definition', () => {
+		expect(
+			buildCalculationsJson({
+				calcColumnKeys: [
+					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value',
+					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist',
+					'calc__name:100sma__tf:1d__id:sma__src:close__len:100__out:value'
+				],
+				symbol: 'ES',
+				timeframe: '5m'
+			})
+		).toEqual({
+			indicators: [
+				{
+					id: 'macd',
+					inputs: {
+						fast: '12',
+						signal: '9',
+						slow: '26',
+						src: 'close',
+						tf: 'same'
+					},
+					name: 'macd5m',
+					outputKeys: ['value', 'hist']
+				},
+				{
+					id: 'sma',
+					inputs: {
+						len: '100',
+						src: 'close',
+						tf: '1d'
+					},
+					name: '100sma',
+					outputKeys: ['value']
+				}
+			],
+			symbol: 'ES',
+			timeframe: '5m'
+		});
+	});
+
+	it('rejects duplicate output keys for the same indicator definition', () => {
+		expect(() =>
+			buildCalculationsJson({
+				calcColumnKeys: [
+					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
+					'calc__name:macd5m__tf:same__id:macd__fast:12__src:close__out:value'
+				],
+				symbol: 'ES',
+				timeframe: '5m'
+			})
+		).toThrow('Duplicate calc output key "value" for indicator "macd5m"');
+	});
+});
+
 describe('validateCalcColumnKey', () => {
 	it('accepts calc keys with same-file timeframe context', () => {
 		expect(() =>
@@ -111,6 +168,12 @@ describe('validateCalcColumnKey', () => {
 		expect(() =>
 			validateCalcColumnKey('calc__name:100sma__tf:same__id:sma__src:close__out:value__name:Other')
 		).toThrow('duplicate name segment');
+	});
+
+	it('rejects duplicate input keys', () => {
+		expect(() =>
+			validateCalcColumnKey('calc__name:100sma__tf:same__id:sma__src:close__src:open__out:value')
+		).toThrow('duplicate parameter key "src"');
 	});
 
 	it('rejects invalid timeframe values', () => {

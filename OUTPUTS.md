@@ -89,26 +89,26 @@ export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
 }
 ```
 
-# Output 
+# Calculations JSON
 
-This record must be manually maintained and kept in sync with what each chart in `!tradester.Cht` has applied to it. 
+This record is automatically created at the end of validation for each `data-out/<symbol>/tradester_<smybol>_<timeframe>.csv`. Indicators are determined from which columns are present inside the sierra exported .txt file. The only manual steps are adding indicators and proper calc keys to the `!tradester.Cht` chartbook file 
 
-## 5 minute indicators
+```typescript
+// Example Filename
+// - Data goes in tradester_ES_1d.csv
+// - JSON metadata goes in tradester_ES_1d.json
 
-```txt
-// 5min
-
-Studyname: 100sma
-- out: value
-
-
-```
-
-## 1d indicators
-
-```txt
-// 1d
-
-Studyname: 100sma
-- out: value
+// Example Shape
+type CalculationsJSON = {
+    symbol: <symbol>
+    timeframe: <timeframe>,
+    indicators: {
+        name: <humanName>,
+        id: <indicator>
+        inputs: {
+            key: value
+        },
+        outputKeys: []
+    }[]
+}
 ```

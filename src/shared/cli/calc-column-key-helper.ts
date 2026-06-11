@@ -3,6 +3,7 @@ import type { z } from 'zod';
 
 import {
 	buildCalcColumnKeys,
+	buildCalculationIndicators,
 	calcIndicatorIdSchema,
 	calcNameSchema,
 	calcOutputSchema,
@@ -40,6 +41,7 @@ export async function runCalcColumnKeyHelper(ports = createNodeCalcColumnKeyHelp
 		timeframe
 	};
 	const keys = buildCalcColumnKeys(input);
+	buildCalculationIndicators(keys);
 
 	ports.write('');
 	ports.write('Calc column keys:');

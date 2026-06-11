@@ -21,6 +21,19 @@ export type ParsedCalcColumnName = {
 	tf: string;
 };
 
+export type CalculationIndicator = {
+	id: string;
+	inputs: Record<string, string>;
+	name: string;
+	outputKeys: string[];
+};
+
+export type CalculationsJson = {
+	indicators: CalculationIndicator[];
+	symbol: string;
+	timeframe: string;
+};
+
 const CALC_COLUMN_PREFIX = 'calc__';
 const CALC_RESERVED_KEYS = new Set(['name', 'tf', 'id', 'out']);
 const ALPHANUMERIC_MESSAGE = 'must contain only letters and numbers';
@@ -131,28 +144,66 @@ export function buildCalcColumnKeys(input: CalcColumnKeyInput) {
 	);
 }
 
-export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
-	const parts = columnName.replace(CALC_COLUMN_PREFIX, '').split('__');
+export function buildCalculationIndicators(calcColumnKeys: string[]) {
+	const indicators: CalculationIndicator[] = [];
+	const byDefinition = new Map<
+		string,
+		{
+			indicator: CalculationIndicator;
+			outputs: Set<string>;
+		}
+	>();
 
-	const parsed: ParsedCalcColumnName = {
-		id: '',
-		name: '',
-		out: '',
-		params: {},
-		tf: ''
-	};
+	for (const key of calcColumnKeys) {
+		const parsed = parseCalcColumnName(key);
+		const inputs = buildCalculationInputs(parsed);
+		const definitionKey = createCalculationDefinitionKey(parsed, inputs);
+		const current = byDefinition.get(definitionKey);
 
-	for (const part of parts) {
-		const [key, value] = part.split(':');
+		if (current === undefined) {
+			const indicator = {
+				id: parsed.id,
+				inputs,
+				name: parsed.name,
+				outputKeys: [parsed.out]
+			};
 
-		if (key === 'id') parsed.id = value;
-		else if (key === 'name') parsed.name = value;
-		else if (key === 'out') parsed.out = value;
-		else if (key === 'tf') parsed.tf = value;
-		else parsed.params[key] = value;
+			indicators.push(indicator);
+			byDefinition.set(definitionKey, {
+				indicator,
+				outputs: new Set([parsed.out])
+			});
+			continue;
+		}
+
+		if (current.outputs.has(parsed.out))
+			throw new Error(`Duplicate calc output key "${parsed.out}" for indicator "${parsed.name}"`);
+
+		current.indicator.outputKeys.push(parsed.out);
+		current.outputs.add(parsed.out);
 	}
 
-	return parsed;
+	return indicators;
+}
+
+export function buildCalculationsJson({
+	calcColumnKeys,
+	symbol,
+	timeframe
+}: {
+	calcColumnKeys: string[];
+	symbol: string;
+	timeframe: string;
+}): CalculationsJson {
+	return {
+		indicators: buildCalculationIndicators(calcColumnKeys),
+		symbol,
+		timeframe
+	};
+}
+
+export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
+	return parseCalcColumnKey(columnName);
 }
 
 export function getZodValidationMessage(result: z.ZodSafeParseResult<unknown>) {
@@ -210,6 +261,13 @@ function parseCalcColumnKey(header: string) {
 	parseCalcColumnValue(header, calcIndicatorIdSchema, indicatorId);
 	parseCalcColumnValue(header, calcOutputSchema, output);
 
+	const parsed: ParsedCalcColumnName = {
+		id: indicatorId,
+		name,
+		out: output,
+		params: {},
+		tf: timeframe
+	};
 	const params = new Set<string>();
 	for (const segment of segments.slice(3)) {
 		const { key, value } = parseCalcKeyValue(header, segment, 'parameter');
@@ -224,7 +282,10 @@ function parseCalcColumnKey(header: string) {
 			throw new Error(`Invalid calc column "${header}": duplicate parameter key "${key}"`);
 
 		params.add(key);
+		parsed.params[key] = value;
 	}
+
+	return parsed;
 }
 
 function parseRequiredUniqueCalcOutput(header: string, segments: string[]) {
@@ -283,4 +344,24 @@ function parseWithSchema<TValue>(schema: z.ZodType<TValue>, value: unknown) {
 	if (result.success) return result.data;
 
 	throw new Error(result.error.issues[0]?.message ?? 'Invalid value');
+}
+
+function buildCalculationInputs(parsed: ParsedCalcColumnName) {
+	return {
+		tf: parsed.tf,
+		...parsed.params
+	};
+}
+
+function createCalculationDefinitionKey(
+	parsed: ParsedCalcColumnName,
+	inputs: Record<string, string>
+) {
+	const sortedInputs = Object.entries(inputs).sort(([left], [right]) => left.localeCompare(right));
+
+	return JSON.stringify({
+		id: parsed.id,
+		inputs: sortedInputs,
+		name: parsed.name
+	});
 }

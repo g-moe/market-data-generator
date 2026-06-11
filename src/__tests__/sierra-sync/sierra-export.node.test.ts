@@ -18,7 +18,10 @@ const SAMPLE_TIME = parseIsoToUnixMs('2026-06-05T21:00:04.000Z');
 const SAMPLE_GENERATED_ROW = `id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`;
 const SAMPLE_SIERRA_TIME = '2026-06-05, 21:00:04.000000';
 const SAMPLE_SIERRA_ROW = `${SAMPLE_SIERRA_TIME}, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6`;
+const SAMPLE_SYMBOL = 'ES';
+const SAMPLE_TIMEFRAME = '5m';
 const SAMPLE_CALC_SIGNAL = 'calc__name:Signal__tf:5m__id:sma__src:close__len:20__out:value';
+const SAMPLE_CALC_SIGNAL_HIST = 'calc__name:Signal__tf:5m__id:sma__src:close__len:20__out:hist';
 const SAMPLE_CALC_RSI = 'calc__name:Rsi__tf:same__id:rsi__src:close__len:14__out:value';
 
 function withGeneratedFile(line: string): string {
@@ -39,6 +42,32 @@ function createGeneratedFile(filePath: string) {
 
 function createSierraFile(filePath: string) {
 	return writeFile(filePath, withSierraFile(SAMPLE_SIERRA_ROW));
+}
+
+function mergeSampleSierraExport({
+	exportFile,
+	inputFile,
+	outputFile
+}: {
+	exportFile: string;
+	inputFile: string;
+	outputFile: string;
+}) {
+	return mergeValidatedSierraExport({
+		exportFile,
+		inputFile,
+		outputFile,
+		symbol: SAMPLE_SYMBOL,
+		timeframe: SAMPLE_TIMEFRAME
+	});
+}
+
+function calculationsJsonFile(outputFile: string) {
+	return outputFile.replace(/\.csv$/u, '.json');
+}
+
+async function readJson(filePath: string) {
+	return JSON.parse(await readFile(filePath, 'utf8')) as unknown;
 }
 
 describe('parseSierraExportRows', () => {
@@ -164,7 +193,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -175,6 +204,22 @@ ${SAMPLE_SIERRA_ROW}, 99`
 ${SAMPLE_GENERATED_ROW},99
 `
 			);
+			await expect(readJson(calculationsJsonFile(output))).resolves.toEqual({
+				indicators: [
+					{
+						id: 'sma',
+						inputs: {
+							len: '20',
+							src: 'close',
+							tf: '5m'
+						},
+						name: 'Signal',
+						outputKeys: ['value']
+					}
+				],
+				symbol: SAMPLE_SYMBOL,
+				timeframe: SAMPLE_TIMEFRAME
+			});
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -199,7 +244,7 @@ id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -221,7 +266,7 @@ id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
 			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -248,7 +293,7 @@ ${SAMPLE_GENERATED_ROW},99
 			await createSierraFile(sierra);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -259,6 +304,11 @@ ${SAMPLE_GENERATED_ROW},99
 ${SAMPLE_GENERATED_ROW}
 `
 			);
+			await expect(readJson(calculationsJsonFile(output))).resolves.toEqual({
+				indicators: [],
+				symbol: SAMPLE_SYMBOL,
+				timeframe: SAMPLE_TIMEFRAME
+			});
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -274,21 +324,76 @@ ${SAMPLE_GENERATED_ROW}
 			await createGeneratedFile(generated);
 			await writeFile(
 				sierra,
-				withSierraFile(`${SAMPLE_SIERRA_ROW}, 99, 45`, [SAMPLE_CALC_SIGNAL, SAMPLE_CALC_RSI])
+				withSierraFile(`${SAMPLE_SIERRA_ROW}, 99, 45, 55`, [
+					SAMPLE_CALC_SIGNAL,
+					SAMPLE_CALC_SIGNAL_HIST,
+					SAMPLE_CALC_RSI
+				])
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL},${SAMPLE_CALC_RSI}
-${SAMPLE_GENERATED_ROW},99,45
+				`${CANDLE_ROW_HEADER},${SAMPLE_CALC_SIGNAL},${SAMPLE_CALC_SIGNAL_HIST},${SAMPLE_CALC_RSI}
+${SAMPLE_GENERATED_ROW},99,45,55
 `
 			);
+			await expect(readJson(calculationsJsonFile(output))).resolves.toEqual({
+				indicators: [
+					{
+						id: 'sma',
+						inputs: {
+							len: '20',
+							src: 'close',
+							tf: '5m'
+						},
+						name: 'Signal',
+						outputKeys: ['value', 'hist']
+					},
+					{
+						id: 'rsi',
+						inputs: {
+							len: '14',
+							src: 'close',
+							tf: 'same'
+						},
+						name: 'Rsi',
+						outputKeys: ['value']
+					}
+				],
+				symbol: SAMPLE_SYMBOL,
+				timeframe: SAMPLE_TIMEFRAME
+			});
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	});
+
+	it('throws when Sierra calc columns duplicate an output key for one indicator', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'sierra-export-duplicate-calc-output-'));
+		const generated = join(root, 'generated.csv');
+		const sierra = join(root, 'sierra.txt');
+		const output = join(root, 'output.csv');
+
+		try {
+			await createGeneratedFile(generated);
+			await writeFile(
+				sierra,
+				withSierraFile(`${SAMPLE_SIERRA_ROW}, 99, 45`, [SAMPLE_CALC_SIGNAL, SAMPLE_CALC_SIGNAL])
+			);
+
+			await expect(
+				mergeSampleSierraExport({
+					exportFile: sierra,
+					inputFile: generated,
+					outputFile: output
+				})
+			).rejects.toThrow('Duplicate calc output key "value" for indicator "Signal"');
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -310,7 +415,7 @@ ${SAMPLE_GENERATED_ROW}`
 			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -337,7 +442,7 @@ ${SAMPLE_GENERATED_ROW},99
 			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -359,7 +464,7 @@ ${SAMPLE_GENERATED_ROW},99
 			await writeFile(sierra, withSierraFile(`${SAMPLE_SIERRA_ROW}, 99`, [SAMPLE_CALC_SIGNAL]));
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -385,7 +490,7 @@ id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`
 			await createSierraFile(sierra);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -412,7 +517,7 @@ id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -439,7 +544,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -466,7 +571,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			);
 
 			await expect(
-				mergeValidatedSierraExport({
+				mergeSampleSierraExport({
 					exportFile: sierra,
 					inputFile: generated,
 					outputFile: output
@@ -515,9 +620,16 @@ ${SAMPLE_SIERRA_ROW}, 99`
 				})
 			).resolves.toMatchObject({});
 			for (const timeframe of getTimeframes('/ES:XCME')) {
-				await expect(
-					readFile(join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? ''), 'utf8')
-				).resolves.toBe(`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`);
+				const outputFile = join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? '');
+
+				await expect(readFile(outputFile, 'utf8')).resolves.toBe(
+					`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`
+				);
+				await expect(readJson(calculationsJsonFile(outputFile))).resolves.toEqual({
+					indicators: [],
+					symbol: 'ES',
+					timeframe: timeframe.suffix
+				});
 			}
 		} finally {
 			await rm(root, { force: true, recursive: true });
