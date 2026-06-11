@@ -73,8 +73,9 @@ export async function mergeValidatedSierraExport({
 	const tradesterHeaders = Object.keys(
 		sierra.find((row) => Object.keys(row.tradester).length > 0)?.tradester ?? {}
 	);
-	const outputRows = [`${generated.header},${tradesterHeaders.join(',')}`];
+	const hasTradesterColumns = tradesterHeaders.length > 0;
 	const sierraByTime = indexSierraRowsByTime(sierra, inputFile);
+	const outputRows = [buildMergedHeader(generated.header, tradesterHeaders)];
 
 	for (let i = 0; i < comparableRows.length; i++) {
 		const generatedRow = comparableRows[i];
@@ -85,9 +86,7 @@ export async function mergeValidatedSierraExport({
 			);
 
 		compareGeneratedToSierra(generatedRow, sierraRow, i, inputFile);
-		outputRows.push(
-			`${generatedRow.raw},${tradesterHeaders.map((header) => sierraRow.tradester[header] ?? '').join(',')}`
-		);
+		outputRows.push(buildMergedRow(generatedRow.raw, sierraRow.tradester, tradesterHeaders, hasTradesterColumns));
 	}
 	await mkdir(dirname(outputFile), { recursive: true });
 	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
@@ -148,6 +147,23 @@ function parseGeneratedCsv(text: string, filePath: string) {
 				};
 			})
 	};
+}
+
+function buildMergedHeader(generatedHeader: string, tradesterHeaders: string[]) {
+	if (tradesterHeaders.length === 0) return generatedHeader;
+
+	return `${generatedHeader},${tradesterHeaders.join(',')}`;
+}
+
+function buildMergedRow(
+	generatedRow: string,
+	tradester: Record<string, string>,
+	tradesterHeaders: string[],
+	hasTradesterColumns: boolean
+) {
+	if (!hasTradesterColumns) return generatedRow;
+
+	return `${generatedRow},${tradesterHeaders.map((header) => tradester[header] ?? '').join(',')}`;
 }
 
 function isGeneratedPaddingRow(row: GeneratedRow) {

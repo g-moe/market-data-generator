@@ -151,7 +151,7 @@ ${SAMPLE_GENERATED_ROW},99
 		}
 	});
 
-	it('writes no tradester columns when none are available', async () => {
+	it('keeps the generated CSV unchanged when Sierra has no tradester columns', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -169,8 +169,8 @@ ${SAMPLE_GENERATED_ROW},99
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER},
-${SAMPLE_GENERATED_ROW},
+				`${CANDLE_ROW_HEADER}
+${SAMPLE_GENERATED_ROW}
 `
 			);
 		} finally {
@@ -432,7 +432,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			for (const timeframe of VALIDATED_TIMEFRAMES) {
 				await expect(
 					readFile(join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? ''), 'utf8')
-				).resolves.toBe(`${CANDLE_ROW_HEADER},\n${SAMPLE_GENERATED_ROW},\n`);
+				).resolves.toBe(`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`);
 			}
 		} finally {
 			await rm(root, { force: true, recursive: true });
