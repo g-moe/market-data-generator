@@ -6,21 +6,31 @@ import { describe, expect, it } from 'vitest';
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 
-const DEFAULT_CSV =
-	'time,open,high,low,close,volume\n1760000000000,1,2,0,1.5,10\n1760000060000,1.5,3,1,2,12\n';
+const DEFAULT_METADATA = {
+	timeframes: {
+		daily: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		minutes5: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		priceLevel: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		seconds15: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		volume500: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 }
+	}
+};
 
 async function withBridgeSource(
 	test: (source: string) => Promise<void> | void,
-	csv: string = DEFAULT_CSV
+	metadata: typeof DEFAULT_METADATA = DEFAULT_METADATA
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'sierra-bridge-'));
 	const file = join(root, 'bars.csv');
+	const metadataFile = join(root, 'tradester_ES.json');
 
 	try {
-		await writeFile(file, csv);
+		await writeFile(file, 'time,open,high,low,close,volume\n');
+		await writeFile(metadataFile, JSON.stringify(metadata));
 		const source = await createBridgeSource({
 			files: {
 				daily: file,
+				metadata: metadataFile,
 				minutes5: file,
 				priceLevel: file,
 				scid: join(root, 'tradester_ES.scid'),
@@ -71,10 +81,21 @@ describe('createBridgeSource', () => {
 		});
 	});
 
-	it('uses first non-zero bar as Sierra bridge start time when zero-padding exists', async () => {
-		await withBridgeSource((source) => {
-			expect(source).toContain('case 0: return DateYMD(2025, 10, 9);');
-			expect(source).not.toContain('case 0: return DateYMD(1970, 1, 1);');
-		}, 'time,open,high,low,close,volume\n0,0,0,0,0,0\n1760000000000,1,2,0,1.5,10\n');
+	it('uses generated metadata as the Sierra bridge date range source', async () => {
+		await withBridgeSource(
+			(source) => {
+				expect(source).toContain('case 0: return DateYMD(2026, 1, 31);');
+				expect(source).not.toContain('case 0: return DateYMD(1970, 1, 1);');
+			},
+			{
+				timeframes: {
+					daily: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					minutes5: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					priceLevel: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					seconds15: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					volume500: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 }
+				}
+			}
+		);
 	});
 });

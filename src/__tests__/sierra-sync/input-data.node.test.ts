@@ -12,6 +12,7 @@ describe('assertInputDataExists', () => {
 		try {
 			const files = {
 				daily: join(root, 'tradester_ES_1d.csv'),
+				metadata: join(root, 'tradester_ES.json'),
 				minutes5: join(root, 'tradester_ES_5m.csv'),
 				priceLevel: join(root, 'tradester_ES_1s_pl0.25.csv'),
 				scid: join(root, 'tradester_ES.scid'),
@@ -37,6 +38,7 @@ describe('assertInputDataExists', () => {
 			await expect(
 				assertInputDataExists('/ES:XCME', {
 					daily: join(root, 'missing-1d.csv'),
+					metadata: join(root, 'missing.json'),
 					minutes5: join(root, 'missing-5m.csv'),
 					priceLevel: join(root, 'missing-pl.csv'),
 					scid: existing,
@@ -60,6 +62,7 @@ describe('assertInputDataExists', () => {
 			await expect(
 				assertInputDataExists('/ES:XCME', {
 					daily: directory,
+					metadata: join(root, 'tradester_ES.json'),
 					minutes5: join(root, 'tradester_ES_5m.csv'),
 					priceLevel: join(root, 'tradester_ES_1s_pl0.25.csv'),
 					scid: join(root, 'tradester_ES.scid'),

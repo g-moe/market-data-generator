@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
 import { getSymbolConfig, type SymbolConfig } from '../contracts/symbols.ts';
@@ -8,6 +9,7 @@ import type {
 	GeneratorInputs,
 	MdCandle,
 	MdCandleVolumeByPrice,
+	OutputMetadata,
 	OutputFiles
 } from '../contracts/types.ts';
 import {
@@ -100,6 +102,7 @@ export async function generateMarketData(
 		ticks: 0,
 		volume500: 0
 	};
+	const priceLevelRange = createRangeTracker();
 
 	await Promise.all([scid.open(), priceLevel.open(), daily.open()]);
 
@@ -161,6 +164,7 @@ export async function generateMarketData(
 			counts.volume500 = volume500Ring.length;
 			counts.daily += emitted.daily.length;
 			counts.priceLevel += emitted.priceLevel.length;
+			priceLevelRange.pushMany(emitted.priceLevel);
 			await Promise.all([daily.write(emitted.daily), priceLevel.write(emitted.priceLevel)]);
 
 			options.onSessionComplete?.({
@@ -184,15 +188,31 @@ export async function generateMarketData(
 		volume500Ring.pushMany(final.volume500);
 		await Promise.all([priceLevel.write(final.priceLevel), daily.write(final.daily)]);
 		counts.priceLevel += final.priceLevel.length;
+		priceLevelRange.pushMany(final.priceLevel);
 		counts.volume500 = volume500Ring.length;
 		counts.seconds15 = seconds15Ring.length;
 		counts.minutes5 = minutes5Ring.length;
 		counts.daily += final.daily.length;
 
+		const volume500Rows = [...volume500Ring.iterate()];
+		const seconds15Rows = [...seconds15Ring.iterate()];
+		const minutes5Rows = [...minutes5Ring.iterate()];
+		const metadata = createOutputMetadata({
+			daily: {
+				endTime: getLastNonZeroSessionStart(sessionStarts),
+				startTime: getFirstNonZeroSessionStart(sessionStarts)
+			},
+			minutes5: getCandleRange(minutes5Rows),
+			priceLevel: priceLevelRange.getRange(),
+			seconds15: getCandleRange(seconds15Rows),
+			volume500: getCandleRange(volume500Rows)
+		});
+
 		await Promise.all([
-			writeRingBuffer(files.volume500, volume500Ring),
-			writeRingBuffer(files.seconds15, seconds15Ring),
-			writeRingBuffer(files.minutes5, minutes5Ring)
+			writeCandles(files.volume500, volume500Rows),
+			writeCandles(files.seconds15, seconds15Rows),
+			writeCandles(files.minutes5, minutes5Rows),
+			writeOutputMetadata(files.metadata, metadata)
 		]);
 	} finally {
 		await Promise.all([scid.close(), priceLevel.close(), daily.close()]);
@@ -212,6 +232,7 @@ export function getOutputFiles(inputs: GeneratorInputs): OutputFiles {
 
 	return {
 		daily: join(inputs.outputDir, `${prefix}_1d.csv`),
+		metadata: join(inputs.outputDir, `${prefix}.json`),
 		minutes5: join(inputs.outputDir, `${prefix}_5m.csv`),
 		priceLevel: join(inputs.outputDir, `${prefix}_1s_pl${priceLevelSuffix}.csv`),
 		scid: join(inputs.outputDir, `${prefix}.scid`),
@@ -434,14 +455,75 @@ function getSessionStarts(inputs: GeneratorInputs) {
 	return sessionStarts.reverse();
 }
 
-async function writeRingBuffer(filePath: string, ringBuffer: RingBuffer<MdCandle>) {
+async function writeCandles(filePath: string, candles: Iterable<MdCandle>) {
 	const writer = new CandleRowWriter(filePath, CANDLE_ROW_HEADER, toStoredCandleRow);
 	await writer.open();
 	try {
-		await writer.write(ringBuffer.iterate());
+		await writer.write(candles);
 	} finally {
 		await writer.close();
 	}
+}
+
+function createOutputMetadata(timeframes: OutputMetadata['timeframes']): OutputMetadata {
+	return { timeframes };
+}
+
+async function writeOutputMetadata(filePath: string, metadata: OutputMetadata) {
+	await mkdir(dirname(filePath), { recursive: true });
+	await writeFile(filePath, `${JSON.stringify(metadata, null, '\t')}\n`);
+}
+
+function getCandleRange(candles: MdCandle[]) {
+	const first = candles[0];
+	const last = candles.at(-1);
+
+	if (first === undefined || last === undefined) {
+		throw new Error('Cannot write metadata for empty candle range');
+	}
+
+	return {
+		endTime: last.time,
+		startTime: first.time
+	};
+}
+
+function createRangeTracker() {
+	let first: MdCandle | undefined;
+	let last: MdCandle | undefined;
+
+	return {
+		getRange: () => {
+			if (first === undefined || last === undefined) {
+				throw new Error('Cannot write metadata for empty candle range');
+			}
+
+			return {
+				endTime: last.time,
+				startTime: first.time
+			};
+		},
+		pushMany: (candles: MdCandle[]) => {
+			if (candles.length === 0) return;
+
+			first ??= candles[0];
+			last = candles.at(-1);
+		}
+	};
+}
+
+function getFirstNonZeroSessionStart(sessionStarts: number[]) {
+	const start = sessionStarts.find((sessionStart) => sessionStart >= UNIX_EPOCH_MS);
+	if (start === undefined) throw new Error('Cannot write metadata without a non-zero session');
+
+	return start;
+}
+
+function getLastNonZeroSessionStart(sessionStarts: number[]) {
+	const start = sessionStarts.findLast((sessionStart) => sessionStart >= UNIX_EPOCH_MS);
+	if (start === undefined) throw new Error('Cannot write metadata without a non-zero session');
+
+	return start;
 }
 
 function isInLastSessions(inputs: GeneratorInputs, sessionIndex: number, sessionWindow: number) {

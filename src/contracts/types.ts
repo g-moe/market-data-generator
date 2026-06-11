@@ -94,12 +94,25 @@ export type StoredMdCandleVolumeByPrice = {
 };
 
 export type OutputFiles = {
+	metadata: string;
 	scid: string;
 	priceLevel: string;
 	volume500: string;
 	seconds15: string;
 	minutes5: string;
 	daily: string;
+};
+
+export type TimeframeKey = Exclude<keyof OutputFiles, 'metadata' | 'scid'>;
+
+export type OutputMetadata = {
+	timeframes: Record<
+		TimeframeKey,
+		{
+			endTime: UnixMs;
+			startTime: UnixMs;
+		}
+	>;
 };
 
 export type GenerationResult = {

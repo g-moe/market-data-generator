@@ -32,6 +32,7 @@ export function sierraSyncPaths(symbol: Symbol): SierraSyncPaths {
 		chartbookSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
 		files: {
 			daily: join(inputDir, `${prefix}_1d.csv`),
+			metadata: join(inputDir, `${prefix}.json`),
 			minutes5: join(inputDir, `${prefix}_5m.csv`),
 			priceLevel: join(inputDir, `${prefix}_1s_pl0.25.csv`),
 			scid: join(inputDir, `${prefix}.scid`),

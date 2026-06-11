@@ -24,6 +24,7 @@ describe('sierraSyncPaths', () => {
 			tempDir: resolve(DATA_OUT_TEMP_ROOT, 'ES')
 		});
 		expect(paths.files.daily).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.csv'));
+		expect(paths.files.metadata).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES.json'));
 		expect(paths.files.priceLevel).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
 		expect(paths.files.minutes5).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
 		expect(paths.files.seconds15).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));

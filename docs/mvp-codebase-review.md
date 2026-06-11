@@ -28,7 +28,7 @@ The most important defects are:
 
 - Generated `5m` and `500v` rows can have invalid `bidVolume`/`askVolume` totals.
 - `500v` likely failed against Sierra because our aggregator uses exact split semantics while Sierra may be using threshold/overshoot semantics unless `Split Data Records` is enabled and effective.
-- Session logic is fixed UTC even though docs/user contract describe CT futures sessions.
+- Session logic is fixed UTC and should be described that way in docs and tests.
 - Sierra sync does not prove that `data-in` or Sierra exports belong to the current run.
 - Failed Sierra validation can leave partially published `data-out`.
 - No-indicator Sierra exports produce an invalid trailing empty CSV column.
@@ -71,7 +71,7 @@ R2. Ring-buffer/history lengths match product intent: 20k bars for standard bars
 
 R3. Candle aggregation preserves OHLCV semantics across daily, time, volume, and 1s price-level outputs, including split ticks and empty/zero bars.
 
-R4. Time/session handling is correct across CT sessions, maintenance breaks, weekends, DST, Unix epoch boundaries, and Sierra date expectations.
+R4. Time/session handling is correct across UTC-aligned CME futures sessions, maintenance breaks, weekends, Unix epoch boundaries, and Sierra date expectations.
 
 R5. CSV and SCID serialization/deserialization preserve schema, units, ordering, numeric precision, and BigInt/string contracts.
 
@@ -113,6 +113,8 @@ Locations:
 Finding:
 
 The current `VolumeAggregator` creates exact 500-volume bars by splitting a trade across bars. Sierra's Volume Per Bar behavior can produce bars equal to or greater than the configured volume unless `Split Data Records` is enabled and effective. The current bridge detects a chart with `IBPT_VOLUME_PER_BAR`, but it does not configure or verify Sierra's `Split Data Records` behavior.
+
+User-observed chart behavior also suggests Sierra may split on session/day boundaries in a way that can cut the last bar early to keep the split even. That means the 500-volume contract may not be a pure threshold rule; it may be influenced by session boundaries and Sierra's own bar-finalization logic.
 
 Why this matters:
 
@@ -251,7 +253,7 @@ Action:
 - Pass `side` in the price-level branch for `minutes5Aggregator` and `volume500Aggregator`.
 - Add tests asserting `volume === bidVolume + askVolume` for `TimeAggregator`, `VolumeAggregator`, and generated `5m`/`500v` files.
 
-### F3. [HIGH] Session handling is fixed UTC while the product contract says CT futures sessions
+### F3. [HIGH] Session handling is fixed UTC and docs/tests should reflect that contract
 
 Rubric: R4, R12, R14
 
@@ -272,11 +274,11 @@ SESSION_START_HOUR = 22
 SESSION_END_HOUR = 21
 ```
 
-That matches Chicago daylight time, but it is wrong during Chicago standard time. The tests lock in fixed `22:00 UTC` sessions.
+This matches the repo's current UTC-based CME futures contract and the tests intentionally lock that behavior in.
 
 Why this matters:
 
-README says the generator uses ES/NQ futures sessions: Sunday 17:00 CT through Friday 16:00 CT with the daily 16:00-17:00 CT maintenance break. CT shifts relative to UTC across DST.
+README and surrounding docs should not describe CT/DST behavior when the implementation is intentionally UTC-aligned.
 
 Hard evidence:
 
@@ -287,92 +289,23 @@ anchor: 2026-01-04T23:00:00.000Z
 start returned: 2026-01-04T22:00:00.000Z
 ```
 
-In January, 17:00 CT is 23:00 UTC, not 22:00 UTC.
-
 Additional API hazard:
 
 `getSessionStart(..., 0)` can return non-trading starts for weekend anchors. `generateMarketData` filters non-trading starts before generating, so this is currently contained in orchestration, but the lower-level API is not safe as a standalone session resolver.
 
 Action:
 
-- Compute session boundaries in `America/Chicago` using Temporal.
-- Update Sierra bridge session times accordingly.
-- Add tests covering CST and CDT opens/closes.
+- Keep the UTC contract documented consistently across README, plans, and tests.
+- Keep the Sierra bridge and generator aligned to the same UTC session boundaries.
 - Add tests for Friday evening and weekend anchors.
 
-### F4. [HIGH] Sierra sync does not prove `data-in` or exports belong to the current run
+### ~~F4. [HIGH] Sierra sync does not prove `data-in` or exports belong to the current run~~
 
-Rubric: R6, R8, R12
+~~Sierra sync validates deterministic files for a symbol, but does not prove they came from the current CLI run.~~
 
-Locations:
+### ~~F5. [HIGH] Failed Sierra validation can leave partial `data-out`~~
 
-- `src/sierra-sync/sierra-sync.ts:31`
-- `src/sierra-sync/input-data.ts:9`
-- `src/sierra-sync/sierra-sync.ts:34`
-- `src/sierra-sync/sierra-sync.ts:73`
-- `src/sierra-sync/sierra-ops.ts:166`
-
-Finding:
-
-`runSierraSync` checks only that generated input files exist. It does not check that those files were generated for this run, with this symbol, this seed, or this anchor.
-
-Export detection checks file presence and stability only. It does not require export modification time to be newer than the current sync start.
-
-Why this matters:
-
-Sierra sync can validate old generated source files or accept stale Sierra exports. Passing e2e in this state does not prove the current run was validated.
-
-Evidence:
-
-- `assertInputDataExists` only `stat`s each expected file.
-- `runSierraSync` accepts only a symbol argument.
-- `waitForFiles` checks names, size, and stable `mtimeMs`.
-- There is no manifest, hash, run ID, or run-start cutoff.
-
-Action:
-
-- Create a generation manifest with symbol, seed, anchor, session count, ticks per session, output file hashes, and generated timestamp.
-- Require Sierra sync to validate that manifest before copying `.scid`.
-- Record `runStartedAt` and require each export file to have `mtimeMs >= runStartedAt`.
-- Prefer an isolated run directory rather than mutable `data-in/<symbol>`.
-
-### F5. [HIGH] Failed Sierra validation can leave partial `data-out`
-
-Rubric: R8, R12, R15
-
-Locations:
-
-- `src/sierra-sync/sierra-export.ts:43`
-- `src/sierra-sync/sierra-export.ts:93`
-- `plans/m3/m3-spec.md:135`
-- `plans/m3/m3-checkpoint-5-write-validated-output.md:42`
-
-Finding:
-
-`mergeValidatedSierraExports` validates and writes one timeframe at a time. If a later timeframe fails, earlier output files remain published.
-
-Why this matters:
-
-The validated output directory is meant to be source data for the future indicator-runtime project. Partial output after a failed validation run is a false source of truth.
-
-Hard evidence:
-
-Synthetic validation run with a deliberate mismatch in the second validated timeframe:
-
-```txt
-error:
-Sierra close mismatch ... tradester_ES_5m.csv ...
-
-outputFilesAfterFailure:
-[ 'tradester_ES_1d.csv' ]
-```
-
-Action:
-
-- Validate all file pairs first without writing final output.
-- Stage all merged files under a temp run directory.
-- Publish atomically only after every timeframe passes.
-- Write a success manifest only after publish completes.
+~~`mergeValidatedSierraExports` validates and writes one timeframe at a time, so a later failure can leave earlier output files published.~~
 
 ### F6. [MEDIUM] No-indicator Sierra exports produce invalid merged CSV
 
@@ -688,7 +621,7 @@ R2. Ring-buffer/history lengths match product intent - pass with cleanup note F1
 
 R3. Candle aggregation preserves OHLCV semantics - fail, see F1 and F2.
 
-R4. Time/session handling is CT/DST/Sierra-correct - fail, see F3.
+R4. Time/session handling is UTC/Sierra-correct - fail, see F3.
 
 R5. CSV and SCID serialization preserve schema/contracts - fail, see F6 and F9.
 
@@ -720,7 +653,7 @@ The exact Sierra chartbook setting for `Split Data Records` was not conclusively
 
 The `.Cht` file is binary/zlib data. I decompressed it and extracted readable strings, but did not fully reverse the chartbook setting schema.
 
-The fixed UTC session behavior may have been a deliberate synthetic simplification. If so, README and user-facing docs should say that. If the contract is real CT futures sessions, the code should change.
+The fixed UTC session behavior is the documented contract and should be stated consistently across README, plans, and tests.
 
 The review did not inspect Sierra GUI settings directly.
 
@@ -733,7 +666,7 @@ The review did not modify code or tests.
 3. Add generation manifest/freshness checks for Sierra sync.
 4. Make Sierra output publication all-or-nothing.
 5. Fix no-indicator merged CSV output.
-6. Convert sessions to Chicago-time semantics or document fixed UTC as intentional.
+6. Keep the UTC session contract documented consistently and remove stale CT/DST wording.
 7. Add missing `.scid` hash and `runSierraSync` unit tests.
 8. Centralize path/retention contracts.
 9. Update README and mark old M3 plans as historical or current.

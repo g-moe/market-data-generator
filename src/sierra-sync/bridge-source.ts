@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import type { OutputFiles, Symbol } from '../contracts/index.ts';
+import type { OutputFiles, OutputMetadata, Symbol, TimeframeKey } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import { toUtcParts } from '../shared/datetime/index.ts';
 import {
@@ -22,12 +22,11 @@ export async function createBridgeSource({
 }) {
 	const config = getSymbolConfig(symbol);
 	const template = await readFile(`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`, 'utf8');
-	const ranges = await Promise.all(
-		TIMEFRAMES.map(async (timeframe) => ({
-			...timeframe,
-			...(await readCsvTimeRange(files[timeframe.key]))
-		}))
-	);
+	const metadata = await readOutputMetadata(files.metadata);
+	const ranges = TIMEFRAMES.map((timeframe) => ({
+		...timeframe,
+		...readMetadataTimeRange(metadata, timeframe.key)
+	}));
 
 	return replaceTemplateTokens(template, {
 		__TRADESTER_CHART_EXPORT_CASES__: ranges
@@ -54,35 +53,6 @@ export async function createBridgeSource({
 	});
 }
 
-async function readCsvTimeRange(filePath: string) {
-	const text = await readFile(filePath, 'utf8');
-	const lines = text.trimEnd().split(/\r?\n/u).filter(Boolean);
-	if (lines.length <= 1)
-		throw new Error(`Cannot derive Sierra date range from empty file: ${filePath}`);
-	const headers = lines[0].split(',');
-	const timeIndex = headers.indexOf('time');
-	if (timeIndex === -1) throw new Error(`Generated file is missing time column: ${filePath}`);
-
-	const rows = lines.slice(1).map((line) => line.split(','));
-	const parseTime = (line: string[]) => Number(line[timeIndex]);
-	const isPaddingRow = (line: string[]) =>
-		parseTime(line) === 0 &&
-		Number(line[headers.indexOf('open')]) === 0 &&
-		Number(line[headers.indexOf('high')]) === 0 &&
-		Number(line[headers.indexOf('low')]) === 0 &&
-		Number(line[headers.indexOf('close')]) === 0 &&
-		Number(line[headers.indexOf('volume')]) === 0;
-
-	const comparableRows = rows.filter((row) => !isPaddingRow(row));
-	if (comparableRows.length === 0)
-		throw new Error(`No valid Sierra date range available in generated file: ${filePath}`);
-
-	return {
-		endTime: parseTime(comparableRows.at(-1) ?? rows[rows.length - 1]),
-		startTime: parseTime(comparableRows[0])
-	};
-}
-
 function replaceTemplateTokens(template: string, replacements: Record<string, string>) {
 	let source = template;
 
@@ -95,6 +65,24 @@ function replaceTemplateTokens(template: string, replacements: Record<string, st
 		throw new Error(`Missing Sierra bridge token replacement: ${missingToken}`);
 
 	return source;
+}
+
+async function readOutputMetadata(filePath: string): Promise<OutputMetadata> {
+	const parsed = JSON.parse(await readFile(filePath, 'utf8')) as OutputMetadata;
+	if (parsed.timeframes === undefined) {
+		throw new Error(`Generated metadata is missing timeframes: ${filePath}`);
+	}
+
+	return parsed;
+}
+
+function readMetadataTimeRange(metadata: OutputMetadata, timeframe: TimeframeKey) {
+	const range = metadata.timeframes[timeframe];
+	if (range === undefined) {
+		throw new Error(`Generated metadata is missing timeframe range: ${timeframe}`);
+	}
+
+	return range;
 }
 
 function timeframeCondition(timeframe: { suffix: string }, index: number) {

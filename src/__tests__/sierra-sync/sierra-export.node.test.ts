@@ -401,6 +401,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 		await mkdir(tempDir, { recursive: true });
 		const inputFiles = {
 			daily: join(inputDir, 'tradester_ES_1d.csv'),
+			metadata: join(inputDir, 'tradester_ES.json'),
 			minutes5: join(inputDir, 'tradester_ES_5m.csv'),
 			priceLevel: join(inputDir, 'tradester_ES_1s_pl0.25.csv'),
 			scid: join(inputDir, 'tradester_ES.scid'),
