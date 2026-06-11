@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
-import { SIERRA_EXPORT_HEADER, VALIDATED_TIMEFRAMES } from './constants.ts';
+import { SIERRA_EXPORT_HEADER, TIMEFRAMES } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
 type GeneratedRow = {
@@ -40,7 +40,7 @@ export async function mergeValidatedSierraExports({
 }) {
 	await mkdir(outputDir, { recursive: true });
 
-	for (const timeframe of VALIDATED_TIMEFRAMES) {
+	for (const timeframe of TIMEFRAMES) {
 		const inputFile = inputFiles[timeframe.key];
 		await mergeValidatedSierraExport({
 			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),
@@ -74,19 +74,22 @@ export async function mergeValidatedSierraExport({
 		sierra.find((row) => Object.keys(row.tradester).length > 0)?.tradester ?? {}
 	);
 	const hasTradesterColumns = tradesterHeaders.length > 0;
-	const sierraByTime = indexSierraRowsByTime(sierra, inputFile);
+	const sierraByTime = groupSierraRowsByTime(sierra);
 	const outputRows = [buildMergedHeader(generated.header, tradesterHeaders)];
 
 	for (let i = 0; i < comparableRows.length; i++) {
 		const generatedRow = comparableRows[i];
-		const sierraRow = sierraByTime.get(generatedRow.time);
+		const sierraRows = sierraByTime.get(generatedRow.time);
+		const sierraRow = sierraRows?.shift();
 		if (sierraRow === undefined)
 			throw new Error(
 				`Missing Sierra bar in ${inputFile} at row ${i.toString()}: generated timestamp ${generatedRow.time.toString()}`
 			);
 
 		compareGeneratedToSierra(generatedRow, sierraRow, i, inputFile);
-		outputRows.push(buildMergedRow(generatedRow.raw, sierraRow.tradester, tradesterHeaders, hasTradesterColumns));
+		outputRows.push(
+			buildMergedRow(generatedRow.raw, sierraRow.tradester, tradesterHeaders, hasTradesterColumns)
+		);
 	}
 	await mkdir(dirname(outputFile), { recursive: true });
 	await writeFile(outputFile, `${outputRows.join('\n')}\n`);
@@ -177,13 +180,17 @@ function isGeneratedPaddingRow(row: GeneratedRow) {
 	);
 }
 
-function indexSierraRowsByTime(rows: SierraExportRow[], filePath: string) {
-	const byTime = new Map<number, SierraExportRow>();
+function groupSierraRowsByTime(rows: SierraExportRow[]) {
+	const byTime = new Map<number, SierraExportRow[]>();
 
 	for (const row of rows) {
-		if (byTime.has(row.time))
-			throw new Error(`Duplicate Sierra bar in ${filePath}: timestamp ${row.time.toString()}`);
-		byTime.set(row.time, row);
+		const current = byTime.get(row.time);
+		if (current !== undefined) {
+			current.push(row);
+			continue;
+		}
+
+		byTime.set(row.time, [row]);
 	}
 
 	return byTime;

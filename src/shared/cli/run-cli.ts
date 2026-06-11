@@ -168,9 +168,7 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 
 const SPINNER_FRAMES = ['-', '\\', '|', '/'];
 
-export function createNodePorts({
-	output = stdout
-}: NodePortsOptions = {}): CliPorts {
+export function createNodePorts({ output = stdout }: NodePortsOptions = {}): CliPorts {
 	const spinner = createTextSpinner(output);
 
 	return {

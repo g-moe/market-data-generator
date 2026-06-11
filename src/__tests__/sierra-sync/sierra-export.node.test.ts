@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
-import { SIERRA_EXPORT_HEADER, VALIDATED_TIMEFRAMES } from '../../sierra-sync/constants.ts';
+import { SIERRA_EXPORT_HEADER, TIMEFRAMES } from '../../sierra-sync/constants.ts';
 import {
 	mergeValidatedSierraExports,
 	mergeValidatedSierraExport,
@@ -119,6 +119,36 @@ ${SAMPLE_SIERRA_ROW}, 99`
 ${SAMPLE_GENERATED_ROW},99
 `
 			);
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	});
+
+	it('matches duplicate Sierra millisecond timestamps in export order', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'sierra-export-duplicate-ms-'));
+		const generated = join(root, 'generated.csv');
+		const sierra = join(root, 'sierra.txt');
+		const output = join(root, 'output.csv');
+
+		try {
+			await writeFile(
+				generated,
+				withGeneratedFile(`id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25
+id2,${SAMPLE_TIME.toString()},1,1.5,2.5,1,2,10,5,5,1.75`)
+			);
+			await writeFile(
+				sierra,
+				withSierraFile(`2026-06-05, 21:00:04.000001, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6
+2026-06-05, 21:00:04.000002, 1.5, 2.5, 1, 2, 10, 1, 1, 1, 1, 5, 5`)
+			);
+
+			await expect(
+				mergeValidatedSierraExport({
+					exportFile: sierra,
+					inputFile: generated,
+					outputFile: output
+				})
+			).resolves.toMatchObject({ comparedRows: 2, outputFile: output });
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -337,7 +367,7 @@ id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`
 		}
 	});
 
-	it('throws when Sierra exports contain duplicate timestamps', async () => {
+	it('allows unused duplicate Sierra timestamps after generated rows match', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-dup-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -358,9 +388,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 					inputFile: generated,
 					outputFile: output
 				})
-			).rejects.toThrow(
-				`Duplicate Sierra bar in ${generated}: timestamp ${SAMPLE_TIME.toString()}`
-			);
+			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -413,7 +441,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			await writeFile(file, withGeneratedFile(SAMPLE_GENERATED_ROW));
 		}
 
-		for (const timeframe of VALIDATED_TIMEFRAMES) {
+		for (const timeframe of TIMEFRAMES) {
 			await writeFile(
 				join(tempDir, sierraExportFileName('/ES:XCME', timeframe.suffix)),
 				withSierraFile(SAMPLE_SIERRA_ROW)
@@ -429,7 +457,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 					tempDir
 				})
 			).resolves.toMatchObject({});
-			for (const timeframe of VALIDATED_TIMEFRAMES) {
+			for (const timeframe of TIMEFRAMES) {
 				await expect(
 					readFile(join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? ''), 'utf8')
 				).resolves.toBe(`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`);

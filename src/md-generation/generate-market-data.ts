@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 
 import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
 import { getSymbolConfig, type SymbolConfig } from '../contracts/symbols.ts';
@@ -12,6 +12,7 @@ import type {
 	OutputMetadata,
 	OutputFiles
 } from '../contracts/types.ts';
+import { getOutputFiles as buildOutputFiles } from '../shared/output-files.ts';
 import {
 	CANDLE_ROW_HEADER,
 	CandleRowWriter,
@@ -152,6 +153,7 @@ export async function generateMarketData(
 					priceLevelAggregator,
 					emitted
 				);
+				emitted.volume500.push(...volume500Aggregator.finish());
 				sessionTicks = inputs.ticksPerSession;
 				counts.ticks += sessionTicks;
 			}
@@ -226,19 +228,7 @@ export async function generateMarketData(
 }
 
 export function getOutputFiles(inputs: GeneratorInputs): OutputFiles {
-	const symbolConfig = getSymbolConfig(inputs.symbol);
-	const prefix = `tradester_${symbolConfig.symbolId}`;
-	const priceLevelSuffix = formatPriceLevelSuffix(symbolConfig.tickSize);
-
-	return {
-		daily: join(inputs.outputDir, `${prefix}_1d.csv`),
-		metadata: join(inputs.outputDir, `${prefix}.json`),
-		minutes5: join(inputs.outputDir, `${prefix}_5m.csv`),
-		priceLevel: join(inputs.outputDir, `${prefix}_1s_pl${priceLevelSuffix}.csv`),
-		scid: join(inputs.outputDir, `${prefix}.scid`),
-		seconds15: join(inputs.outputDir, `${prefix}_15s.csv`),
-		volume500: join(inputs.outputDir, `${prefix}_500v.csv`)
-	};
+	return buildOutputFiles(inputs.symbol, inputs.outputDir);
 }
 
 function generateSessionTicksIntoOutputs(
@@ -416,7 +406,7 @@ function generateSessionTicksIntoOutputs(
 			minutes5Aggregator.pushTickValues(time, price, volume, emitted.minutes5);
 		}
 
-		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500);
+		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
 		priceLevelAggregator.pushTickValues(time, price, volume, emitted.priceLevel, side);
 	}
 
@@ -435,10 +425,6 @@ function generateSessionTicksIntoOutputs(
 	});
 
 	return priceTicks * tickSize;
-}
-
-function formatPriceLevelSuffix(tickSize: number) {
-	return String(tickSize);
 }
 
 function getSessionStarts(inputs: GeneratorInputs) {

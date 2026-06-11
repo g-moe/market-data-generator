@@ -81,6 +81,27 @@ describe('generateMarketData', () => {
 		}
 	});
 
+	it('does not carry partial volume bars across sessions', async () => {
+		const outputRoot = await mkdtemp(join(tmpdir(), 'market-data-volume-session-'));
+		const inputs = normalizeInputs({
+			outputDir: outputRoot,
+			sessionCount: 2,
+			symbol: 'ES',
+			ticksPerSession: 1
+		});
+
+		try {
+			const result = await generateMarketData(inputs);
+			const rows = (await readFile(result.files.volume500, 'utf8')).trimEnd().split('\n').slice(1);
+			const volumes = rows.map((row) => Number(row.split(',')[7]));
+
+			expect(rows).toHaveLength(2);
+			expect(volumes.every((volume) => volume > 0 && volume < 500)).toBe(true);
+		} finally {
+			await rm(outputRoot, { force: true, recursive: true });
+		}
+	});
+
 	it('keeps ring-buffered time outputs at latest 20,000 bars', async () => {
 		const outputRoot = await mkdtemp(join(tmpdir(), 'market-data-tail-'));
 		const inputs = normalizeInputs({

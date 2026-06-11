@@ -18,11 +18,11 @@ describe('runCli', () => {
 		const outputDir = await mkdtemp(join(tmpdir(), 'market-data-cli-'));
 
 		try {
-			const result = await runCli(
-				'ES',
-				ports({ events }),
-				{ outputDir, sessionCount: 1, ticksPerSession: 5 }
-			);
+			const result = await runCli('ES', ports({ events }), {
+				outputDir,
+				sessionCount: 1,
+				ticksPerSession: 5
+			});
 
 			expect(result.counts.ticks).toBe(5);
 			expect(result.files.scid).toBe(join(outputDir, 'ES', 'tradester_ES.scid'));
@@ -128,11 +128,7 @@ describe('createNodePorts', () => {
 	});
 });
 
-function ports({
-	events
-}: {
-	events: string[];
-}): CliPorts {
+function ports({ events }: { events: string[] }): CliPorts {
 	return {
 		log: (message) => {
 			events.push(`log:${message}`);

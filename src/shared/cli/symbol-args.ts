@@ -1,9 +1,8 @@
 import { SYMBOL_OPTIONS, findSymbol, type Symbol } from '../../contracts/symbols.ts';
 
-const SYMBOL_OPTIONS_MESSAGE = [
-	'Available symbols:',
-	...SYMBOL_OPTIONS.map(formatSymbolLine)
-].join('\n');
+const SYMBOL_OPTIONS_MESSAGE = ['Available symbols:', ...SYMBOL_OPTIONS.map(formatSymbolLine)].join(
+	'\n'
+);
 
 function formatSymbolLine(symbol: (typeof SYMBOL_OPTIONS)[number]) {
 	return `- ${symbol.symbolId} (${symbol.id}): ${symbol.name}`;

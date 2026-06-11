@@ -41,5 +41,3 @@ export const TIMEFRAMES = [
 	{ key: 'volume500', suffix: '500v' },
 	{ key: 'priceLevel', suffix: '1s_pl0.25' }
 ] as const;
-
-export const VALIDATED_TIMEFRAMES = TIMEFRAMES.filter((timeframe) => timeframe.suffix !== '500v');

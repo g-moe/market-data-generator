@@ -406,26 +406,7 @@ Action:
 - Move generated output path construction into a shared contract function.
 - Have both generation and Sierra sync consume that function.
 
-### F9. [MEDIUM] `md-generation` e2e does not hash `.scid`
-
-Rubric: R5, R11, R12
-
-Location:
-
-- `src/__tests__/__e2e__/md-generation/md-generation.e2e.test.ts:67`
-
-Finding:
-
-The e2e hashes CSV outputs but only checks the `.scid` byte size.
-
-Why this matters:
-
-The `.scid` file is the source fed into Sierra. Byte size alone will not catch deterministic content regressions.
-
-Action:
-
-- Include `.scid` in e2e hashing.
-- Or add a separate first/second run `.scid` content hash assertion.
+### ~~F9. [MEDIUM] `md-generation` e2e does not hash `.scid`~~
 
 ### F10. [MEDIUM] `runSierraSync` lacks a mirrored unit test around operation sequence
 
@@ -507,12 +488,42 @@ Locations:
 
 Finding:
 
-`30` price-level sessions and `20_000` retained bars are product-level constants, but they live privately in the generator and are repeated in tests/docs.
+The generator keeps product-level retention values private, and the same values are repeated in tests and docs.
 
-Action:
+```ts
+// current shape in src/md-generation/generate-market-data.ts
+const priceLevelSessions = 30;
+const retainedBars = 20_000;
+```
 
-- Promote retention constants into `src/contracts/defaults.ts` or a dedicated retention contract.
-- Import them from generation and tests.
+Why this is bad:
+
+These values are part of the product contract, not an implementation detail. Keeping them private creates drift risk between generation, tests, and docs.
+
+```ts
+// proposed shape in src/contracts/defaults.ts or a dedicated shared contract
+export const DEFAULT_RETAINED_BARS = 20_000;
+export const DEFAULT_PRICE_LEVEL_SESSIONS = 30;
+```
+
+```ts
+// proposed usage in src/md-generation/generate-market-data.ts
+import { DEFAULT_PRICE_LEVEL_SESSIONS, DEFAULT_RETAINED_BARS } from '../contracts/defaults.ts';
+
+const priceLevelSessions = DEFAULT_PRICE_LEVEL_SESSIONS;
+const retainedBars = DEFAULT_RETAINED_BARS;
+```
+
+```ts
+// proposed usage in tests/docs
+import { DEFAULT_PRICE_LEVEL_SESSIONS, DEFAULT_RETAINED_BARS } from '../contracts/defaults.ts';
+```
+
+Why the change is good:
+
+- one source of truth for product-level retention values
+- tests and docs stop hard-coding magic numbers
+- future changes only happen in one place
 
 ### F14. [LOW] `waitForFiles` advertises a timeout parameter but ignores it
 
