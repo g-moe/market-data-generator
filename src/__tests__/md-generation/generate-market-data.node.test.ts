@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +8,11 @@ import { generateMarketData, getOutputFiles } from '../../md-generation/generate
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { countGeneratedTickTimeBuckets } from '../../md-generation/ticks.ts';
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
+import {
+	DEPTH_HEADER_SIZE,
+	DEPTH_RECORD_SIZE,
+	readDepthHeader
+} from '../../shared/file-ops/depth.ts';
 
 describe('generateMarketData', () => {
 	it('writes all tick-first outputs for ES', async () => {
@@ -27,9 +32,20 @@ describe('generateMarketData', () => {
 			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
 			expect(result.files.metadata).toBe(join(outputRoot, 'ES', 'tradester_ES.json'));
 			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
+			expect(result.files.orderbook).toBe(join(outputRoot, 'ES', 'tradester_ES_orderbook.depth'));
 			expect(result.files.range10).toBe(join(outputRoot, 'ES', 'tradester_ES_10r.csv'));
 			expect(result.files.tick100).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
+			expect(result.counts.orderbook).toBeGreaterThan(200);
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
+			expect(readDepthHeader(await readFile(result.files.orderbook))).toEqual({
+				fileTypeUniqueHeaderId: 'SCDD',
+				headerSize: DEPTH_HEADER_SIZE,
+				recordSize: DEPTH_RECORD_SIZE,
+				version: 1
+			});
+			expect((await stat(result.files.orderbook)).size).toBe(
+				DEPTH_HEADER_SIZE + result.counts.orderbook * DEPTH_RECORD_SIZE
+			);
 			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
 				timeframes: {
 					daily: expect.objectContaining({
@@ -83,6 +99,7 @@ describe('generateMarketData', () => {
 			expect(await readFile(second.files.priceLevel, 'utf8')).toBe(
 				await readFile(first.files.priceLevel, 'utf8')
 			);
+			expect(await readFile(second.files.orderbook)).toEqual(await readFile(first.files.orderbook));
 		} finally {
 			await rm(firstRoot, { force: true, recursive: true });
 			await rm(secondRoot, { force: true, recursive: true });

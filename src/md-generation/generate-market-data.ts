@@ -20,6 +20,7 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow
 } from '../shared/file-ops/csv.ts';
+import { MarketDepthWriter } from '../shared/file-ops/depth.ts';
 import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../shared/file-ops/scid.ts';
 import {
 	createBarId,
@@ -30,6 +31,7 @@ import {
 	VolumeAggregator
 } from './candles.ts';
 import { getPreviousSessionStart, getSessionStart, isTradingSessionStart } from './market-time.ts';
+import { OrderbookDepthStreamer } from './orderbook.ts';
 import { RingBuffer } from './ring-buffer.ts';
 import {
 	countGeneratedTickTimeBuckets,
@@ -103,6 +105,8 @@ export async function generateMarketData(
 	);
 	const tick100Aggregator = new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size);
 	const volume500Aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
+	const orderbook = new MarketDepthWriter(files.orderbook);
+	const orderbookStreamer = new OrderbookDepthStreamer(orderbook, symbolConfig.tickSize);
 	const seconds15Aggregator = new IntervalTimeAggregator(
 		TIMEFRAME_DEFINITIONS.seconds15.milliseconds,
 		seconds15StartSession * seconds15BarsPerSession
@@ -127,6 +131,7 @@ export async function generateMarketData(
 	const counts = {
 		daily: 0,
 		minutes5: 0,
+		orderbook: 0,
 		priceLevel: 0,
 		range10: 0,
 		seconds15: 0,
@@ -136,7 +141,7 @@ export async function generateMarketData(
 	};
 	const priceLevelRange = createRangeTracker();
 
-	await Promise.all([scid.open(), priceLevel.open(), daily.open()]);
+	await Promise.all([scid.open(), orderbook.open(), priceLevel.open(), daily.open()]);
 
 	try {
 		const sessionStarts = getSessionStarts(inputs);
@@ -195,6 +200,7 @@ export async function generateMarketData(
 					range10Aggregator,
 					tick100Aggregator,
 					volume500Aggregator,
+					orderbookStreamer,
 					priceLevelAggregator,
 					emitted
 				);
@@ -309,9 +315,11 @@ export async function generateMarketData(
 			writeCandles(files.minutes5, minutes5Rows),
 			writeOutputMetadata(files.metadata, metadata)
 		]);
+
+		counts.orderbook = orderbook.recordCount;
 	} finally {
 		// Close writers even if generation fails mid-run.
-		await Promise.all([scid.close(), priceLevel.close(), daily.close()]);
+		await Promise.all([scid.close(), orderbook.close(), priceLevel.close(), daily.close()]);
 	}
 
 	return {
@@ -341,6 +349,7 @@ function generateSessionTicksIntoOutputs(
 	range10Aggregator: RangeAggregator,
 	tick100Aggregator: TickAggregator,
 	volume500Aggregator: VolumeAggregator,
+	orderbookStreamer: OrderbookDepthStreamer,
 	priceLevelAggregator: PriceLevelAggregator,
 	emitted: CandleEmissions
 ) {
@@ -418,6 +427,7 @@ function generateSessionTicksIntoOutputs(
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
 		range10Aggregator.pushTickValues(time, price, volume, emitted.range10, side);
 		tick100Aggregator.pushTickValues(time, price, volume, emitted.tick100, side);
+		orderbookStreamer.pushTickValues(time, price, volume, side);
 
 		// Price-level aggregation is retained only for the trailing session window.
 		if (!shouldEmitPriceLevel) continue;

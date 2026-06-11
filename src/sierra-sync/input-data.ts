@@ -3,10 +3,24 @@ import { stat } from 'node:fs/promises';
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 
+const SIERRA_INPUT_FILE_KEYS = [
+	'daily',
+	'metadata',
+	'minutes5',
+	'priceLevel',
+	'range10',
+	'scid',
+	'seconds15',
+	'tick100',
+	'volume500'
+] as const satisfies readonly (keyof OutputFiles)[];
+
 export async function assertInputDataExists(symbol: Symbol, files: OutputFiles) {
 	const missing: string[] = [];
 
-	for (const filePath of Object.values(files)) {
+	for (const key of SIERRA_INPUT_FILE_KEYS) {
+		const filePath = files[key];
+
 		try {
 			const result = await stat(filePath);
 			if (!result.isFile()) missing.push(filePath);

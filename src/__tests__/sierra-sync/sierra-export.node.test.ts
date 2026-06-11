@@ -592,6 +592,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			daily: join(inputDir, 'tradester_ES_1d.csv'),
 			metadata: join(inputDir, 'tradester_ES.json'),
 			minutes5: join(inputDir, 'tradester_ES_5m.csv'),
+			orderbook: join(inputDir, 'tradester_ES_orderbook.depth'),
 			priceLevel: join(inputDir, 'tradester_ES_1s_pl0.25.csv'),
 			range10: join(inputDir, 'tradester_ES_10r.csv'),
 			scid: join(inputDir, 'tradester_ES.scid'),

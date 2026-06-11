@@ -34,6 +34,7 @@ async function withBridgeSource(
 				daily: file,
 				metadata: metadataFile,
 				minutes5: file,
+				orderbook: join(root, 'tradester_ES_orderbook.depth'),
 				priceLevel: file,
 				range10: file,
 				scid: join(root, 'tradester_ES.scid'),

@@ -64,6 +64,34 @@ export type MdCandleVolumeByPrice = {
 	prices: Map<Price, Volume>;
 } & MdCandle;
 
+export type MdOrder = {
+	/** Unique OrderId */
+	id: bigint;
+	/** Price */
+	price: number;
+	/** Queue in line (sorted smallest to largest) */
+	queueId: bigint;
+	/** Side */
+	side: 'BUY' | 'SELL' | undefined;
+	/** Size of the order */
+	size: number;
+	/** Time */
+	time: UnixMs;
+};
+
+export type MdOrderbookLevel = {
+	/** Individual orders at this level */
+	orders: Map<MdOrder['id'], MdOrder>;
+	/** Price */
+	price: MdOrder['price'];
+	/** Side of market */
+	side: 'BUY' | 'SELL';
+	/** Total size of all orders at this level */
+	totalSize: MdOrder['size'];
+};
+
+export type MdOrderbook = Map<MdOrder['price'], MdOrderbookLevel>;
+
 export type StoredMdCandle = {
 	id: string;
 	close: number;
@@ -95,6 +123,7 @@ export type StoredMdCandleVolumeByPrice = {
 
 export type OutputFiles = {
 	metadata: string;
+	orderbook: string;
 	scid: string;
 	priceLevel: string;
 	range10: string;
@@ -105,7 +134,7 @@ export type OutputFiles = {
 	daily: string;
 };
 
-export type TimeframeKey = Exclude<keyof OutputFiles, 'metadata' | 'scid'>;
+export type TimeframeKey = Exclude<keyof OutputFiles, 'metadata' | 'orderbook' | 'scid'>;
 
 export type OutputMetadata = {
 	timeframes: Record<
@@ -122,6 +151,7 @@ export type GenerationResult = {
 	files: OutputFiles;
 	counts: {
 		ticks: number;
+		orderbook: number;
 		priceLevel: number;
 		range10: number;
 		tick100: number;

@@ -67,6 +67,7 @@ data/ES/tradester_ES_15s.csv        latest 20,000 15-second bars
 data/ES/tradester_ES_100t.csv       latest 20,000 100-trade bars
 data/ES/tradester_ES_500v.csv       latest 20,000 500-volume bars
 data/ES/tradester_ES_1s_pl0.25.csv  30 sessions of 1-second price-level bars
+data/ES/tradester_ES_orderbook.depth Sierra depth history for 100 bid and 100 ask levels
 ```
 
 ## Calculation Note
@@ -79,7 +80,9 @@ store volume by price.
 Raw ticks are the source of truth. The `.scid` file is for Sierra Chart.
 Derived candle files are fixed-schema CSV-style rows with one header line.
 `bigint` IDs are stored as strings. Price-level rows add a `prices` field
-encoded as `price:volume;price:volume`.
+encoded as `price:volume;price:volume`. The orderbook depth file uses Sierra
+Chart's binary `.depth` format, with an initial full book snapshot and
+per-generated-tick market depth update batches.
 
 The generator uses the ES/NQ futures session model: Sunday 17:00 CT through
 Friday 16:00 CT with the daily 16:00-17:00 CT maintenance break.
