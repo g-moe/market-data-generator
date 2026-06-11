@@ -73,7 +73,7 @@ export function floorTime(time: number, bucketMs: number) {
 	return Math.floor(time / bucketMs) * bucketMs;
 }
 
-export function getSessionDateParts(time: number): UtcSessionParts {
+function getSessionDateParts(time: number): UtcSessionParts {
 	const parts = toUtcParts(time);
 
 	return {

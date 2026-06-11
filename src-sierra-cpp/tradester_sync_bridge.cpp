@@ -5,7 +5,7 @@ SCDLLName("Tradester Sync Bridge")
 
 namespace {
 
-const char* TargetSymbol() { return "__TRADESTER_TARGET_SYMBOL__"; }
+SCString TargetDataFile() { return "__TRADESTER_TARGET_DATA_FILE__"; }
 float TargetTickSize() { return __TRADESTER_TICK_SIZE__; }
 int TargetSessionStartTime() { return SCDateTime(22, 0, 0, 0).GetTime(); }
 int TargetSessionEndTime() { return SCDateTime(21, 0, 0, 0).GetTime(); }
@@ -37,7 +37,7 @@ void LogChartState(SCStudyInterfaceRef sc, int exportIndex, const char* stage)
         barPeriod.ChartDataType,
         barPeriod.IntradayChartBarPeriodType,
         barPeriod.IntradayChartBarPeriodParameter1,
-        sc.Symbol.GetChars(),
+        sc.DataFile.GetChars(),
         sc.ChartDataStartDate,
         sc.ChartDataEndDate
     );
@@ -80,7 +80,7 @@ __TRADESTER_END_DATE_CASES__
 
 bool ChartNeedsSetup(SCStudyInterfaceRef sc, int exportIndex)
 {
-    return std::strcmp(sc.Symbol.GetChars(), TargetSymbol()) != 0 ||
+    return std::strcmp(sc.DataFile.GetChars(), TargetDataFile().GetChars()) != 0 ||
         sc.TickSize != TargetTickSize() ||
         sc.LoadChartDataByDateRange == 0 ||
         sc.ChartDataStartDate != StartDate(exportIndex) ||
@@ -121,7 +121,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
     {
         exportComplete = 0;
         lastLoggedArraySize = -2;
-        sc.Symbol = TargetSymbol();
+        sc.DataFile = TargetDataFile();
         sc.TickSize = TargetTickSize();
         sc.LoadChartDataByDateRange = 1;
         sc.ChartDataStartDate = StartDate(exportIndex);

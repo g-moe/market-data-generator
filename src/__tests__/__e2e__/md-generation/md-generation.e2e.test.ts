@@ -17,15 +17,17 @@ const SCID_HEADER_BYTES = 56;
 const SCID_RECORD_BYTES = 40;
 
 describe('md-generation e2e', () => {
+	const symbol = process.env.E2E_SYMBOL ?? 'ES';
+
 	it('writes the expected full-run lengths and keeps output deterministic', async () => {
 		const dataInRoot = join(cwd(), 'data-in');
-		const outputDir = join(dataInRoot, 'ES');
+		const outputDir = join(dataInRoot, symbol);
 
 		await rm(outputDir, { force: true, recursive: true });
 
 		const first = await generateMarketData(
 			normalizeInputs({
-				symbol: 'ES'
+				symbol
 			})
 		);
 
@@ -58,7 +60,7 @@ describe('md-generation e2e', () => {
 		const firstHashes = await hashGeneratedFiles(first.inputs.outputDir);
 		const second = await generateMarketData(
 			normalizeInputs({
-				symbol: 'ES'
+				symbol
 			})
 		);
 		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(

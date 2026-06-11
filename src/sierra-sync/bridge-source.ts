@@ -6,6 +6,7 @@ import { toUtcParts } from '../shared/datetime/index.ts';
 import {
 	SIERRA_BRIDGE_FILE_NAME,
 	SIERRA_SOURCE_ROOT,
+	SIERRA_DATA_DIR,
 	TIMEFRAMES
 } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
@@ -54,7 +55,9 @@ export async function createBridgeSource({
 					`        case ${index}: return ${scDateCall(range.startTime)};`
 			)
 			.join('\n'),
-		__TRADESTER_TARGET_SYMBOL__: `tradester_${config.symbolId}`,
+		__TRADESTER_TARGET_DATA_FILE__: escapeCppString(
+			sierraDataFilePath(config.symbolId)
+		),
 		__TRADESTER_TICK_SIZE__: config.tickSize.toString()
 	});
 }
@@ -128,6 +131,10 @@ function timeframeCondition(timeframe: { suffix: string }, index: number) {
 
 function nextDateTime(time: number) {
 	return time + 24 * 60 * 60 * 1000;
+}
+
+function sierraDataFilePath(symbolId: string) {
+	return `${SIERRA_DATA_DIR}\\tradester_${symbolId}.scid`;
 }
 
 function scDateCall(time: number) {

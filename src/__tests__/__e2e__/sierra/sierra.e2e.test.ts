@@ -10,7 +10,7 @@ import { VALIDATED_TIMEFRAMES } from '../../../sierra-sync/constants.ts';
 
 describe('sierra-sync e2e', () => {
 	it('implements the Sierra sync spec: close, copy, open, wait, validate/write', async () => {
-		const rawSymbol = 'ES';
+		const rawSymbol = process.env.E2E_SYMBOL ?? 'ES';
 		const symbol = findSymbol(rawSymbol);
 
 		if (symbol === undefined) {

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
+import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 
 const DEFAULT_CSV =
 	'time,open,high,low,close,volume\n1760000000000,1,2,0,1.5,10\n1760000060000,1.5,3,1,2,12\n';
@@ -37,16 +38,17 @@ async function withBridgeSource(
 }
 
 describe('createBridgeSource', () => {
-	it('uses the chartbook tick SCID symbol for every chart', async () => {
+	it('uses the target SCID data file for every chart', async () => {
+		const expectedDataFile = `${SIERRA_DATA_DIR.replaceAll('\\', '\\\\')}\\\\tradester_ES.scid`;
+
 		await withBridgeSource((source) => {
-			expect(source).toContain('const char* TargetSymbol()');
-			expect(source).toContain('return "tradester_ES";');
+			expect(source).toContain('SCString TargetDataFile()');
+			expect(source).toContain(`return "${expectedDataFile}";`);
 			expect(source).not.toContain('return "tradester_ES_1d"');
 			expect(source).not.toContain('return "tradester_ES_5m"');
 			expect(source).not.toContain('return "tradester_ES_15s"');
 			expect(source).not.toContain('return "tradester_ES_500v"');
 			expect(source).not.toContain('return "tradester_ES_1s_pl0.25"');
-			expect(source).not.toContain('return "/ES:XCME"');
 		});
 	});
 

@@ -14,7 +14,7 @@ export const SIERRA_PROCESS_NAME = 'SierraChart_ARM64';
 export const SIERRA_LEGACY_PROCESS_NAME = 'SierraChart_64';
 export const SIERRA_OPEN_TASK_NAME = 'TradesterOpenSierraInteractive';
 export const SIERRA_OPEN_LAUNCHER_FILE_NAME = 'tradester-open-sierra.cmd';
-export const SIERRA_WAIT_TIMEOUT_MS = 60_000;
+export const SIERRA_WAIT_TIMEOUT_MS = 180_000;
 export const SIERRA_WAIT_POLL_MS = 1_000;
 export const VISUAL_STUDIO_BUILD_DIR =
 	'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build';
