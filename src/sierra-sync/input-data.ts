@@ -19,6 +19,6 @@ export async function assertInputDataExists(symbol: Symbol, files: OutputFiles) 
 
 	const config = getSymbolConfig(symbol);
 	throw new Error(
-		`Missing generated input data for ${config.symbolId}. Run: pnpm run generate:without ${config.symbolId}`
+		`Missing generated input data for ${config.symbolId}. Run: pnpm run run-md-generate ${config.symbolId}`
 	);
 }

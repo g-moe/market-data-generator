@@ -1,5 +1,5 @@
-import { runSierraSyncCli } from './sierra-sync/run-sierra-sync-cli.ts';
 import { isMainModule } from './shared/cli/is-main-module.ts';
+import { runSierraSyncCli } from './sierra-sync/run-sierra-sync-cli.ts';
 
 if (isMainModule(import.meta.url)) {
 	try {

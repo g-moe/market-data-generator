@@ -1,9 +1,8 @@
-import { stdin, stdout } from 'node:process';
-import { createInterface } from 'node:readline/promises';
+import { stdout } from 'node:process';
 import { styleText } from 'node:util';
 import { Worker } from 'node:worker_threads';
 
-import { SYMBOL_OPTIONS } from '../../contracts/symbols.ts';
+import { resolveSymbolArg } from './symbol-args.ts';
 import type {
 	GenerationProgress,
 	GenerationResult,
@@ -11,12 +10,6 @@ import type {
 } from '../../contracts/types.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { formatProgressMessage } from './progress.ts';
-
-type Choice = {
-	description?: string;
-	label: string;
-	value: string;
-};
 
 type TaskSpinner = {
 	error: (message?: string) => void;
@@ -30,13 +23,10 @@ type TerminalTaskSpinner = TaskSpinner & {
 
 export type CliPorts = {
 	log: (message: string) => void;
-	prompt: (message: string) => Promise<string>;
-	select: (message: string, choices: readonly Choice[]) => Promise<string>;
 	spinner: () => TaskSpinner;
 };
 
 type NodePortsOptions = {
-	input?: typeof stdin;
 	output?: typeof stdout;
 };
 
@@ -46,19 +36,12 @@ type RunCliOptions = {
 	ticksPerSession?: number;
 };
 
-const SYMBOL_CHOICES: Choice[] = SYMBOL_OPTIONS.map((symbol) => ({
-	description: `${symbol.name} (${symbol.id})`,
-	label: symbol.symbolId,
-	value: symbol.id
-}));
-
-const SPINNER_FRAMES = ['⣾⡇', '⣽⡇', '⣻⡇', '⢿⡇', '⡿⠇', '⣟⡃', '⣯⡅', '⣷⡆'];
-
 export async function runCli(
+	rawSymbol: string | undefined,
 	ports = createNodePorts(),
 	options: RunCliOptions = {}
 ): Promise<GenerationResult> {
-	const symbol = await ports.select('Choose symbol', SYMBOL_CHOICES);
+	const symbol = resolveSymbolArg(rawSymbol);
 	const inputs = normalizeInputs({
 		outputDir: options.outputDir,
 		sessionCount: options.sessionCount,
@@ -164,7 +147,7 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 
 	return {
 		error: (nextMessage) => {
-			stop('■', nextMessage);
+			stop('[err]', nextMessage);
 		},
 		log: (nextMessage) => {
 			output.write(`\r\x1B[2K${nextMessage}\n`);
@@ -178,13 +161,14 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 			timer = setInterval(render, 100);
 		},
 		stop: (nextMessage) => {
-			stop('◇', nextMessage);
+			stop('[ok]', nextMessage);
 		}
 	};
 }
 
+const SPINNER_FRAMES = ['-', '\\', '|', '/'];
+
 export function createNodePorts({
-	input = stdin,
 	output = stdout
 }: NodePortsOptions = {}): CliPorts {
 	const spinner = createTextSpinner(output);
@@ -193,80 +177,8 @@ export function createNodePorts({
 		log: (message) => {
 			spinner.log(message);
 		},
-		prompt: async (message) => {
-			const prompt = createInterface({
-				input,
-				output,
-				terminal: output.isTTY
-			});
-
-			try {
-				const answer = await prompt.question(`${message}: `);
-
-				return answer.trim();
-			} finally {
-				prompt.close();
-			}
-		},
-		select: async (message, choices) => {
-			const prompt = createInterface({
-				input,
-				output,
-				terminal: output.isTTY
-			});
-
-			try {
-				output.write(`${message}\n`);
-				choices.forEach((choice, index) => {
-					output.write(formatChoiceLine(choice, index));
-				});
-
-				const lines = prompt[Symbol.asyncIterator]();
-				while (true) {
-					output.write('Enter choice: ');
-
-					const line = await lines.next();
-					if (line.done === true) {
-						throw new Error('No symbol selected');
-					}
-
-					const answer = line.value.trim();
-					const choice = findChoice(answer, choices);
-
-					if (choice !== undefined) {
-						return choice.value;
-					}
-
-					output.write('Invalid choice. Try again.\n');
-				}
-			} finally {
-				prompt.close();
-			}
-		},
 		spinner: () => {
 			return spinner;
 		}
 	};
-}
-
-function formatChoiceLine(choice: Choice, index: number) {
-	const description = choice.description === undefined ? '' : `  ${choice.description}`;
-
-	return `${index + 1}. ${choice.label}${description}\n`;
-}
-
-function findChoice(answer: string, choices: readonly Choice[]) {
-	const choiceIndex = Number(answer) - 1;
-	if (Number.isInteger(choiceIndex) && choices[choiceIndex] !== undefined) {
-		return choices[choiceIndex];
-	}
-
-	const normalizedAnswer = answer.toUpperCase();
-
-	return choices.find((option) => {
-		return (
-			option.value.toUpperCase() === normalizedAnswer ||
-			option.label.toUpperCase() === normalizedAnswer
-		);
-	});
 }

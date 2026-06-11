@@ -33,17 +33,28 @@ It is intentionally not intended for CI.
 ## Run the CLI
 
 ```sh
-pnpm generate
+pnpm run run-md-generate ES
 ```
 
-The CLI prompts for:
+To run the generator, you must pass a symbol argument:
 
-1. Symbol
+Supported symbols:
 
-Example non-interactive run:
+```text
+ES (/ES:XCME): E-mini S&P 500
+NQ (/NQ:XCME): E-mini NASDAQ-100
+```
+
+`run-sierra-generate` also requires a symbol argument:
 
 ```sh
-printf "ES\n" | pnpm generate
+pnpm run run-sierra-generate ES
+```
+
+To list supported symbols:
+
+```sh
+pnpm run run:options
 ```
 
 ## File Outputs
@@ -102,8 +113,9 @@ pnpm build
 
 Useful scripts:
 
-- `generate`: run the interactive generator once.
-- `generate:without`: generate ES data without prompts.
+- `run-md-generate`: generate market-data once for the requested symbol.
+- `run-sierra-generate`: sync Sierra inputs for the requested symbol.
+- `run:options`: print all supported symbols.
 - `dev`: run the CLI in watch mode.
 - `check`: run `typecheck`, `lint`, `format`, and `knip`.
 - `coverage`: run unit tests with coverage (`vitest`).

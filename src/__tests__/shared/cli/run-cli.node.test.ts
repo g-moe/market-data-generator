@@ -1,10 +1,10 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { listSymbolOptions } from '../../../shared/cli/symbol-args.ts';
 import { runCli, type CliPorts } from '../../../shared/cli/run-cli.ts';
 
 afterEach(() => {
@@ -19,16 +19,13 @@ describe('runCli', () => {
 
 		try {
 			const result = await runCli(
-				ports({
-					events,
-					selectAnswers: ['/ES:XCME']
-				}),
+				'ES',
+				ports({ events }),
 				{ outputDir, sessionCount: 1, ticksPerSession: 5 }
 			);
 
 			expect(result.counts.ticks).toBe(5);
 			expect(result.files.scid).toBe(join(outputDir, 'ES', 'tradester_ES.scid'));
-			expect(events).toContain('select:Choose symbol');
 			expect(events).toContain('start:Generating market data for /ES:XCME...');
 			expect(events).toContain('log:Completed sessions 1-1 of 1');
 			expect(events).toContain(`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`);
@@ -38,18 +35,22 @@ describe('runCli', () => {
 		}
 	}, 15_000);
 
-	it('stops the spinner with an error when generation fails', async () => {
+	it('requires a symbol argument and prints all symbol options', async () => {
 		const events: string[] = [];
 
-		await expect(
-			runCli(
-				ports({
-					events,
-					selectAnswers: ['bad-symbol']
-				})
-			)
-		).rejects.toThrow(/symbol/i);
-		expect(events).not.toContain('start:Generating market data for bad-symbol...');
+		await expect(runCli(undefined, ports({ events }))).rejects.toThrow(
+			`Symbol argument is required.\n${listSymbolOptions()}`
+		);
+		expect(events).toEqual([]);
+	});
+
+	it('throws when an invalid symbol is passed and prints all symbol options', async () => {
+		const events: string[] = [];
+
+		await expect(runCli('bad-symbol', ports({ events }))).rejects.toThrow(
+			`Unknown symbol "bad-symbol".\n${listSymbolOptions()}`
+		);
+		expect(events).toEqual([]);
 	});
 });
 
@@ -75,14 +76,7 @@ describe('runCli worker handling', () => {
 
 		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
-		await expect(
-			runCliWithMockWorker(
-				ports({
-					events,
-					selectAnswers: ['/ES:XCME']
-				})
-			)
-		).rejects.toThrow('worker failed');
+		await expect(runCliWithMockWorker('ES', ports({ events }))).rejects.toThrow('worker failed');
 		expect(events).toContain('error:Failed to generate market data');
 	});
 
@@ -102,35 +96,24 @@ describe('runCli worker handling', () => {
 
 		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
-		await expect(
-			runCliWithMockWorker(
-				ports({
-					events,
-					selectAnswers: ['/ES:XCME']
-				})
-			)
-		).rejects.toThrow('Generation worker exited with code 1');
+		await expect(runCliWithMockWorker('ES', ports({ events }))).rejects.toThrow(
+			'Generation worker exited with code 1'
+		);
 		expect(events).toContain('error:Failed to generate market data');
 	});
 });
 
 describe('createNodePorts', () => {
-	it('reads prompt input and writes spinner output', async () => {
-		const input = readable('1\n');
+	it('writes spinner output', async () => {
 		const output = writable();
-
 		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ input, output });
+		const ports = createNodePorts({ output });
 
-		await expect(
-			promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
-		).resolves.toBe('/ES:XCME');
-
-		const spinner = promptPorts.spinner();
+		const spinner = ports.spinner();
 		vi.useFakeTimers();
 		try {
 			spinner.start('Working');
-			promptPorts.log('Progress');
+			ports.log('Progress');
 			vi.advanceTimersByTime(100);
 			spinner.stop('Done');
 			spinner.error('Failed');
@@ -138,88 +121,21 @@ describe('createNodePorts', () => {
 			vi.useRealTimers();
 		}
 
-		expect(output.chunks.join('')).toContain('Choose symbol');
-		expect(output.chunks.join('')).toContain('1. ES');
-		expect(output.chunks.join('')).toContain('Working');
-		expect(output.chunks.join('')).toContain('\r\x1B[2KProgress\n');
-		expect(output.chunks.join('')).toContain('◇Done\n');
-		expect(output.chunks.join('')).toContain('■Failed\n');
-	});
-	it('reads text prompt input', async () => {
-		const input = readable('my-run\n');
-		const output = writable();
-		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ input, output });
-
-		await expect(promptPorts.prompt('Run name')).resolves.toBe('my-run');
-		expect(output.chunks.join('')).toContain('Run name: ');
-	});
-
-	it('matches choices with case-insensitive labels', async () => {
-		const input = readable('es\n');
-		const output = writable();
-		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ input, output });
-
-		await expect(
-			promptPorts.select('Choose symbol', [
-				{ label: 'ES', value: '/ES:XCME' },
-				{ label: 'NQ', value: '/NQ:XCME' }
-			])
-		).resolves.toBe('/ES:XCME');
-		expect(output.chunks.join('')).toContain('Choose symbol');
-	});
-
-	it('throws when select input ends before a valid choice is provided', async () => {
-		const input = readable('');
-		const output = writable();
-		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ input, output });
-
-		await expect(
-			promptPorts.select('Choose symbol', [{ label: 'ES', value: '/ES:XCME' }])
-		).rejects.toThrow('No symbol selected');
-	});
-
-	it('prompts again until a valid choice is entered', async () => {
-		const input = readable('bad\n2\n');
-		const output = writable();
-		const { createNodePorts } = await import('../../../shared/cli/run-cli.ts');
-		const promptPorts = createNodePorts({ input, output });
-
-		await expect(
-			promptPorts.select('Choose symbol', [
-				{ label: 'ES', value: '/ES:XCME' },
-				{ label: 'NQ', value: '/NQ:XCME' }
-			])
-		).resolves.toBe('/NQ:XCME');
-
-		expect(output.chunks.join('')).toContain('Invalid choice. Try again.');
+		const chunks = output.chunks.join('');
+		expect(chunks).toContain('Progress');
+		expect(chunks).toContain('Done');
+		expect(chunks).toContain('Failed');
 	});
 });
 
 function ports({
-	events,
-	selectAnswers,
-	promptAnswers = []
+	events
 }: {
 	events: string[];
-	selectAnswers: string[];
-	promptAnswers?: string[];
 }): CliPorts {
 	return {
 		log: (message) => {
 			events.push(`log:${message}`);
-		},
-		prompt: async (message) => {
-			events.push(`prompt:${message}`);
-
-			return promptAnswers.shift() ?? '';
-		},
-		select: async (message) => {
-			events.push(`select:${message}`);
-
-			return selectAnswers.shift() ?? '';
 		},
 		spinner: () => ({
 			error: (message) => {
@@ -250,11 +166,4 @@ function writable() {
 			return true;
 		}
 	} as unknown as TestOutput;
-}
-
-function readable(input: string) {
-	const stream = new PassThrough();
-	stream.end(input);
-
-	return stream as unknown as typeof import('node:process').stdin;
 }

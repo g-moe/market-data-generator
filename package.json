@@ -6,7 +6,6 @@
 	"scripts": {
 		"prepare": "husky",
 		"setup": "bash ./scripts/setup-dev.sh",
-		"dev": "tsx watch src/run.ts",
 		"build": "tsc --project ./tsconfig.build.json",
 		"test": "vitest --project unit",
 		"coverage": "vitest run --coverage --project unit",
@@ -17,9 +16,9 @@
 		"lint": "oxlint --fix",
 		"format": "oxfmt --write",
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run knip",
-		"generate": "tsx src/run.ts",
-		"generate:without": "tsx src/run-without-cli.ts",
-		"generate:sierra": "tsx src/run-sierra-sync.ts"
+		"run-md-generate": "tsx src/run-md-generate.ts",
+		"run-sierra-generate": "tsx src/run-sierra-generate.ts",
+		"run:options": "tsx src/run-options.ts"
 	},
 	"dependencies": {
 		"@js-temporal/polyfill": "0.5.1"

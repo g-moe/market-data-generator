@@ -43,7 +43,7 @@ describe('assertInputDataExists', () => {
 					seconds15: join(root, 'missing-15s.csv'),
 					volume500: join(root, 'missing-500v.csv')
 				})
-			).rejects.toThrow('Run: pnpm run generate:without ES');
+			).rejects.toThrow('Run: pnpm run run-md-generate ES');
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -66,7 +66,7 @@ describe('assertInputDataExists', () => {
 					seconds15: join(root, 'tradester_ES_15s.csv'),
 					volume500: join(root, 'tradester_ES_500v.csv')
 				})
-			).rejects.toThrow('Run: pnpm run generate:without ES');
+			).rejects.toThrow('Run: pnpm run run-md-generate ES');
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
