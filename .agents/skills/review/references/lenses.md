@@ -58,13 +58,6 @@ Swap when review type is specialized. Always keep four; never merge two into one
 3. **State & Reactivity** — `$state` / `$derived` / `$props` / snippets discipline, prop ownership.
 4. **Hydration & SSR** — server vs client boundary, hydration mismatch, island boundaries.
 
-### Env / secrets review
-
-1. **Boundary Correctness** — `$env/static/private` vs `$env/dynamic/public`; client leakage paths.
-2. **Loader Contracts** — `pnpm run env --`, `.tradester-env`, `.envConfig.json` filters.
-3. **Secret Handling** — SSM keys, rotation, fallback on missing values.
-4. **Runtime Surfaces** — SvelteKit / Convex / Node / Discord bot / infra access paths.
-
 ### Dependency-upgrade review
 
 1. **Breaking-change Surface** — API shape drift, removed exports, type narrowing.
