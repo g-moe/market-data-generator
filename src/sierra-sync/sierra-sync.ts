@@ -16,13 +16,27 @@ export type SierraSyncResult = {
 	tempDir: string;
 };
 
+export type SierraSyncOptions = {
+	log?: (message: string) => void;
+	ops?: SierraOps;
+};
+
+export function assertSierraSyncSupportedPlatform() {
+	const { platform } = process;
+
+	if (platform !== 'win32') {
+		throw new Error(`sierra-sync can only run on Windows. Current platform: ${platform}`);
+	}
+}
+
 export async function runSierraSync(
 	rawSymbol: string,
-	{
-		log = console.log,
-		ops = createNodeSierraOps()
-	}: { log?: (message: string) => void; ops?: SierraOps } = {}
+	options: SierraSyncOptions = {}
 ): Promise<SierraSyncResult> {
+	assertSierraSyncSupportedPlatform();
+
+	const { log = console.log } = options;
+	const ops = options.ops ?? createNodeSierraOps();
 	const symbol = requireSymbol(rawSymbol);
 	const config = getSymbolConfig(symbol);
 	const paths = sierraSyncPaths(symbol);
