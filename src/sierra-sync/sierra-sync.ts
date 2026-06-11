@@ -1,7 +1,7 @@
 import type { Symbol } from '../contracts/index.ts';
 import { findSymbol, getSymbolConfig } from '../contracts/symbols.ts';
 import { createBridgeSource } from './bridge-source.ts';
-import { SIERRA_WAIT_TIMEOUT_MS, TIMEFRAMES } from './constants.ts';
+import { TIMEFRAMES } from './constants.ts';
 import { assertInputDataExists } from './input-data.ts';
 import { sierraExportFileName, sierraSyncPaths } from './paths.ts';
 import { mergeValidatedSierraExports } from './sierra-export.ts';
@@ -84,7 +84,7 @@ export async function runSierraSync(
 
 	log('Waiting for Sierra exports');
 
-	await ops.waitForFiles(paths.tempDir, exportFiles, SIERRA_WAIT_TIMEOUT_MS);
+	await ops.waitForFiles(paths.tempDir, exportFiles);
 
 	log('Validating Sierra OHLCV and writing data-out');
 	await mergeValidatedSierraExports({
