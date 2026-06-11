@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
-import { SIERRA_EXPORT_HEADER, TIMEFRAMES } from '../../sierra-sync/constants.ts';
+import { getTimeframes } from '../../contracts/index.ts';
+import { SIERRA_EXPORT_HEADER } from '../../sierra-sync/constants.ts';
 import {
 	mergeValidatedSierraExports,
 	mergeValidatedSierraExport,
@@ -434,6 +435,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			priceLevel: join(inputDir, 'tradester_ES_1s_pl0.25.csv'),
 			scid: join(inputDir, 'tradester_ES.scid'),
 			seconds15: join(inputDir, 'tradester_ES_15s.csv'),
+			tick100: join(inputDir, 'tradester_ES_100t.csv'),
 			volume500: join(inputDir, 'tradester_ES_500v.csv')
 		};
 
@@ -441,7 +443,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			await writeFile(file, withGeneratedFile(SAMPLE_GENERATED_ROW));
 		}
 
-		for (const timeframe of TIMEFRAMES) {
+		for (const timeframe of getTimeframes('/ES:XCME')) {
 			await writeFile(
 				join(tempDir, sierraExportFileName('/ES:XCME', timeframe.suffix)),
 				withSierraFile(SAMPLE_SIERRA_ROW)
@@ -457,7 +459,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 					tempDir
 				})
 			).resolves.toMatchObject({});
-			for (const timeframe of TIMEFRAMES) {
+			for (const timeframe of getTimeframes('/ES:XCME')) {
 				await expect(
 					readFile(join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? ''), 'utf8')
 				).resolves.toBe(`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`);

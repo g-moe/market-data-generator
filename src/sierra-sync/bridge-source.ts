@@ -3,12 +3,8 @@ import { readFile } from 'node:fs/promises';
 import type { OutputFiles, OutputMetadata, Symbol, TimeframeKey } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import { toUtcParts } from '../shared/datetime/index.ts';
-import {
-	SIERRA_BRIDGE_FILE_NAME,
-	SIERRA_SOURCE_ROOT,
-	SIERRA_DATA_DIR,
-	TIMEFRAMES
-} from './constants.ts';
+import { getTimeframes } from '../contracts/index.ts';
+import { SIERRA_BRIDGE_FILE_NAME, SIERRA_SOURCE_ROOT, SIERRA_DATA_DIR } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
 export async function createBridgeSource({
@@ -23,7 +19,7 @@ export async function createBridgeSource({
 	const config = getSymbolConfig(symbol);
 	const template = await readFile(`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`, 'utf8');
 	const metadata = await readOutputMetadata(files.metadata);
-	const ranges = TIMEFRAMES.map((timeframe) => ({
+	const ranges = getTimeframes(symbol).map((timeframe) => ({
 		...timeframe,
 		...readMetadataTimeRange(metadata, timeframe.key)
 	}));
@@ -91,6 +87,9 @@ function timeframeCondition(timeframe: { suffix: string }, index: number) {
 
 	if (timeframe.suffix.endsWith('v'))
 		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
+
+	if (timeframe.suffix.endsWith('t'))
+		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_NUM_TRADES_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
 
 	let seconds: number;
 	if (timeframe.suffix.startsWith('1s_')) seconds = 1;

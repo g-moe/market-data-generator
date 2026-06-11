@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { MdCandle } from '../../contracts/types.ts';
-import { ID_SEQUENCE_MULTIPLIER, VOLUME_BAR_SIZE } from '../../contracts/defaults.ts';
+import { ID_SEQUENCE_MULTIPLIER } from '../../contracts/defaults.ts';
+import { TIMEFRAME_DEFINITIONS } from '../../contracts/timeframes.ts';
 import type { MarketTick } from '../../contracts/types.ts';
 import {
 	createBarId,
 	PriceLevelAggregator,
+	TickAggregator,
 	TimeAggregator,
 	VolumeAggregator
 } from '../../md-generation/candles.ts';
@@ -14,8 +16,13 @@ import { parseIsoToUnixMs } from '../../shared/datetime/index.ts';
 describe('streaming candle aggregators', () => {
 	it('returns empty series without ticks', () => {
 		expect(new PriceLevelAggregator().finish()).toEqual([]);
-		expect(new VolumeAggregator(VOLUME_BAR_SIZE).finish()).toEqual([]);
-		expect(new TimeAggregator((time) => floorTime(time, 15_000)).finish()).toEqual([]);
+		expect(new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size).finish()).toEqual([]);
+		expect(new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size).finish()).toEqual([]);
+		expect(
+			new TimeAggregator((time) =>
+				floorTime(time, TIMEFRAME_DEFINITIONS.seconds15.milliseconds)
+			).finish()
+		).toEqual([]);
 	});
 
 	it('builds price-level candles with volume by price', () => {
@@ -44,7 +51,7 @@ describe('streaming candle aggregators', () => {
 
 	it('supports fixed-size time buckets', () => {
 		const emitted: MdCandle[] = [];
-		const aggregator = new TimeAggregator(15_000);
+		const aggregator = new TimeAggregator(TIMEFRAME_DEFINITIONS.seconds15.milliseconds);
 
 		aggregator.pushTickValuesForBucket(
 			1_700_000_000_000,
@@ -85,7 +92,7 @@ describe('streaming candle aggregators', () => {
 	});
 
 	it('splits ticks across exact 500-volume candles', () => {
-		const aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
+		const aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
 		const emitted = pushTicks(aggregator, [tick({ volume: 300 }), tick({ volume: 700 })]);
 		const result = [...emitted, ...aggregator.finish()];
 
@@ -97,6 +104,33 @@ describe('streaming candle aggregators', () => {
 		]);
 	});
 
+	it('builds 100-tick candles from whole ticks', () => {
+		const aggregator = new TickAggregator(3);
+		const emitted = pushTicks(aggregator, [
+			tick({ price: 6000, volume: 2 }),
+			tick({ price: 6001, volume: 3 }),
+			tick({ price: 5999, volume: 5 }),
+			tick({ price: 6002, volume: 7 })
+		]);
+		const result = [...emitted, ...aggregator.finish()];
+
+		expect(result).toHaveLength(2);
+		expect(result[0]).toMatchObject({
+			close: 5999,
+			high: 6001,
+			low: 5999,
+			open: 6000,
+			volume: 10
+		});
+		expect(result[1]).toMatchObject({
+			close: 6002,
+			high: 6002,
+			low: 6002,
+			open: 6002,
+			volume: 7
+		});
+	});
+
 	it('aggregates 15-second, 5-minute, and daily candles from ticks', () => {
 		const ticks = [
 			tick({ price: 6000, time: parseIsoToUnixMs('2026-06-01T22:00:00.000Z') }),
@@ -104,8 +138,12 @@ describe('streaming candle aggregators', () => {
 			tick({ price: 6002, time: parseIsoToUnixMs('2026-06-01T22:00:15.000Z') }),
 			tick({ price: 6003, time: parseIsoToUnixMs('2026-06-01T22:05:00.000Z') })
 		];
-		const seconds15 = aggregateTime(ticks, (time) => floorTime(time, 15_000));
-		const minutes5 = aggregateTime(ticks, (time) => floorTime(time, 300_000));
+		const seconds15 = aggregateTime(ticks, (time) =>
+			floorTime(time, TIMEFRAME_DEFINITIONS.seconds15.milliseconds)
+		);
+		const minutes5 = aggregateTime(ticks, (time) =>
+			floorTime(time, TIMEFRAME_DEFINITIONS.minutes5.milliseconds)
+		);
 		const daily = aggregateTime(ticks, getDailySessionStart);
 
 		expect(seconds15).toHaveLength(3);

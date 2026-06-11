@@ -12,6 +12,7 @@ const DEFAULT_METADATA = {
 		minutes5: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		priceLevel: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		seconds15: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		tick100: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		volume500: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 }
 	}
 };
@@ -35,6 +36,7 @@ async function withBridgeSource(
 				priceLevel: file,
 				scid: join(root, 'tradester_ES.scid'),
 				seconds15: file,
+				tick100: file,
 				volume500: file
 			},
 			symbol: '/ES:XCME',
@@ -57,6 +59,7 @@ describe('createBridgeSource', () => {
 			expect(source).not.toContain('return "tradester_ES_1d"');
 			expect(source).not.toContain('return "tradester_ES_5m"');
 			expect(source).not.toContain('return "tradester_ES_15s"');
+			expect(source).not.toContain('return "tradester_ES_100t"');
 			expect(source).not.toContain('return "tradester_ES_500v"');
 			expect(source).not.toContain('return "tradester_ES_1s_pl0.25"');
 		});
@@ -93,6 +96,7 @@ describe('createBridgeSource', () => {
 					minutes5: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					priceLevel: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					seconds15: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					tick100: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					volume500: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 }
 				}
 			}

@@ -1,7 +1,7 @@
 import type { Symbol } from '../contracts/index.ts';
 import { findSymbol, getSymbolConfig } from '../contracts/symbols.ts';
 import { createBridgeSource } from './bridge-source.ts';
-import { TIMEFRAMES } from './constants.ts';
+import { getTimeframes } from '../contracts/index.ts';
 import { assertInputDataExists } from './input-data.ts';
 import { sierraExportFileName, sierraSyncPaths } from './paths.ts';
 import { mergeValidatedSierraExports } from './sierra-export.ts';
@@ -40,7 +40,9 @@ export async function runSierraSync(
 	const symbol = requireSymbol(rawSymbol);
 	const config = getSymbolConfig(symbol);
 	const paths = sierraSyncPaths(symbol);
-	const exportFiles = TIMEFRAMES.map((timeframe) => sierraExportFileName(symbol, timeframe.suffix));
+	const exportFiles = getTimeframes(symbol).map((timeframe) =>
+		sierraExportFileName(symbol, timeframe.suffix)
+	);
 
 	log(`Checking data-in/${config.symbolId}`);
 	await assertInputDataExists(symbol, paths.files);

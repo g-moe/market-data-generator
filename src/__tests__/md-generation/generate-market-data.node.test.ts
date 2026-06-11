@@ -25,6 +25,7 @@ describe('generateMarketData', () => {
 			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
 			expect(result.files.metadata).toBe(join(outputRoot, 'ES', 'tradester_ES.json'));
 			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
+			expect(result.files.tick100).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
 			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
 				timeframes: {
@@ -35,10 +36,12 @@ describe('generateMarketData', () => {
 					minutes5: expect.any(Object),
 					priceLevel: expect.any(Object),
 					seconds15: expect.any(Object),
+					tick100: expect.any(Object),
 					volume500: expect.any(Object)
 				}
 			});
 			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
+			expect(await readFirstLine(result.files.tick100)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.volume500)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.seconds15)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.minutes5)).toBe(CANDLE_ROW_HEADER);
@@ -97,6 +100,25 @@ describe('generateMarketData', () => {
 
 			expect(rows).toHaveLength(2);
 			expect(volumes.every((volume) => volume > 0 && volume < 500)).toBe(true);
+		} finally {
+			await rm(outputRoot, { force: true, recursive: true });
+		}
+	});
+
+	it('does not carry partial tick bars across sessions', async () => {
+		const outputRoot = await mkdtemp(join(tmpdir(), 'market-data-tick-session-'));
+		const inputs = normalizeInputs({
+			outputDir: outputRoot,
+			sessionCount: 2,
+			symbol: 'ES',
+			ticksPerSession: 1
+		});
+
+		try {
+			const result = await generateMarketData(inputs);
+			const rows = (await readFile(result.files.tick100, 'utf8')).trimEnd().split('\n').slice(1);
+
+			expect(rows).toHaveLength(2);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}

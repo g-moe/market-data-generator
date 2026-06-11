@@ -97,6 +97,7 @@ export type OutputFiles = {
 	metadata: string;
 	scid: string;
 	priceLevel: string;
+	tick100: string;
 	volume500: string;
 	seconds15: string;
 	minutes5: string;
@@ -121,6 +122,7 @@ export type GenerationResult = {
 	counts: {
 		ticks: number;
 		priceLevel: number;
+		tick100: number;
 		volume500: number;
 		seconds15: number;
 		minutes5: number;

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { runSierraSync } from '../../../sierra-sync/sierra-sync.ts';
 import { findSymbol } from '../../../contracts/symbols.ts';
 import { sierraSyncPaths } from '../../../sierra-sync/paths.ts';
-import { TIMEFRAMES } from '../../../sierra-sync/constants.ts';
+import { getTimeframes } from '../../../contracts/index.ts';
 
 describe('sierra-sync e2e', () => {
 	it('implements the Sierra sync spec: close, copy, open, wait, validate/write', async () => {
@@ -39,7 +39,7 @@ describe('sierra-sync e2e', () => {
 		const outputFiles = await readdir(result.outputDir);
 		expect(outputFiles.length).toBeGreaterThan(0);
 
-		for (const timeframe of TIMEFRAMES) {
+		for (const timeframe of getTimeframes(symbol)) {
 			const expectedOutputFileName = basename(
 				expectedPaths.files[timeframe.key as keyof typeof expectedPaths.files]
 			);

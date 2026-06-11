@@ -1,27 +1,33 @@
 import { join } from 'node:path';
 
+import { getTimeframes } from '../contracts/timeframes.ts';
 import type { OutputFiles } from '../contracts/types.ts';
 import type { Symbol } from '../contracts/symbols.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 
 export function getOutputFiles(symbol: Symbol, outputDir: string): OutputFiles {
 	const symbolConfig = getSymbolConfig(symbol);
+	const suffixes = getTimeframeSuffixes(symbol);
 	const prefix = `tradester_${symbolConfig.symbolId}`;
 
 	return {
-		daily: join(outputDir, `${prefix}_1d.csv`),
+		daily: join(outputDir, `${prefix}_${suffixes.daily}.csv`),
 		metadata: join(outputDir, `${prefix}.json`),
-		minutes5: join(outputDir, `${prefix}_5m.csv`),
-		priceLevel: join(
-			outputDir,
-			`${prefix}_1s_pl${formatPriceLevelSuffix(symbolConfig.tickSize)}.csv`
-		),
+		minutes5: join(outputDir, `${prefix}_${suffixes.minutes5}.csv`),
+		priceLevel: join(outputDir, `${prefix}_${suffixes.priceLevel}.csv`),
 		scid: join(outputDir, `${prefix}.scid`),
-		seconds15: join(outputDir, `${prefix}_15s.csv`),
-		volume500: join(outputDir, `${prefix}_500v.csv`)
+		seconds15: join(outputDir, `${prefix}_${suffixes.seconds15}.csv`),
+		tick100: join(outputDir, `${prefix}_${suffixes.tick100}.csv`),
+		volume500: join(outputDir, `${prefix}_${suffixes.volume500}.csv`)
 	};
 }
 
-function formatPriceLevelSuffix(tickSize: number) {
-	return String(tickSize);
+function getTimeframeSuffixes(symbol: Symbol) {
+	const suffixes = {} as Record<keyof Omit<OutputFiles, 'metadata' | 'scid'>, string>;
+
+	for (const timeframe of getTimeframes(symbol)) {
+		suffixes[timeframe.key] = timeframe.suffix;
+	}
+
+	return suffixes;
 }

@@ -64,6 +64,7 @@ data/ES/tradester_ES.scid           raw ticks for 20,000 sessions
 data/ES/tradester_ES_1d.csv         20,000 daily bars
 data/ES/tradester_ES_5m.csv         latest 20,000 5-minute bars
 data/ES/tradester_ES_15s.csv        latest 20,000 15-second bars
+data/ES/tradester_ES_100t.csv       latest 20,000 100-trade bars
 data/ES/tradester_ES_500v.csv       latest 20,000 500-volume bars
 data/ES/tradester_ES_1s_pl0.25.csv  30 sessions of 1-second price-level bars
 ```
@@ -71,8 +72,9 @@ data/ES/tradester_ES_1s_pl0.25.csv  30 sessions of 1-second price-level bars
 ## Calculation Note
 
 All bars are calculated directly from generated raw ticks; `1d` uses session
-boundaries, time bars use their time buckets, `500v` splits ticks as needed,
-and `1s` price-level bars also store volume by price.
+boundaries, time bars use their time buckets, `100t` groups whole ticks by
+trade count, `500v` splits ticks as needed, and `1s` price-level bars also
+store volume by price.
 
 Raw ticks are the source of truth. The `.scid` file is for Sierra Chart.
 Derived candle files are fixed-schema CSV-style rows with one header line.

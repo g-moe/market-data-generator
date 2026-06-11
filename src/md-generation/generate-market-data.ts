@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { VOLUME_BAR_SIZE } from '../contracts/defaults.ts';
 import { getSymbolConfig, type SymbolConfig } from '../contracts/symbols.ts';
+import { TIMEFRAME_DEFINITIONS } from '../contracts/timeframes.ts';
 import type {
 	GenerationResult,
 	GenerationProgress,
@@ -25,6 +25,7 @@ import {
 	createBarId,
 	IntervalTimeAggregator,
 	PriceLevelAggregator,
+	TickAggregator,
 	VolumeAggregator
 } from './candles.ts';
 import {
@@ -51,6 +52,7 @@ type CandleEmissions = {
 	daily: MdCandle[];
 	priceLevel: MdCandleVolumeByPrice[];
 	seconds15: MdCandle[];
+	tick100: MdCandle[];
 	minutes5: MdCandle[];
 	volume500: MdCandle[];
 };
@@ -65,8 +67,14 @@ export async function generateMarketData(
 ): Promise<GenerationResult> {
 	const symbolConfig = getSymbolConfig(inputs.symbol);
 	const files = getOutputFiles(inputs);
-	const seconds15BarsPerSession = countSessionBuckets(inputs.ticksPerSession, 15_000);
-	const minutes5BarsPerSession = countSessionBuckets(inputs.ticksPerSession, 300_000);
+	const seconds15BarsPerSession = countSessionBuckets(
+		inputs.ticksPerSession,
+		TIMEFRAME_DEFINITIONS.seconds15.milliseconds
+	);
+	const minutes5BarsPerSession = countSessionBuckets(
+		inputs.ticksPerSession,
+		TIMEFRAME_DEFINITIONS.minutes5.milliseconds
+	);
 	const seconds15StartSession = getRingRetainedSessionStart(
 		inputs.sessionCount,
 		seconds15BarsPerSession
@@ -76,18 +84,20 @@ export async function generateMarketData(
 		minutes5BarsPerSession
 	);
 	const priceLevelAggregator = new PriceLevelAggregator();
-	const volume500Aggregator = new VolumeAggregator(VOLUME_BAR_SIZE);
+	const tick100Aggregator = new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size);
+	const volume500Aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
 	const seconds15Aggregator = new IntervalTimeAggregator(
-		15_000,
+		TIMEFRAME_DEFINITIONS.seconds15.milliseconds,
 		seconds15StartSession * seconds15BarsPerSession
 	);
 	const minutes5Aggregator = new IntervalTimeAggregator(
-		300_000,
+		TIMEFRAME_DEFINITIONS.minutes5.milliseconds,
 		minutes5StartSession * minutes5BarsPerSession
 	);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const seconds15Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const minutes5Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
+	const tick100Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
 	const scid = new ScidTickWriter(files.scid);
 	const priceLevel = new CandleRowWriter(
 		files.priceLevel,
@@ -100,6 +110,7 @@ export async function generateMarketData(
 		minutes5: 0,
 		priceLevel: 0,
 		seconds15: 0,
+		tick100: 0,
 		ticks: 0,
 		volume500: 0
 	};
@@ -114,6 +125,7 @@ export async function generateMarketData(
 			minutes5: [],
 			priceLevel: [],
 			seconds15: [],
+			tick100: [],
 			volume500: []
 		};
 
@@ -125,6 +137,7 @@ export async function generateMarketData(
 			emitted.minutes5.length = 0;
 			emitted.priceLevel.length = 0;
 			emitted.seconds15.length = 0;
+			emitted.tick100.length = 0;
 			emitted.volume500.length = 0;
 			if (sessionStart < UNIX_EPOCH_MS) {
 				emitted.daily.push(createZeroDailyCandle(counts.daily));
@@ -149,10 +162,12 @@ export async function generateMarketData(
 					counts.daily,
 					seconds15Aggregator,
 					minutes5Aggregator,
+					tick100Aggregator,
 					volume500Aggregator,
 					priceLevelAggregator,
 					emitted
 				);
+				emitted.tick100.push(...tick100Aggregator.finish());
 				emitted.volume500.push(...volume500Aggregator.finish());
 				sessionTicks = inputs.ticksPerSession;
 				counts.ticks += sessionTicks;
@@ -160,9 +175,11 @@ export async function generateMarketData(
 
 			seconds15Ring.pushMany(emitted.seconds15);
 			minutes5Ring.pushMany(emitted.minutes5);
+			tick100Ring.pushMany(emitted.tick100);
 			volume500Ring.pushMany(emitted.volume500);
 			counts.seconds15 = seconds15Ring.length;
 			counts.minutes5 = minutes5Ring.length;
+			counts.tick100 = tick100Ring.length;
 			counts.volume500 = volume500Ring.length;
 			counts.daily += emitted.daily.length;
 			counts.priceLevel += emitted.priceLevel.length;
@@ -182,21 +199,25 @@ export async function generateMarketData(
 			minutes5: minutes5Aggregator.finish(),
 			priceLevel: priceLevelAggregator.finish(),
 			seconds15: seconds15Aggregator.finish(),
+			tick100: tick100Aggregator.finish(),
 			volume500: volume500Aggregator.finish()
 		};
 
 		seconds15Ring.pushMany(final.seconds15);
 		minutes5Ring.pushMany(final.minutes5);
+		tick100Ring.pushMany(final.tick100);
 		volume500Ring.pushMany(final.volume500);
 		await Promise.all([priceLevel.write(final.priceLevel), daily.write(final.daily)]);
 		counts.priceLevel += final.priceLevel.length;
 		priceLevelRange.pushMany(final.priceLevel);
 		counts.volume500 = volume500Ring.length;
+		counts.tick100 = tick100Ring.length;
 		counts.seconds15 = seconds15Ring.length;
 		counts.minutes5 = minutes5Ring.length;
 		counts.daily += final.daily.length;
 
 		const volume500Rows = [...volume500Ring.iterate()];
+		const tick100Rows = [...tick100Ring.iterate()];
 		const seconds15Rows = [...seconds15Ring.iterate()];
 		const minutes5Rows = [...minutes5Ring.iterate()];
 		const metadata = createOutputMetadata({
@@ -207,10 +228,12 @@ export async function generateMarketData(
 			minutes5: getCandleRange(minutes5Rows),
 			priceLevel: priceLevelRange.getRange(),
 			seconds15: getCandleRange(seconds15Rows),
+			tick100: getCandleRange(tick100Rows),
 			volume500: getCandleRange(volume500Rows)
 		});
 
 		await Promise.all([
+			writeCandles(files.tick100, tick100Rows),
 			writeCandles(files.volume500, volume500Rows),
 			writeCandles(files.seconds15, seconds15Rows),
 			writeCandles(files.minutes5, minutes5Rows),
@@ -244,6 +267,7 @@ function generateSessionTicksIntoOutputs(
 	dailyPos: number,
 	seconds15Aggregator: IntervalTimeAggregator,
 	minutes5Aggregator: IntervalTimeAggregator,
+	tick100Aggregator: TickAggregator,
 	volume500Aggregator: VolumeAggregator,
 	priceLevelAggregator: PriceLevelAggregator,
 	emitted: CandleEmissions
@@ -327,6 +351,7 @@ function generateSessionTicksIntoOutputs(
 			}
 
 			volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
+			tick100Aggregator.pushTickValues(time, price, volume, emitted.tick100, side);
 		}
 
 		emitted.daily.push({
@@ -407,6 +432,7 @@ function generateSessionTicksIntoOutputs(
 		}
 
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
+		tick100Aggregator.pushTickValues(time, price, volume, emitted.tick100, side);
 		priceLevelAggregator.pushTickValues(time, price, volume, emitted.priceLevel, side);
 	}
 

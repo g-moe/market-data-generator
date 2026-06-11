@@ -17,6 +17,7 @@ describe('assertInputDataExists', () => {
 				priceLevel: join(root, 'tradester_ES_1s_pl0.25.csv'),
 				scid: join(root, 'tradester_ES.scid'),
 				seconds15: join(root, 'tradester_ES_15s.csv'),
+				tick100: join(root, 'tradester_ES_100t.csv'),
 				volume500: join(root, 'tradester_ES_500v.csv')
 			};
 
@@ -43,6 +44,7 @@ describe('assertInputDataExists', () => {
 					priceLevel: join(root, 'missing-pl.csv'),
 					scid: existing,
 					seconds15: join(root, 'missing-15s.csv'),
+					tick100: join(root, 'missing-100t.csv'),
 					volume500: join(root, 'missing-500v.csv')
 				})
 			).rejects.toThrow('Run: pnpm run run-md-generate ES');
@@ -67,6 +69,7 @@ describe('assertInputDataExists', () => {
 					priceLevel: join(root, 'tradester_ES_1s_pl0.25.csv'),
 					scid: join(root, 'tradester_ES.scid'),
 					seconds15: join(root, 'tradester_ES_15s.csv'),
+					tick100: join(root, 'tradester_ES_100t.csv'),
 					volume500: join(root, 'tradester_ES_500v.csv')
 				})
 			).rejects.toThrow('Run: pnpm run run-md-generate ES');

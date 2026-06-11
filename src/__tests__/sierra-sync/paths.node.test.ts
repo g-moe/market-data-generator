@@ -9,6 +9,7 @@ import {
 	SIERRA_CHARTBOOK_FILE_NAME,
 	SIERRA_SOURCE_ROOT
 } from '../../sierra-sync/constants.ts';
+import { getSymbolConfig, getTimeframes } from '../../contracts/index.ts';
 import { sierraExportFileName, sierraSyncPaths } from '../../sierra-sync/paths.ts';
 
 describe('sierraSyncPaths', () => {
@@ -28,11 +29,22 @@ describe('sierraSyncPaths', () => {
 		expect(paths.files.priceLevel).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
 		expect(paths.files.minutes5).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
 		expect(paths.files.seconds15).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));
+		expect(paths.files.tick100).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_100t.csv'));
 		expect(paths.files.volume500).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'));
 	});
 
 	it('builds Sierra bridge export names by suffix', () => {
 		expect(sierraExportFileName('/ES:XCME', '15s')).toBe('tradester_ES_15s_GraphData.txt');
+		expect(sierraExportFileName('/ES:XCME', '100t')).toBe('tradester_ES_100t_GraphData.txt');
 		expect(sierraExportFileName('/ES:XCME', '1d')).toBe('tradester_ES_1d_GraphData.txt');
+	});
+
+	it('builds the price-level timeframe suffix from symbol tick size', () => {
+		const config = getSymbolConfig('/ES:XCME');
+		const priceLevel = getTimeframes('/ES:XCME').find(
+			(timeframe) => timeframe.key === 'priceLevel'
+		);
+
+		expect(priceLevel?.suffix).toBe(`1s_pl${config.tickSize}`);
 	});
 });

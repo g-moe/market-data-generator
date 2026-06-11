@@ -14,6 +14,11 @@ type MutableCandle = {
 	askVolume: number;
 };
 
+type SequenceState = {
+	lastTime: number | undefined;
+	nextValue: number;
+};
+
 export class PriceLevelAggregator {
 	private current: { candle: MutableCandle; prices: Map<number, number> } | undefined;
 	private pos = 0;
@@ -187,9 +192,8 @@ export class IntervalTimeAggregator {
 
 export class VolumeAggregator {
 	private current: MutableCandle | undefined;
-	private lastSequenceTime: number | undefined;
-	private nextSequenceValue = 0;
 	private pos = 0;
+	private sequence: SequenceState = { lastTime: undefined, nextValue: 0 };
 
 	constructor(private readonly targetVolume: number) {}
 
@@ -239,26 +243,85 @@ export class VolumeAggregator {
 			finalizeMutableCandleWithId(
 				this.current,
 				this.pos,
-				createBarId(time, this.nextSequence(time))
+				createBarId(time, nextSequence(this.sequence, time))
 			)
 		);
 		this.pos++;
 		this.current = undefined;
 	}
+}
 
-	private nextSequence(time: number) {
-		if (this.lastSequenceTime === time) {
-			const sequence = this.nextSequenceValue;
-			this.nextSequenceValue++;
+export class TickAggregator {
+	private current: MutableCandle | undefined;
+	private pos = 0;
+	private sequence: SequenceState = { lastTime: undefined, nextValue: 0 };
+	private tickCount = 0;
 
-			return sequence;
+	constructor(private readonly targetTicks: number) {}
+
+	pushTick(tick: MarketTick, emitted: MdCandle[]) {
+		this.pushTickValues(tick.time, tick.price, tick.volume, emitted, tick.side);
+	}
+
+	pushTickValues(
+		time: number,
+		price: number,
+		volume: number,
+		emitted: MdCandle[],
+		side: TradeSide | undefined = undefined
+	) {
+		if (this.current === undefined) {
+			this.current = createMutableCandleForValues(price, time, volume, side);
+		} else {
+			addTickValues(this.current, price, volume, side);
 		}
 
-		this.lastSequenceTime = time;
-		this.nextSequenceValue = 1;
+		this.tickCount++;
 
-		return 0;
+		if (this.tickCount === this.targetTicks) {
+			this.emitCurrent(emitted);
+		}
 	}
+
+	finish() {
+		const emitted: MdCandle[] = [];
+		this.emitCurrent(emitted);
+
+		return emitted;
+	}
+
+	private emitCurrent(emitted: MdCandle[]) {
+		if (this.current === undefined) {
+			return;
+		}
+
+		const time = this.current.time;
+
+		emitted.push(
+			finalizeMutableCandleWithId(
+				this.current,
+				this.pos,
+				createBarId(time, nextSequence(this.sequence, time))
+			)
+		);
+		this.pos++;
+		this.current = undefined;
+		this.tickCount = 0;
+	}
+}
+
+function nextSequence(state: SequenceState, time: number) {
+	if (state.lastTime === time) {
+		const sequence = state.nextValue;
+		state.nextValue++;
+
+		return sequence;
+	}
+
+	state.lastTime = time;
+	state.nextValue = 1;
+
+	return 0;
 }
 
 function createMutableCandleForValues(

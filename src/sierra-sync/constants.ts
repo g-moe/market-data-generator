@@ -34,10 +34,3 @@ export const SIERRA_EXPORT_HEADER = [
 	'Bid Volume',
 	'Ask Volume'
 ].join(', ');
-export const TIMEFRAMES = [
-	{ key: 'daily', suffix: '1d' },
-	{ key: 'minutes5', suffix: '5m' },
-	{ key: 'seconds15', suffix: '15s' },
-	{ key: 'volume500', suffix: '500v' },
-	{ key: 'priceLevel', suffix: '1s_pl0.25' }
-] as const;

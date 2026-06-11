@@ -13,9 +13,9 @@ export {
 	DEFAULT_SEED,
 	DEFAULT_SESSION_COUNT,
 	DEFAULT_TICKS_PER_SESSION,
-	ID_SEQUENCE_MULTIPLIER,
-	VOLUME_BAR_SIZE
+	ID_SEQUENCE_MULTIPLIER
 } from './defaults.ts';
+export { getTimeframes, TIMEFRAME_DEFINITIONS } from './timeframes.ts';
 export type {
 	GenerationResult,
 	GenerationProgress,

@@ -1,10 +1,12 @@
 import { defineConfig } from 'vitest/config';
 
 const ALWAYS_EXCLUDE = ['**/node_modules/**'] as const;
+const COVERAGE_EXCLUDE = ['**/index.ts'] as const;
 
 export default defineConfig({
 	test: {
 		coverage: {
+			exclude: [...ALWAYS_EXCLUDE, ...COVERAGE_EXCLUDE],
 			provider: 'v8' as const,
 			thresholds: {
 				branches: 90,

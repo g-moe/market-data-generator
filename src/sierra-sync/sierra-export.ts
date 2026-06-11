@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import type { OutputFiles, Symbol } from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
-import { SIERRA_EXPORT_HEADER, TIMEFRAMES } from './constants.ts';
+import { getTimeframes } from '../contracts/index.ts';
+import { SIERRA_EXPORT_HEADER } from './constants.ts';
 import { sierraExportFileName } from './paths.ts';
 
 type GeneratedRow = {
@@ -40,7 +41,7 @@ export async function mergeValidatedSierraExports({
 }) {
 	await mkdir(outputDir, { recursive: true });
 
-	for (const timeframe of TIMEFRAMES) {
+	for (const timeframe of getTimeframes(symbol)) {
 		const inputFile = inputFiles[timeframe.key];
 		await mergeValidatedSierraExport({
 			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),
