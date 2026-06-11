@@ -20,7 +20,7 @@ import {
 	toStoredCandleRow,
 	toStoredPriceLevelCandleRow
 } from '../shared/file-ops/csv.ts';
-import { MarketDepthWriter } from '../shared/file-ops/depth.ts';
+import { MarketDepthSessionWriter } from '../shared/file-ops/depth.ts';
 import { SCID_EPOCH_OFFSET_MS, ScidTickWriter } from '../shared/file-ops/scid.ts';
 import {
 	createBarId,
@@ -45,6 +45,7 @@ import {
 } from './ticks.ts';
 
 const PRICE_LEVEL_SESSIONS = 30;
+const DEPTH_SESSIONS = 30;
 const RING_BUFFER_BAR_COUNT = 20_000;
 const UNIX_EPOCH_MS = 0;
 
@@ -105,7 +106,7 @@ export async function generateMarketData(
 	);
 	const tick100Aggregator = new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size);
 	const volume500Aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
-	const orderbook = new MarketDepthWriter(files.orderbook);
+	const orderbook = new MarketDepthSessionWriter(files.orderbook, symbolConfig.symbolId);
 	const orderbookStreamer = new OrderbookDepthStreamer(orderbook, symbolConfig.tickSize);
 	const seconds15Aggregator = new IntervalTimeAggregator(
 		TIMEFRAME_DEFINITIONS.seconds15.milliseconds,
@@ -177,6 +178,12 @@ export async function generateMarketData(
 			} else {
 				// Generate real ticks and close aggregations that reset at session boundaries.
 				const shouldEmitPriceLevel = isInLastSessions(inputs, sessionIndex, PRICE_LEVEL_SESSIONS);
+				const shouldEmitDepth = isInLastSessions(inputs, sessionIndex, DEPTH_SESSIONS);
+				if (shouldEmitDepth) {
+					await orderbook.startSession(sessionStart);
+					orderbookStreamer.reset();
+				}
+
 				const sessionOpenPrice = getSessionOpenPrice(
 					previousClose,
 					inputs,
@@ -200,6 +207,7 @@ export async function generateMarketData(
 					range10Aggregator,
 					tick100Aggregator,
 					volume500Aggregator,
+					shouldEmitDepth,
 					orderbookStreamer,
 					priceLevelAggregator,
 					emitted
@@ -349,6 +357,7 @@ function generateSessionTicksIntoOutputs(
 	range10Aggregator: RangeAggregator,
 	tick100Aggregator: TickAggregator,
 	volume500Aggregator: VolumeAggregator,
+	shouldEmitDepth: boolean,
 	orderbookStreamer: OrderbookDepthStreamer,
 	priceLevelAggregator: PriceLevelAggregator,
 	emitted: CandleEmissions
@@ -427,7 +436,9 @@ function generateSessionTicksIntoOutputs(
 		volume500Aggregator.pushTickValues(time, price, volume, emitted.volume500, side);
 		range10Aggregator.pushTickValues(time, price, volume, emitted.range10, side);
 		tick100Aggregator.pushTickValues(time, price, volume, emitted.tick100, side);
-		orderbookStreamer.pushTickValues(time, price, volume, side);
+		if (shouldEmitDepth) {
+			orderbookStreamer.pushTickValues(time, price, volume, side);
+		}
 
 		// Price-level aggregation is retained only for the trailing session window.
 		if (!shouldEmitPriceLevel) continue;

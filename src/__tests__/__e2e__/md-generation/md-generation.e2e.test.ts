@@ -51,10 +51,8 @@ describe('md-generation e2e', () => {
 		expect(await countRows(first.files.range10)).toBe(first.counts.range10);
 		expect(await countRows(first.files.tick100)).toBe(first.counts.tick100);
 		expect(await countRows(first.files.volume500)).toBe(first.counts.volume500);
-		expect((await stat(first.files.orderbook)).size).toBe(
-			DEPTH_HEADER_SIZE + first.counts.orderbook * DEPTH_RECORD_SIZE
-		);
-		const firstOrderbookHash = await hashFile(first.files.orderbook);
+		expect(await countDepthRecords(first.files.orderbook)).toBe(first.counts.orderbook);
+		const firstOrderbookHashes = await hashDepthFiles(first.files.orderbook);
 		expect((await stat(first.files.scid)).size).toBe(
 			SCID_HEADER_BYTES + first.counts.ticks * SCID_RECORD_BYTES
 		);
@@ -68,7 +66,7 @@ describe('md-generation e2e', () => {
 			})
 		);
 		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(firstHashes);
-		expect(await hashFile(second.files.orderbook)).toBe(firstOrderbookHash);
+		expect(await hashDepthFiles(second.files.orderbook)).toEqual(firstOrderbookHashes);
 	});
 });
 
@@ -99,4 +97,30 @@ function hashFile(filePath: string) {
 async function countRows(filePath: string) {
 	const text = await readFile(filePath, 'utf8');
 	return text.trimEnd().split('\n').length - 1;
+}
+
+async function getDepthFiles(directory: string) {
+	return (await readdir(directory)).filter((fileName) => fileName.endsWith('.depth')).sort();
+}
+
+async function countDepthRecords(directory: string) {
+	let records = 0;
+
+	for (const fileName of await getDepthFiles(directory)) {
+		const file = await stat(join(directory, fileName));
+
+		records += (file.size - DEPTH_HEADER_SIZE) / DEPTH_RECORD_SIZE;
+	}
+
+	return records;
+}
+
+async function hashDepthFiles(directory: string) {
+	const hashes: Record<string, string> = {};
+
+	for (const fileName of await getDepthFiles(directory)) {
+		hashes[fileName] = await hashFile(join(directory, fileName));
+	}
+
+	return hashes;
 }

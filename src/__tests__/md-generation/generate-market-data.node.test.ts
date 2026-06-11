@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -32,20 +32,22 @@ describe('generateMarketData', () => {
 			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
 			expect(result.files.metadata).toBe(join(outputRoot, 'ES', 'tradester_ES.json'));
 			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
-			expect(result.files.orderbook).toBe(join(outputRoot, 'ES', 'tradester_ES_orderbook.depth'));
+			expect(result.files.orderbook).toBe(join(outputRoot, 'ES', 'depth'));
 			expect(result.files.range10).toBe(join(outputRoot, 'ES', 'tradester_ES_10r.csv'));
 			expect(result.files.tick100).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
 			expect(result.counts.orderbook).toBeGreaterThan(200);
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
-			expect(readDepthHeader(await readFile(result.files.orderbook))).toEqual({
+			const depthFiles = await getDepthFiles(result.files.orderbook);
+			const firstDepthFile = join(result.files.orderbook, depthFiles[0]);
+			expect(depthFiles).toHaveLength(2);
+			expect(depthFiles.every((fileName) => fileName.endsWith('.depth'))).toBe(true);
+			expect(readDepthHeader(await readFile(firstDepthFile))).toEqual({
 				fileTypeUniqueHeaderId: 'SCDD',
 				headerSize: DEPTH_HEADER_SIZE,
 				recordSize: DEPTH_RECORD_SIZE,
 				version: 1
 			});
-			expect((await stat(result.files.orderbook)).size).toBe(
-				DEPTH_HEADER_SIZE + result.counts.orderbook * DEPTH_RECORD_SIZE
-			);
+			expect(await countDepthRecords(result.files.orderbook)).toBe(result.counts.orderbook);
 			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
 				timeframes: {
 					daily: expect.objectContaining({
@@ -99,7 +101,9 @@ describe('generateMarketData', () => {
 			expect(await readFile(second.files.priceLevel, 'utf8')).toBe(
 				await readFile(first.files.priceLevel, 'utf8')
 			);
-			expect(await readFile(second.files.orderbook)).toEqual(await readFile(first.files.orderbook));
+			expect(await readDepthFiles(second.files.orderbook)).toEqual(
+				await readDepthFiles(first.files.orderbook)
+			);
 		} finally {
 			await rm(firstRoot, { force: true, recursive: true });
 			await rm(secondRoot, { force: true, recursive: true });
@@ -166,6 +170,8 @@ describe('generateMarketData', () => {
 			expect(result.counts.priceLevel).toBe(30 * priceLevelBucketsPerSession);
 			expect(result.counts.seconds15).toBe(20_000);
 			expect(result.counts.minutes5).toBe(20_000);
+			expect(await getDepthFiles(result.files.orderbook)).toHaveLength(30);
+			expect(await countDepthRecords(result.files.orderbook)).toBe(result.counts.orderbook);
 			expect(await countRows(result.files.seconds15)).toBe(20_000);
 			expect(await countRows(result.files.minutes5)).toBe(20_000);
 		} finally {
@@ -209,4 +215,30 @@ async function readFirstLine(filePath: string) {
 async function countRows(filePath: string) {
 	const text = await readFile(filePath, 'utf8');
 	return text.trimEnd().split('\n').length - 1;
+}
+
+async function getDepthFiles(directory: string) {
+	return (await readdir(directory)).filter((fileName) => fileName.endsWith('.depth')).sort();
+}
+
+async function countDepthRecords(directory: string) {
+	let records = 0;
+
+	for (const fileName of await getDepthFiles(directory)) {
+		const file = await stat(join(directory, fileName));
+
+		records += (file.size - DEPTH_HEADER_SIZE) / DEPTH_RECORD_SIZE;
+	}
+
+	return records;
+}
+
+async function readDepthFiles(directory: string) {
+	const files: Record<string, Buffer> = {};
+
+	for (const fileName of await getDepthFiles(directory)) {
+		files[fileName] = await readFile(join(directory, fileName));
+	}
+
+	return files;
 }

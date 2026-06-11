@@ -67,7 +67,7 @@ data/ES/tradester_ES_15s.csv        latest 20,000 15-second bars
 data/ES/tradester_ES_100t.csv       latest 20,000 100-trade bars
 data/ES/tradester_ES_500v.csv       latest 20,000 500-volume bars
 data/ES/tradester_ES_1s_pl0.25.csv  30 sessions of 1-second price-level bars
-data/ES/tradester_ES_orderbook.depth Sierra depth history for 100 bid and 100 ask levels
+data/ES/depth/*.depth               30 sessions of Sierra depth history
 ```
 
 ## Calculation Note

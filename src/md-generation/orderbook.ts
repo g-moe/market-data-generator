@@ -10,8 +10,7 @@ import type {
 import {
 	DEPTH_END_OF_BATCH_FLAG,
 	DepthCommand,
-	type DepthRecord,
-	MarketDepthWriter
+	type MarketDepthRecordWriter
 } from '../shared/file-ops/depth.ts';
 import { roundToTick } from './price.ts';
 
@@ -51,38 +50,50 @@ type ConfluenceKey = {
 };
 
 export class OrderbookDepthStreamer {
-	private pendingBatchRecord: DepthRecord | undefined;
+	private pendingCommand: DepthCommand | undefined;
+	private pendingFlags = 0;
+	private pendingNumOrders = 0;
+	private pendingPrice = 0;
+	private pendingQuantity = 0;
+	private pendingTime = 0;
 	private previousAnchorPriceTicks: number | undefined;
-	private previousConfluenceKey: ConfluenceKey | undefined;
+	private previousConfluencePriceTicks: number | undefined;
+	private previousConfluenceSide: DepthSide | undefined;
 	private lastSnapshotTime: UnixMs | undefined;
 
 	constructor(
-		private readonly writer: MarketDepthWriter,
+		private readonly writer: MarketDepthRecordWriter,
 		private readonly tickSize: number,
 		private readonly levelCount = ORDERBOOK_LEVEL_COUNT
 	) {}
 
+	reset() {
+		this.pendingCommand = undefined;
+		this.previousAnchorPriceTicks = undefined;
+		this.previousConfluencePriceTicks = undefined;
+		this.previousConfluenceSide = undefined;
+		this.lastSnapshotTime = undefined;
+	}
+
 	pushTickValues(time: UnixMs, price: Price, volume: Volume, side: TradeSide) {
-		const tick = {
-			price,
-			side,
-			time,
-			volume
-		};
 		const anchorPriceTicks = Math.round(price / this.tickSize);
+		const confluencePriceTicks = getConfluencePriceTicks(anchorPriceTicks, side);
+		const confluenceSide = getConfluenceSide(side);
 
 		if (this.shouldWriteFullSnapshot(time)) {
-			this.writeFullSnapshot(tick, anchorPriceTicks);
+			this.writeFullSnapshot(time, volume, side, anchorPriceTicks);
 			this.previousAnchorPriceTicks = anchorPriceTicks;
-			this.previousConfluenceKey = createConfluenceKey(anchorPriceTicks, side);
+			this.previousConfluencePriceTicks = confluencePriceTicks;
+			this.previousConfluenceSide = confluenceSide;
 			this.lastSnapshotTime = time;
 
 			return;
 		}
 
-		this.writeIncrementalUpdate(tick, anchorPriceTicks);
+		this.writeIncrementalUpdate(time, volume, side, anchorPriceTicks);
 		this.previousAnchorPriceTicks = anchorPriceTicks;
-		this.previousConfluenceKey = createConfluenceKey(anchorPriceTicks, side);
+		this.previousConfluencePriceTicks = confluencePriceTicks;
+		this.previousConfluenceSide = confluenceSide;
 	}
 
 	private shouldWriteFullSnapshot(time: UnixMs) {
@@ -93,60 +104,65 @@ export class OrderbookDepthStreamer {
 		return time - this.lastSnapshotTime >= SNAPSHOT_INTERVAL_MS;
 	}
 
-	private writeFullSnapshot(tick: OrderbookTick, anchorPriceTicks: number) {
-		this.pushBatchRecord({
-			command: DepthCommand.ClearBook,
-			flags: 0,
-			numOrders: 0,
-			price: 0,
-			quantity: 0,
-			time: tick.time
-		});
+	private writeFullSnapshot(
+		time: UnixMs,
+		volume: Volume,
+		tradeSide: TradeSide,
+		anchorPriceTicks: number
+	) {
+		this.pushBatchRecordValues(DepthCommand.ClearBook, time, 0, 0, 0, 0);
 
 		for (let levelIndex = 0; levelIndex < this.levelCount; levelIndex++) {
-			this.pushLevelRecord(
+			this.pushSnapshotLevelRecord(
 				DepthCommand.AddBidLevel,
-				tick.time,
-				createDepthLevel({
-					anchorPriceTicks,
-					levelIndex,
-					side: 'BUY',
-					tick,
-					tickSize: this.tickSize
-				})
+				time,
+				volume,
+				tradeSide,
+				anchorPriceTicks,
+				'BUY',
+				levelIndex
 			);
 		}
 
 		for (let levelIndex = 0; levelIndex < this.levelCount; levelIndex++) {
-			this.pushLevelRecord(
+			this.pushSnapshotLevelRecord(
 				DepthCommand.AddAskLevel,
-				tick.time,
-				createDepthLevel({
-					anchorPriceTicks,
-					levelIndex,
-					side: 'SELL',
-					tick,
-					tickSize: this.tickSize
-				})
+				time,
+				volume,
+				tradeSide,
+				anchorPriceTicks,
+				'SELL',
+				levelIndex
 			);
 		}
 
 		this.finishBatch();
 	}
 
-	private writeIncrementalUpdate(tick: OrderbookTick, anchorPriceTicks: number) {
+	private writeIncrementalUpdate(
+		time: UnixMs,
+		volume: Volume,
+		tradeSide: TradeSide,
+		anchorPriceTicks: number
+	) {
 		const previousAnchorPriceTicks = this.previousAnchorPriceTicks;
 		if (previousAnchorPriceTicks === undefined) {
-			this.writeFullSnapshot(tick, anchorPriceTicks);
+			this.writeFullSnapshot(time, volume, tradeSide, anchorPriceTicks);
 
 			return;
 		}
 
-		this.writeRangeChanges(tick.time, previousAnchorPriceTicks, anchorPriceTicks, 'BUY');
-		this.writeRangeChanges(tick.time, previousAnchorPriceTicks, anchorPriceTicks, 'SELL');
-		const currentConfluenceKey = createConfluenceKey(anchorPriceTicks, tick.side);
-		this.writeConfluenceRestore(tick.time, anchorPriceTicks, currentConfluenceKey);
-		this.writeCurrentConfluence(tick, anchorPriceTicks, currentConfluenceKey);
+		this.writeRangeChanges(time, previousAnchorPriceTicks, anchorPriceTicks, 'BUY');
+		this.writeRangeChanges(time, previousAnchorPriceTicks, anchorPriceTicks, 'SELL');
+		const currentConfluencePriceTicks = getConfluencePriceTicks(anchorPriceTicks, tradeSide);
+		const currentConfluenceSide = getConfluenceSide(tradeSide);
+		this.writeConfluenceRestore(
+			time,
+			anchorPriceTicks,
+			currentConfluencePriceTicks,
+			currentConfluenceSide
+		);
+		this.writeCurrentConfluence(time, volume, currentConfluencePriceTicks, currentConfluenceSide);
 		this.finishBatch();
 	}
 
@@ -160,100 +176,288 @@ export class OrderbookDepthStreamer {
 			return;
 		}
 
+		const anchorDelta = anchorPriceTicks - previousAnchorPriceTicks;
+		if (Math.abs(anchorDelta) >= this.levelCount) {
+			this.writeFullRangeChanges(time, previousAnchorPriceTicks, anchorPriceTicks, side);
+
+			return;
+		}
+
+		if (side === 'BUY') {
+			this.writeBidRangeChanges(time, previousAnchorPriceTicks, anchorPriceTicks, anchorDelta);
+
+			return;
+		}
+
+		this.writeAskRangeChanges(time, previousAnchorPriceTicks, anchorPriceTicks, anchorDelta);
+	}
+
+	private writeFullRangeChanges(
+		time: UnixMs,
+		previousAnchorPriceTicks: number,
+		anchorPriceTicks: number,
+		side: DepthSide
+	) {
+		const deleteCommand = getDeleteCommand(side);
+		const addCommand = getAddCommand(side);
+
 		for (let levelIndex = 0; levelIndex < this.levelCount; levelIndex++) {
 			const priceTicks = getLevelPriceTicks(previousAnchorPriceTicks, side, levelIndex);
-			if (isPriceTickInRange(priceTicks, anchorPriceTicks, side, this.levelCount)) continue;
 
-			this.pushLevelRecord(
-				getDeleteCommand(side),
-				time,
-				createBaseDepthLevel(priceTicks, side, this.tickSize)
-			);
+			this.pushBaseLevelRecord(deleteCommand, time, priceTicks, side);
 		}
 
 		for (let levelIndex = 0; levelIndex < this.levelCount; levelIndex++) {
 			const priceTicks = getLevelPriceTicks(anchorPriceTicks, side, levelIndex);
-			if (isPriceTickInRange(priceTicks, previousAnchorPriceTicks, side, this.levelCount)) continue;
 
-			this.pushLevelRecord(
-				getAddCommand(side),
+			this.pushBaseLevelRecord(addCommand, time, priceTicks, side);
+		}
+	}
+
+	private writeBidRangeChanges(
+		time: UnixMs,
+		previousAnchorPriceTicks: number,
+		anchorPriceTicks: number,
+		anchorDelta: number
+	) {
+		if (anchorDelta > 0) {
+			this.writePriceTickRange(
+				getDeleteCommand('BUY'),
 				time,
-				createBaseDepthLevel(priceTicks, side, this.tickSize)
+				'BUY',
+				anchorPriceTicks - this.levelCount - 1,
+				previousAnchorPriceTicks - this.levelCount,
+				-1
 			);
+			this.writePriceTickRange(
+				getAddCommand('BUY'),
+				time,
+				'BUY',
+				anchorPriceTicks - 1,
+				previousAnchorPriceTicks,
+				-1
+			);
+
+			return;
+		}
+
+		this.writePriceTickRange(
+			getDeleteCommand('BUY'),
+			time,
+			'BUY',
+			previousAnchorPriceTicks - 1,
+			anchorPriceTicks,
+			-1
+		);
+		this.writePriceTickRange(
+			getAddCommand('BUY'),
+			time,
+			'BUY',
+			previousAnchorPriceTicks - this.levelCount - 1,
+			anchorPriceTicks - this.levelCount,
+			-1
+		);
+	}
+
+	private writeAskRangeChanges(
+		time: UnixMs,
+		previousAnchorPriceTicks: number,
+		anchorPriceTicks: number,
+		anchorDelta: number
+	) {
+		if (anchorDelta > 0) {
+			this.writePriceTickRange(
+				getDeleteCommand('SELL'),
+				time,
+				'SELL',
+				previousAnchorPriceTicks + 1,
+				anchorPriceTicks,
+				1
+			);
+			this.writePriceTickRange(
+				getAddCommand('SELL'),
+				time,
+				'SELL',
+				previousAnchorPriceTicks + this.levelCount + 1,
+				anchorPriceTicks + this.levelCount,
+				1
+			);
+
+			return;
+		}
+
+		this.writePriceTickRange(
+			getDeleteCommand('SELL'),
+			time,
+			'SELL',
+			anchorPriceTicks + this.levelCount + 1,
+			previousAnchorPriceTicks + this.levelCount,
+			1
+		);
+		this.writePriceTickRange(
+			getAddCommand('SELL'),
+			time,
+			'SELL',
+			anchorPriceTicks + 1,
+			previousAnchorPriceTicks,
+			1
+		);
+	}
+
+	private writePriceTickRange(
+		command: DepthCommand,
+		time: UnixMs,
+		side: DepthSide,
+		startPriceTicks: number,
+		endPriceTicks: number,
+		step: 1 | -1
+	) {
+		for (
+			let priceTicks = startPriceTicks;
+			step > 0 ? priceTicks <= endPriceTicks : priceTicks >= endPriceTicks;
+			priceTicks += step
+		) {
+			this.pushBaseLevelRecord(command, time, priceTicks, side);
 		}
 	}
 
 	private writeConfluenceRestore(
 		time: UnixMs,
 		anchorPriceTicks: number,
-		currentConfluenceKey: ConfluenceKey
+		currentConfluencePriceTicks: number,
+		currentConfluenceSide: DepthSide
 	) {
-		const previous = this.previousConfluenceKey;
-		if (previous === undefined) return;
-		if (!isPriceTickInRange(previous.priceTicks, anchorPriceTicks, previous.side, this.levelCount))
+		const previousPriceTicks = this.previousConfluencePriceTicks;
+		const previousSide = this.previousConfluenceSide;
+		if (previousPriceTicks === undefined || previousSide === undefined) return;
+		if (!isPriceTickInRange(previousPriceTicks, anchorPriceTicks, previousSide, this.levelCount))
 			return;
-		if (isSameConfluenceKey(previous, currentConfluenceKey)) return;
+		if (
+			previousPriceTicks === currentConfluencePriceTicks &&
+			previousSide === currentConfluenceSide
+		)
+			return;
 
-		this.pushLevelRecord(
-			getModifyCommand(previous.side),
+		this.pushBaseLevelRecord(
+			getModifyCommand(previousSide),
 			time,
-			createBaseDepthLevel(previous.priceTicks, previous.side, this.tickSize)
+			previousPriceTicks,
+			previousSide
 		);
 	}
 
 	private writeCurrentConfluence(
-		tick: OrderbookTick,
-		anchorPriceTicks: number,
-		current: ConfluenceKey
+		time: UnixMs,
+		volume: Volume,
+		priceTicks: number,
+		side: DepthSide
 	) {
-		this.pushLevelRecord(
-			getModifyCommand(current.side),
-			tick.time,
-			createDepthLevel({
-				anchorPriceTicks,
-				levelIndex: 0,
-				side: current.side,
-				tick,
-				tickSize: this.tickSize
-			})
-		);
+		this.pushConfluenceLevelRecord(getModifyCommand(side), time, volume, priceTicks, side);
 	}
 
-	private pushLevelRecord(command: DepthCommand, time: UnixMs, level: DepthLevel) {
-		this.pushBatchRecord({
-			command,
-			flags: 0,
-			numOrders:
-				command === DepthCommand.DeleteBidLevel || command === DepthCommand.DeleteAskLevel
-					? 0
-					: level.numOrders,
-			price: level.price,
-			quantity:
-				command === DepthCommand.DeleteBidLevel || command === DepthCommand.DeleteAskLevel
-					? 0
-					: level.quantity,
-			time
-		});
-	}
+	private pushSnapshotLevelRecord(
+		command: DepthCommand,
+		time: UnixMs,
+		volume: Volume,
+		tradeSide: TradeSide,
+		anchorPriceTicks: number,
+		side: DepthSide,
+		levelIndex: number
+	) {
+		const priceTicks = getLevelPriceTicks(anchorPriceTicks, side, levelIndex);
 
-	private pushBatchRecord(record: DepthRecord) {
-		if (this.pendingBatchRecord !== undefined) {
-			this.writer.pushRecord(this.pendingBatchRecord);
-		}
+		if (isConfluencePriceTicks(anchorPriceTicks, tradeSide, side, priceTicks)) {
+			this.pushConfluenceLevelRecord(command, time, volume, priceTicks, side);
 
-		this.pendingBatchRecord = record;
-	}
-
-	private finishBatch() {
-		if (this.pendingBatchRecord === undefined) {
 			return;
 		}
 
-		this.writer.pushRecord({
-			...this.pendingBatchRecord,
-			flags: this.pendingBatchRecord.flags | DEPTH_END_OF_BATCH_FLAG
-		});
-		this.pendingBatchRecord = undefined;
+		this.pushBaseLevelRecord(command, time, priceTicks, side);
+	}
+
+	private pushConfluenceLevelRecord(
+		command: DepthCommand,
+		time: UnixMs,
+		volume: Volume,
+		priceTicks: number,
+		side: DepthSide
+	) {
+		const baseNumOrders = getBaseNumOrders(priceTicks, side);
+		const numOrders = baseNumOrders + Math.min(4, Math.max(1, Math.ceil(volume / 25)));
+		const quantity = getBaseQuantity(priceTicks, side, baseNumOrders) + volume;
+
+		this.pushBatchRecordValues(
+			command,
+			time,
+			0,
+			numOrders,
+			priceTicksToPrice(priceTicks, this.tickSize),
+			quantity
+		);
+	}
+
+	private pushBaseLevelRecord(
+		command: DepthCommand,
+		time: UnixMs,
+		priceTicks: number,
+		side: DepthSide
+	) {
+		const shouldClearLevel =
+			command === DepthCommand.DeleteBidLevel || command === DepthCommand.DeleteAskLevel;
+		const numOrders = shouldClearLevel ? 0 : getBaseNumOrders(priceTicks, side);
+		const quantity = shouldClearLevel ? 0 : getBaseQuantity(priceTicks, side, numOrders);
+
+		this.pushBatchRecordValues(
+			command,
+			time,
+			0,
+			numOrders,
+			priceTicksToPrice(priceTicks, this.tickSize),
+			quantity
+		);
+	}
+
+	private pushBatchRecordValues(
+		command: DepthCommand,
+		time: UnixMs,
+		flags: number,
+		numOrders: number,
+		price: Price,
+		quantity: Volume
+	) {
+		if (this.pendingCommand !== undefined) {
+			this.writer.pushRecordValues(
+				this.pendingTime,
+				this.pendingCommand,
+				this.pendingFlags,
+				this.pendingNumOrders,
+				this.pendingPrice,
+				this.pendingQuantity
+			);
+		}
+
+		this.pendingCommand = command;
+		this.pendingFlags = flags;
+		this.pendingNumOrders = numOrders;
+		this.pendingPrice = price;
+		this.pendingQuantity = quantity;
+		this.pendingTime = time;
+	}
+
+	private finishBatch() {
+		if (this.pendingCommand === undefined) {
+			return;
+		}
+
+		this.writer.pushRecordValues(
+			this.pendingTime,
+			this.pendingCommand,
+			this.pendingFlags | DEPTH_END_OF_BATCH_FLAG,
+			this.pendingNumOrders,
+			this.pendingPrice,
+			this.pendingQuantity
+		);
+		this.pendingCommand = undefined;
 	}
 }
 
@@ -381,34 +585,62 @@ function createDepthLevel({
 }
 
 function createBaseDepthLevel(priceTicks: number, side: DepthSide, tickSize: number): DepthLevel {
-	const numOrders = 3 + (hashLevelInput(priceTicks, side, 0) % 18);
-	const quantity = numOrders + 5 + (hashLevelInput(priceTicks, side, 1) % 80);
+	const numOrders = getBaseNumOrders(priceTicks, side);
+	const quantity = getBaseQuantity(priceTicks, side, numOrders);
 
 	return {
 		numOrders,
-		price: roundToTick(priceTicks * tickSize, tickSize),
+		price: priceTicksToPrice(priceTicks, tickSize),
 		priceTicks,
 		quantity,
 		side
 	};
 }
 
-function createConfluenceKey(anchorPriceTicks: number, tradeSide: TradeSide): ConfluenceKey {
-	if (tradeSide === 'ask') {
-		return {
-			priceTicks: anchorPriceTicks + 1,
-			side: 'SELL'
-		};
+function priceTicksToPrice(priceTicks: number, tickSize: number) {
+	const price = priceTicks * tickSize;
+
+	if (tickSize === 0.25) {
+		return price;
 	}
 
+	return roundToTick(price, tickSize);
+}
+
+function getBaseNumOrders(priceTicks: number, side: DepthSide) {
+	return 3 + (hashLevelInput(priceTicks, side, 0) % 18);
+}
+
+function getBaseQuantity(priceTicks: number, side: DepthSide, numOrders: number) {
+	return numOrders + 5 + (hashLevelInput(priceTicks, side, 1) % 80);
+}
+
+function getConfluencePriceTicks(anchorPriceTicks: number, tradeSide: TradeSide) {
+	return tradeSide === 'ask' ? anchorPriceTicks + 1 : anchorPriceTicks - 1;
+}
+
+function getConfluenceSide(tradeSide: TradeSide): DepthSide {
+	return tradeSide === 'ask' ? 'SELL' : 'BUY';
+}
+
+function createConfluenceKey(anchorPriceTicks: number, tradeSide: TradeSide): ConfluenceKey {
 	return {
-		priceTicks: anchorPriceTicks - 1,
-		side: 'BUY'
+		priceTicks: getConfluencePriceTicks(anchorPriceTicks, tradeSide),
+		side: getConfluenceSide(tradeSide)
 	};
 }
 
-function isSameConfluenceKey(left: ConfluenceKey, right: ConfluenceKey) {
-	return left.priceTicks === right.priceTicks && left.side === right.side;
+function isConfluencePriceTicks(
+	anchorPriceTicks: number,
+	tradeSide: TradeSide,
+	side: DepthSide,
+	priceTicks: number
+) {
+	if (tradeSide === 'ask') {
+		return side === 'SELL' && priceTicks === anchorPriceTicks + 1;
+	}
+
+	return side === 'BUY' && priceTicks === anchorPriceTicks - 1;
 }
 
 function getLevelPriceTicks(anchorPriceTicks: number, side: DepthSide, levelIndex: number) {

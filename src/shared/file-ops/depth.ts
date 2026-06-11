@@ -1,15 +1,17 @@
 import { writeSync } from 'node:fs';
 import { mkdir, open, type FileHandle } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import type { Price, UnixMs, Volume } from '../../contracts/types.ts';
-import { utcDateTimeToUnixMs } from '../datetime/index.ts';
+import { toUtcParts, utcDateTimeToUnixMs } from '../datetime/index.ts';
 
 const HEADER_SIZE = 64;
 const RECORD_SIZE = 24;
 const DEFAULT_BUFFER_RECORDS = 16_384;
 const DEPTH_EPOCH_MS = utcDateTimeToUnixMs(1899, 12, 30, 0, 0, 0);
+const UINT32_SIZE = 0x1_0000_0000;
 const MICROSECONDS_PER_MILLISECOND = 1000n;
+const MICROSECONDS_PER_MILLISECOND_NUMBER = 1000;
 
 export const DEPTH_HEADER_SIZE = HEADER_SIZE;
 export const DEPTH_RECORD_SIZE = RECORD_SIZE;
@@ -32,6 +34,17 @@ export type DepthRecord = {
 	price: Price;
 	quantity: Volume;
 	time: UnixMs;
+};
+
+export type MarketDepthRecordWriter = {
+	pushRecordValues: (
+		time: UnixMs,
+		command: DepthCommand,
+		flags: number,
+		numOrders: number,
+		price: Price,
+		quantity: Volume
+	) => void;
 };
 
 export const DEPTH_END_OF_BATCH_FLAG = 0x01;
@@ -68,7 +81,34 @@ export class MarketDepthWriter {
 	}
 
 	pushRecord(record: DepthRecord) {
-		writeRecord(this.outputView, this.bufferedRecords * RECORD_SIZE, record);
+		this.pushRecordValues(
+			record.time,
+			record.command,
+			record.flags,
+			record.numOrders,
+			record.price,
+			record.quantity
+		);
+	}
+
+	pushRecordValues(
+		time: UnixMs,
+		command: DepthCommand,
+		flags: number,
+		numOrders: number,
+		price: Price,
+		quantity: Volume
+	) {
+		writeRecordValues(
+			this.outputView,
+			this.bufferedRecords * RECORD_SIZE,
+			time,
+			command,
+			flags,
+			numOrders,
+			price,
+			quantity
+		);
 		this.bufferedRecords++;
 		this.records++;
 
@@ -118,12 +158,70 @@ export class MarketDepthWriter {
 	}
 }
 
+export class MarketDepthSessionWriter implements MarketDepthRecordWriter {
+	private current: MarketDepthWriter | undefined;
+	private records = 0;
+
+	constructor(
+		private readonly directoryPath: string,
+		private readonly symbolId: string,
+		private readonly bufferRecords = DEFAULT_BUFFER_RECORDS
+	) {}
+
+	get recordCount() {
+		return this.records;
+	}
+
+	async open() {
+		await mkdir(this.directoryPath, { recursive: true });
+	}
+
+	async startSession(sessionStart: UnixMs) {
+		await this.current?.close();
+
+		this.current = new MarketDepthWriter(
+			getDepthSessionFilePath(this.directoryPath, this.symbolId, sessionStart),
+			this.bufferRecords
+		);
+		await this.current.open();
+	}
+
+	pushRecordValues(
+		time: UnixMs,
+		command: DepthCommand,
+		flags: number,
+		numOrders: number,
+		price: Price,
+		quantity: Volume
+	) {
+		if (this.current === undefined) {
+			throw new Error('Market depth session writer has no open session');
+		}
+
+		this.current.pushRecordValues(time, command, flags, numOrders, price, quantity);
+		this.records++;
+	}
+
+	async flush() {
+		await this.current?.flush();
+	}
+
+	async close() {
+		await this.current?.close();
+		this.current = undefined;
+	}
+}
+
 function depthRecordToUnixMs(recordDateTime: bigint) {
 	return Number(recordDateTime / MICROSECONDS_PER_MILLISECOND) + DEPTH_EPOCH_MS;
 }
 
 export function toDepthDateTime(time: UnixMs) {
 	return BigInt(time - DEPTH_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
+}
+
+function getDepthSessionFilePath(directoryPath: string, symbolId: string, sessionStart: UnixMs) {
+	return join(directoryPath, `${symbolId}.${toUtcParts(sessionStart).date}.depth`);
 }
 
 export function readDepthHeader(input: Buffer) {
@@ -155,12 +253,24 @@ function writeHeader(output: Buffer) {
 	output.writeUInt32LE(1, 12);
 }
 
-function writeRecord(output: DataView, offset: number, record: DepthRecord) {
-	output.setBigInt64(offset, toDepthDateTime(record.time), true);
-	output.setUint8(offset + 8, record.command);
-	output.setUint8(offset + 9, record.flags);
-	output.setUint16(offset + 10, record.numOrders, true);
-	output.setFloat32(offset + 12, record.price, true);
-	output.setUint32(offset + 16, record.quantity, true);
+function writeRecordValues(
+	output: DataView,
+	offset: number,
+	time: UnixMs,
+	command: DepthCommand,
+	flags: number,
+	numOrders: number,
+	price: Price,
+	quantity: Volume
+) {
+	const dateTime = (time - DEPTH_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND_NUMBER;
+
+	output.setUint32(offset, dateTime >>> 0, true);
+	output.setInt32(offset + 4, Math.floor(dateTime / UINT32_SIZE), true);
+	output.setUint8(offset + 8, command);
+	output.setUint8(offset + 9, flags);
+	output.setUint16(offset + 10, numOrders, true);
+	output.setFloat32(offset + 12, price, true);
+	output.setUint32(offset + 16, quantity, true);
 	output.setUint32(offset + 20, 0, true);
 }

@@ -14,7 +14,7 @@ export function getOutputFiles(symbol: Symbol, outputDir: string): OutputFiles {
 		daily: join(outputDir, `${prefix}_${suffixes.daily}.csv`),
 		metadata: join(outputDir, `${prefix}.json`),
 		minutes5: join(outputDir, `${prefix}_${suffixes.minutes5}.csv`),
-		orderbook: join(outputDir, `${prefix}_orderbook.depth`),
+		orderbook: join(outputDir, 'depth'),
 		priceLevel: join(outputDir, `${prefix}_${suffixes.priceLevel}.csv`),
 		range10: join(outputDir, `${prefix}_${suffixes.range10}.csv`),
 		scid: join(outputDir, `${prefix}.scid`),
