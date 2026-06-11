@@ -119,7 +119,8 @@ Useful scripts:
 - `run-sierra-generate`: sync Sierra inputs for the requested symbol.
 - `run:options`: print all supported symbols.
 - `dev`: run the CLI in watch mode.
-- `check`: run `typecheck`, `lint`, `format`, and `knip`.
+- `check`: runs `lint`, `format`, and `knip`.
+- `lint`: run type-aware linting and type checking in one pass via `oxlint --type-aware --type-check`.
 - `coverage`: run unit tests with coverage (`vitest`).
 - `test:e2e:sierra`: run Sierra e2e flow checks.
 - `test:e2e:md-generation`: run md-generation e2e checks.
@@ -132,6 +133,5 @@ CI should not run `pnpm run setup`.
 Use explicit CI steps instead:
 
 1. `actions/setup-node` with `node-version-file: .nvmrc`
-2. `corepack prepare "$(node -p "require('./package.json').packageManager")" --activate`
-3. `pnpm install --frozen-lockfile`
-4. run checks via normal `pnpm` scripts
+2. `bash ./scripts/setup/.setup-ci.sh`
+3. run checks via normal `pnpm` scripts

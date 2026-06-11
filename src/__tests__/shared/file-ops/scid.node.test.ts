@@ -93,7 +93,7 @@ describe('scid output', () => {
 			await writer.flush();
 			const withOutput = await readFile(filePath);
 
-			await (writer as unknown as { writeBufferedTicksSync: () => void }).writeBufferedTicksSync();
+			(writer as unknown as { writeBufferedTicksSync: () => void }).writeBufferedTicksSync();
 
 			await writer.close();
 			const finalOutput = await readFile(filePath);
@@ -113,7 +113,7 @@ describe('scid output', () => {
 			await writeFile(filePath, 'old data');
 			const writer = new ScidTickWriter(filePath);
 			await writer.open();
-			await writer.pushTick(tick());
+			writer.pushTick(tick());
 			writer.pushTick(tick({ price: 6000.25 }));
 			await writer.close();
 

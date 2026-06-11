@@ -1,0 +1,57 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Decisions",
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["version", "updated", "decisions", "technicalDebt"],
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"format": "uri-reference"
+		},
+		"version": {
+			"type": "integer",
+			"minimum": 1
+		},
+		"updated": {
+			"type": "string",
+			"format": "date"
+		},
+		"decisions": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["topic", "note"],
+				"properties": {
+					"topic": {
+						"type": "string",
+						"minLength": 3
+					},
+					"note": {
+						"type": "string",
+						"minLength": 5
+					}
+				}
+			}
+		},
+		"technicalDebt": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["topic", "note"],
+				"properties": {
+					"topic": {
+						"type": "string",
+						"minLength": 3
+					},
+					"note": {
+						"type": "string",
+						"minLength": 5
+					}
+				}
+			}
+		}
+	}
+}
