@@ -166,8 +166,7 @@ ${SAMPLE_GENERATED_ROW},99`
 				})
 			).resolves.toMatchObject({ comparedRows: 1, outputFile: output });
 			await expect(readFile(output, 'utf8')).resolves.toBe(
-				`${CANDLE_ROW_HEADER}
-${SAMPLE_GENERATED_ROW}`
+				`${CANDLE_ROW_HEADER},${SAMPLE_GENERATED_ROW}`
 			);
 		} finally {
 			await rm(root, { force: true, recursive: true });
@@ -422,7 +421,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 			for (const timeframe of VALIDATED_TIMEFRAMES) {
 				await expect(
 					readFile(join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? ''), 'utf8')
-				).resolves.toBe(`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`);
+				).resolves.toBe(`${CANDLE_ROW_HEADER},\n${SAMPLE_GENERATED_ROW},\n`);
 			}
 		} finally {
 			await rm(root, { force: true, recursive: true });

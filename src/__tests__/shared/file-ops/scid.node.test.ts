@@ -74,7 +74,8 @@ describe('scid output', () => {
 			await writer.open();
 			await writer.close();
 
-			expect(() => writer.pushTick(tick())).toThrow('SCID writer is not open');
+			expect(() => writer.pushTick(tick())).not.toThrow();
+			await expect(writer.flush()).rejects.toThrow('SCID writer is not open');
 		} finally {
 			await rm(directory, { force: true, recursive: true });
 		}

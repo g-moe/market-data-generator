@@ -177,17 +177,20 @@ describe('createNodePorts', () => {
 		vi.doMock('node:readline/promises', async () => {
 			const actual =
 				await vi.importActual<typeof import('node:readline/promises')>('node:readline/promises');
+			const close = vi.fn<() => void>();
+			const question = vi.fn<(question: string) => Promise<string>>();
+			const next = vi.fn<() => Promise<IteratorResult<string, undefined>>>(async () => ({
+				done: true,
+				value: undefined
+			}));
 
 			return {
 				...actual,
 				createInterface: () => ({
-					close: vi.fn<() => void>(),
-					question: vi.fn<(question: string) => Promise<string>>(),
+					close,
+					question,
 					[Symbol.asyncIterator]: () => ({
-						next: vi.fn<() => Promise<IteratorResult<string, undefined>>>(async () => ({
-							done: true,
-							value: undefined
-						}))
+						next
 					})
 				})
 			};

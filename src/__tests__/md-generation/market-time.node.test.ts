@@ -58,8 +58,8 @@ describe('futures market time', () => {
 	});
 
 	it('forces Friday open to close by 21:00 UTC', () => {
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T21:59:59.999Z'))).toBe(true);
-		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T22:00:00.000Z'))).toBe(false);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T20:59:59.999Z'))).toBe(true);
+		expect(isMarketOpen(parseIsoToUnixMs('2026-06-05T21:00:00.000Z'))).toBe(false);
 	});
 
 	it('uses epoch-safe UTC boundaries', () => {

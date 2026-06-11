@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import * as fsPromises from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_BRIDGE_FILE_NAME, SIERRA_SOURCE_ROOT } from '../../sierra-sync/constants.ts';
 
 const DEFAULT_CSV =
@@ -14,6 +13,7 @@ async function withBridgeSource(
 	test: (source: string) => Promise<void> | void,
 	csv: string = DEFAULT_CSV
 ) {
+	const { createBridgeSource } = await import('../../sierra-sync/bridge-source.ts');
 	const root = await mkdtemp(join(tmpdir(), 'sierra-bridge-'));
 	const file = join(root, 'bars.csv');
 
@@ -114,15 +114,24 @@ describe('createBridgeSource', () => {
 
 	it('throws when a bridge template token is not replaced', async () => {
 		const actualReadFile = (await vi.importActual<typeof fsPromises>('node:fs/promises')).readFile;
-		const readFileSpy = vi
-			.spyOn(fsPromises, 'readFile')
-			.mockImplementation(async (path, encoding) => {
-				if (String(path).endsWith(`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`)) {
-					return 'missing token __TRADESTER_TARGET_SYMBOL__ remains';
-				}
+		vi.resetModules();
+		const readFileMock = vi.fn<
+			(
+				path: string,
+				encoding?: Parameters<typeof actualReadFile>[1]
+			) => ReturnType<typeof actualReadFile>
+		>(async (path: string, encoding: Parameters<typeof actualReadFile>[1] = undefined) => {
+			if (path.endsWith(`${SIERRA_SOURCE_ROOT}/${SIERRA_BRIDGE_FILE_NAME}`)) {
+				return 'missing token __TRADESTER_TARGET_SYMBOL__ remains';
+			}
 
-				return actualReadFile(path as string, encoding as never);
-			});
+			return actualReadFile(path, encoding);
+		});
+
+		vi.doMock('node:fs/promises', async () => ({
+			...(await vi.importActual('node:fs/promises')),
+			readFile: readFileMock
+		}));
 
 		try {
 			await expect(
@@ -131,7 +140,7 @@ describe('createBridgeSource', () => {
 				})
 			).rejects.toThrow('Missing Sierra bridge token replacement');
 		} finally {
-			readFileSpy.mockRestore();
+			vi.resetModules();
 		}
 	});
 });
