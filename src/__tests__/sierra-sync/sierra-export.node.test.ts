@@ -622,7 +622,9 @@ ${SAMPLE_SIERRA_ROW}, 99`
 				})
 			).resolves.toMatchObject({});
 			for (const timeframe of getTimeframes('/ES:XCME')) {
-				const outputFile = join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? '');
+				const inputFile =
+					timeframe.key === '1s' ? inputFiles.priceLevel : inputFiles[timeframe.key];
+				const outputFile = join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? '');
 
 				await expect(readFile(outputFile, 'utf8')).resolves.toBe(
 					`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`

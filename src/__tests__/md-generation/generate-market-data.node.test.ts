@@ -48,20 +48,22 @@ describe('generateMarketData', () => {
 				version: 1
 			});
 			expect(await countDepthRecords(result.files.orderbook)).toBe(result.counts.orderbook);
-			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
+			const metadata = JSON.parse(await readFile(result.files.metadata, 'utf8'));
+			expect(metadata).toMatchObject({
 				timeframes: {
+					'1s': expect.any(Object),
 					daily: expect.objectContaining({
 						endTime: expect.any(Number),
 						startTime: expect.any(Number)
 					}),
 					minutes5: expect.any(Object),
-					priceLevel: expect.any(Object),
 					range10: expect.any(Object),
 					seconds15: expect.any(Object),
 					tick100: expect.any(Object),
 					volume500: expect.any(Object)
 				}
 			});
+			expect(metadata.timeframes.priceLevel).toBeUndefined();
 			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
 			expect(await readFirstLine(result.files.range10)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.tick100)).toBe(CANDLE_ROW_HEADER);
@@ -163,7 +165,7 @@ describe('generateMarketData', () => {
 			const result = await generateMarketData(inputs);
 			const priceLevelBucketsPerSession = countGeneratedTickTimeBuckets(
 				inputs.ticksPerSession,
-				TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+				TIMEFRAME_DEFINITIONS['1s'].milliseconds
 			);
 
 			expect(result.counts.daily).toBe(600);

@@ -2,16 +2,16 @@ import type { Symbol } from './symbols.ts';
 import { getSymbolConfig } from './symbols.ts';
 
 export const TIMEFRAME_DEFINITIONS = {
+	'1s': {
+		milliseconds: 1_000,
+		type: 'price-level'
+	},
 	daily: {
 		type: 'daily'
 	},
 	minutes5: {
 		milliseconds: 300_000,
 		type: 'time'
-	},
-	priceLevel: {
-		milliseconds: 1_000,
-		type: 'price-level'
 	},
 	range10: {
 		size: 10,
@@ -43,11 +43,11 @@ export function getTimeframes(symbol: Symbol) {
 		withKey('tick100'),
 		withKey('range10'),
 		withKey('volume500'),
-		withPriceLevelSuffix(config.tickSize)
+		withOneSecondPriceLevelSuffix(config.tickSize)
 	] as const;
 }
 
-function withKey<Key extends Exclude<TimeframeKey, 'priceLevel'>>(key: Key) {
+function withKey<Key extends Exclude<TimeframeKey, '1s'>>(key: Key) {
 	return {
 		key,
 		...TIMEFRAME_DEFINITIONS[key],
@@ -55,11 +55,11 @@ function withKey<Key extends Exclude<TimeframeKey, 'priceLevel'>>(key: Key) {
 	};
 }
 
-function withPriceLevelSuffix(tickSize: number) {
+function withOneSecondPriceLevelSuffix(tickSize: number) {
 	return {
-		key: 'priceLevel' as const,
-		...TIMEFRAME_DEFINITIONS.priceLevel,
-		suffix: `${getSuffix(TIMEFRAME_DEFINITIONS.priceLevel)}_pl${tickSize}`
+		key: '1s' as const,
+		...TIMEFRAME_DEFINITIONS['1s'],
+		suffix: `${getSuffix(TIMEFRAME_DEFINITIONS['1s'])}_pl${tickSize}`
 	};
 }
 

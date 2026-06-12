@@ -134,7 +134,14 @@ export type OutputFiles = {
 	daily: string;
 };
 
-export type TimeframeKey = Exclude<keyof OutputFiles, 'metadata' | 'orderbook' | 'scid'>;
+export type TimeframeKey =
+	| '1s'
+	| 'daily'
+	| 'minutes5'
+	| 'range10'
+	| 'seconds15'
+	| 'tick100'
+	| 'volume500';
 
 export type OutputMetadata = {
 	timeframes: Record<

@@ -41,12 +41,10 @@ describe('sierraSyncPaths', () => {
 		expect(sierraExportFileName('/ES:XCME', '1d')).toBe('tradester_ES_1d_GraphData.txt');
 	});
 
-	it('builds the price-level timeframe suffix from symbol tick size', () => {
+	it('builds the 1s timeframe suffix from symbol tick size', () => {
 		const config = getSymbolConfig('/ES:XCME');
-		const priceLevel = getTimeframes('/ES:XCME').find(
-			(timeframe) => timeframe.key === 'priceLevel'
-		);
+		const seconds1 = getTimeframes('/ES:XCME').find((timeframe) => timeframe.key === '1s');
 
-		expect(priceLevel?.suffix).toBe(`1s_pl${config.tickSize}`);
+		expect(seconds1?.suffix).toBe(`1s_pl${config.tickSize}`);
 	});
 });

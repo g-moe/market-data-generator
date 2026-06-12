@@ -303,12 +303,12 @@ export async function generateMarketData(
 		const minutes5Rows = [...minutes5Ring.iterate()];
 
 		const metadata = createOutputMetadata({
+			'1s': priceLevelRange.getRange(),
 			daily: {
 				endTime: getLastNonZeroSessionStart(sessionStarts),
 				startTime: getFirstNonZeroSessionStart(sessionStarts)
 			},
 			minutes5: getCandleRange(minutes5Rows),
-			priceLevel: priceLevelRange.getRange(),
 			range10: getCandleRange(range10Rows),
 			seconds15: getCandleRange(seconds15Rows),
 			tick100: getCandleRange(tick100Rows),

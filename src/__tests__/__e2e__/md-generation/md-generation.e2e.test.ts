@@ -34,7 +34,7 @@ describe('md-generation e2e', () => {
 		);
 		const priceLevelRowsPerSession = countGeneratedTickTimeBuckets(
 			E2E_TICKS_PER_SESSION,
-			TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+			TIMEFRAME_DEFINITIONS['1s'].milliseconds
 		);
 		const retainedPriceLevelRows = E2E_SESSION_COUNT * priceLevelRowsPerSession;
 

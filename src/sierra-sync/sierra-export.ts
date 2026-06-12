@@ -5,7 +5,8 @@ import {
 	getSymbolConfig,
 	getTimeframes,
 	type OutputFiles,
-	type Symbol
+	type Symbol,
+	type TimeframeKey
 } from '../contracts/index.ts';
 import { CANDLE_ROW_HEADER } from '../shared/file-ops/csv.ts';
 import { utcDateTimeToUnixMs } from '../shared/datetime/index.ts';
@@ -63,7 +64,7 @@ export async function mergeValidatedSierraExports({
 	const symbolId = getSymbolConfig(symbol).symbolId;
 
 	for (const timeframe of getTimeframes(symbol)) {
-		const inputFile = inputFiles[timeframe.key];
+		const inputFile = inputFiles[getOutputFileKey(timeframe.key)];
 		await mergeValidatedSierraExport({
 			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),
 			inputFile,
@@ -72,6 +73,10 @@ export async function mergeValidatedSierraExports({
 			timeframe: timeframe.suffix
 		});
 	}
+}
+
+function getOutputFileKey(timeframe: TimeframeKey) {
+	return timeframe === '1s' ? 'priceLevel' : timeframe;
 }
 
 export async function mergeValidatedSierraExport({

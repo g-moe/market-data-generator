@@ -8,9 +8,9 @@ import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 
 const DEFAULT_METADATA = {
 	timeframes: {
+		'1s': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		daily: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		minutes5: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		priceLevel: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		range10: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		seconds15: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
 		tick100: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
@@ -96,9 +96,9 @@ describe('createBridgeSource', () => {
 			},
 			{
 				timeframes: {
+					'1s': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					daily: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					minutes5: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					priceLevel: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					range10: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					seconds15: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
 					tick100: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
