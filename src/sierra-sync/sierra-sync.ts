@@ -41,7 +41,7 @@ export async function runSierraSync(
 	const config = getSymbolConfig(symbol);
 	const paths = sierraSyncPaths(symbol);
 	const exportFiles = getTimeframes(symbol).map((timeframe) =>
-		sierraExportFileName(symbol, timeframe.suffix)
+		sierraExportFileName(symbol, timeframe)
 	);
 
 	log(`Checking data-in/${config.symbolId}`);

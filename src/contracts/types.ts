@@ -1,4 +1,5 @@
 import type { Symbol } from './symbols.ts';
+import type { PriceLevelTimeframeKey, TimeframeKey } from './timeframes.ts';
 
 export type UnixMs = number;
 export type Price = number;
@@ -64,6 +65,16 @@ export type MdCandleVolumeByPrice = {
 	prices: Map<Price, Volume>;
 } & MdCandle;
 
+export type TimeframeCandle<Key extends TimeframeKey = TimeframeKey> = Key extends TimeframeKey
+	? Key extends PriceLevelTimeframeKey
+		? MdCandleVolumeByPrice
+		: MdCandle
+	: never;
+
+export type CandleEmissions = {
+	[Key in TimeframeKey]: TimeframeCandle<Key>[];
+};
+
 export type MdOrder = {
 	/** Unique OrderId */
 	id: bigint;
@@ -125,16 +136,8 @@ export type OutputFiles = {
 	metadata: string;
 	orderbook: string;
 	scid: string;
-	priceLevel: string;
-	range10: string;
-	tick100: string;
-	volume500: string;
-	seconds15: string;
-	minutes5: string;
-	daily: string;
+	timeframes: Record<TimeframeKey, string>;
 };
-
-export type TimeframeKey = '1d' | '1s' | '5m' | '10r' | '15s' | '100t' | '500v';
 
 export type OutputMetadata = {
 	timeframes: Record<
@@ -150,15 +153,9 @@ export type GenerationResult = {
 	inputs: GeneratorInputs;
 	files: OutputFiles;
 	counts: {
-		ticks: number;
 		orderbook: number;
-		priceLevel: number;
-		range10: number;
-		tick100: number;
-		volume500: number;
-		seconds15: number;
-		minutes5: number;
-		daily: number;
+		ticks: number;
+		timeframes: Record<TimeframeKey, number>;
 	};
 };
 

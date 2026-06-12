@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 
-import type { OutputFiles, Symbol } from '../contracts/index.ts';
+import type { OutputFiles, ResolvedTimeframe, Symbol } from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/index.ts';
 import {
 	DATA_IN_ROOT,
@@ -37,10 +37,10 @@ export function sierraSyncPaths(symbol: Symbol): SierraSyncPaths {
 	};
 }
 
-export function sierraExportFileName(symbol: Symbol, suffix: string) {
+export function sierraExportFileName(symbol: Symbol, timeframe: Pick<ResolvedTimeframe, 'suffix'>) {
 	const config = getSymbolConfig(symbol);
 
-	return `tradester_${config.symbolId}_${suffix}_GraphData.txt`;
+	return `tradester_${config.symbolId}_${timeframe.suffix}_GraphData.txt`;
 }
 
 function chartbookScidFileName(symbol: Symbol) {

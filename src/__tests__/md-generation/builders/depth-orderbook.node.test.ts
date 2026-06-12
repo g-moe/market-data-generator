@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	createMdOrderbook,
-	OrderbookDepthStreamer,
-	ORDERBOOK_LEVEL_COUNT
-} from '../../md-generation/orderbook.ts';
+	OrderbookDepthStreamer
+} from '../../../md-generation/builders/depth-orderbook.ts';
+import { ORDERBOOK_LEVEL_COUNT } from '../../../md-generation/builders/depth-orderbook-constants.ts';
 import {
 	DEPTH_END_OF_BATCH_FLAG,
 	DEPTH_HEADER_SIZE,
@@ -16,7 +16,7 @@ import {
 	MarketDepthWriter,
 	readDepthHeader,
 	readDepthRecord
-} from '../../shared/file-ops/depth.ts';
+} from '../../../shared/file-ops/depth.ts';
 
 const TICK = {
 	price: 6000,

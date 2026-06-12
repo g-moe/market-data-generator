@@ -1,3 +1,5 @@
+// This e2e intentionally exercises the real CLI generation path with default full-run inputs. Do not shrink this to fixture data, snippets, mocks, or reduced counts.
+
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
@@ -5,70 +7,80 @@ import { join } from 'node:path';
 import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_SESSION_COUNT, DEFAULT_TICKS_PER_SESSION } from '../../../contracts/defaults.ts';
 import { TIMEFRAME_DEFINITIONS } from '../../../contracts/timeframes.ts';
-import { generateMarketData } from '../../../md-generation/generate-market-data.ts';
-import { normalizeInputs } from '../../../md-generation/inputs.ts';
-import { countGeneratedTickTimeBuckets } from '../../../md-generation/ticks.ts';
+import {
+	DEPTH_RETAINED_SESSION_COUNT,
+	PRICE_LEVEL_RETAINED_SESSION_COUNT,
+	RETAINED_CANDLE_BAR_COUNT
+} from '../../../md-generation/pipeline/pipeline-constants.ts';
+import { countGeneratedTickTimeBuckets } from '../../../md-generation/tick-engine/session-ticks.ts';
+import { runCli } from '../../../shared/cli/run-cli.ts';
 import { DEPTH_HEADER_SIZE, DEPTH_RECORD_SIZE } from '../../../shared/file-ops/depth.ts';
+import { SCID_HEADER_SIZE, SCID_RECORD_SIZE } from '../../../shared/file-ops/scid.ts';
 
-const E2E_SESSION_COUNT = 20;
-const E2E_TICKS_PER_SESSION = 1_000;
-const SCID_HEADER_BYTES = 56;
-const SCID_RECORD_BYTES = 40;
+const GENERATED_TICK_SESSIONS = 14_721;
 
 describe('md-generation e2e', () => {
 	const symbol = process.env.E2E_SYMBOL ?? 'ES';
 
-	it('writes generated depth history and keeps output deterministic', async () => {
+	it('writes full generated depth history and keeps output deterministic', async () => {
 		const dataInRoot = join(cwd(), 'data-in');
 		const outputDir = join(dataInRoot, symbol);
 
 		await rm(outputDir, { force: true, recursive: true });
 
-		const first = await generateMarketData(
-			normalizeInputs({
-				sessionCount: E2E_SESSION_COUNT,
-				symbol,
-				ticksPerSession: E2E_TICKS_PER_SESSION
-			})
-		);
+		const first = await runCli(symbol, createSilentPorts());
 		const priceLevelRowsPerSession = countGeneratedTickTimeBuckets(
-			E2E_TICKS_PER_SESSION,
+			DEFAULT_TICKS_PER_SESSION,
 			TIMEFRAME_DEFINITIONS['1s'].milliseconds
 		);
-		const retainedPriceLevelRows = E2E_SESSION_COUNT * priceLevelRowsPerSession;
+		const retainedPriceLevelRows = PRICE_LEVEL_RETAINED_SESSION_COUNT * priceLevelRowsPerSession;
 
-		expect(first.inputs.sessionCount).toBe(E2E_SESSION_COUNT);
-		expect(first.inputs.ticksPerSession).toBe(E2E_TICKS_PER_SESSION);
-		expect(first.counts.ticks).toBe(E2E_SESSION_COUNT * E2E_TICKS_PER_SESSION);
-		expect(first.counts.daily).toBe(E2E_SESSION_COUNT);
-		expect(first.counts.priceLevel).toBe(retainedPriceLevelRows);
-		expect(first.counts.orderbook).toBeGreaterThan(first.counts.ticks);
-		expect(await countRows(first.files.daily)).toBe(first.counts.daily);
-		expect(await countRows(first.files.priceLevel)).toBe(first.counts.priceLevel);
-		expect(await countRows(first.files.seconds15)).toBe(first.counts.seconds15);
-		expect(await countRows(first.files.minutes5)).toBe(first.counts.minutes5);
-		expect(await countRows(first.files.range10)).toBe(first.counts.range10);
-		expect(await countRows(first.files.tick100)).toBe(first.counts.tick100);
-		expect(await countRows(first.files.volume500)).toBe(first.counts.volume500);
+		expect(first.inputs.sessionCount).toBe(DEFAULT_SESSION_COUNT);
+		expect(first.inputs.ticksPerSession).toBe(DEFAULT_TICKS_PER_SESSION);
+		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * DEFAULT_TICKS_PER_SESSION);
+		expect(first.counts.timeframes['1d']).toBe(DEFAULT_SESSION_COUNT);
+		expect(first.counts.timeframes['1s']).toBe(retainedPriceLevelRows);
+		expect(first.counts.timeframes['15s']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['5m']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['10r']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['100t']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['500v']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await getDepthFiles(first.files.orderbook)).toHaveLength(DEPTH_RETAINED_SESSION_COUNT);
+		expect(first.counts.orderbook).toBeGreaterThan(
+			DEPTH_RETAINED_SESSION_COUNT * DEFAULT_TICKS_PER_SESSION
+		);
+		expect(await countRows(first.files.timeframes['1d'])).toBe(DEFAULT_SESSION_COUNT);
+		expect(await countRows(first.files.timeframes['1s'])).toBe(retainedPriceLevelRows);
+		expect(await countRows(first.files.timeframes['15s'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['5m'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['10r'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['100t'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['500v'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(await countDepthRecords(first.files.orderbook)).toBe(first.counts.orderbook);
 		const firstOrderbookHashes = await hashDepthFiles(first.files.orderbook);
 		expect((await stat(first.files.scid)).size).toBe(
-			SCID_HEADER_BYTES + first.counts.ticks * SCID_RECORD_BYTES
+			SCID_HEADER_SIZE + first.counts.ticks * SCID_RECORD_SIZE
 		);
 
 		const firstHashes = await hashGeneratedFiles(first.inputs.outputDir);
-		const second = await generateMarketData(
-			normalizeInputs({
-				sessionCount: E2E_SESSION_COUNT,
-				symbol,
-				ticksPerSession: E2E_TICKS_PER_SESSION
-			})
-		);
+		const second = await runCli(symbol, createSilentPorts());
 		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(firstHashes);
 		expect(await hashDepthFiles(second.files.orderbook)).toEqual(firstOrderbookHashes);
 	});
 });
+
+function createSilentPorts() {
+	return {
+		log: () => {},
+		spinner: () => ({
+			error: () => {},
+			start: () => {},
+			stop: () => {}
+		})
+	};
+}
 
 async function hashGeneratedFiles(directory: string) {
 	const fileNames = (await readdir(directory))

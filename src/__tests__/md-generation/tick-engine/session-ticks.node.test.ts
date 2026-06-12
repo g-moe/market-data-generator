@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { getSymbolConfig } from '../../contracts/symbols.ts';
-import type { GeneratorInputs, MarketTick } from '../../contracts/types.ts';
-import { normalizeInputs } from '../../md-generation/inputs.ts';
-import { getSessionStart } from '../../md-generation/market-time.ts';
+import { getSymbolConfig } from '../../../contracts/symbols.ts';
+import type { GeneratorInputs, MarketTick } from '../../../contracts/types.ts';
+import { normalizeInputs } from '../../../md-generation/inputs.ts';
+import { getSessionStart } from '../../../md-generation/shared/market-time.ts';
 import {
 	countGeneratedTickTimeBuckets,
 	deriveSessionSeed,
 	generateSessionTicksForStart,
 	getFirstSessionTickPrice,
-	getSessionOpenPrice,
-	TARGET_TICKS_PER_ACTIVE_SECOND
-} from '../../md-generation/ticks.ts';
+	getSessionOpenPrice
+} from '../../../md-generation/tick-engine/session-ticks.ts';
+import { TARGET_TICKS_PER_ACTIVE_SECOND } from '../../../md-generation/tick-engine/tick-engine-constants.ts';
 
 describe('generateSessionTicksForStart', () => {
 	it('generates deterministic ES ticks for a session', () => {

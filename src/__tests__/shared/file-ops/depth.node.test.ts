@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +8,7 @@ import {
 	DEPTH_HEADER_SIZE,
 	DEPTH_RECORD_SIZE,
 	DepthCommand,
+	MarketDepthSessionWriter,
 	MarketDepthWriter,
 	readDepthHeader,
 	readDepthRecord,
@@ -100,6 +101,55 @@ describe('market depth output', () => {
 				})
 			).not.toThrow();
 			await expect(writer.flush()).rejects.toThrow('Market depth writer is not open');
+		} finally {
+			await rm(directory, { force: true, recursive: true });
+		}
+	});
+
+	it('flushes full buffers synchronously', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'market-data-depth-buffer-'));
+		const filePath = join(directory, 'tradester_ES_orderbook.depth');
+
+		try {
+			const writer = new MarketDepthWriter(filePath, 1);
+			await writer.open();
+			writer.pushRecord({
+				command: DepthCommand.AddAskLevel,
+				flags: DEPTH_END_OF_BATCH_FLAG,
+				numOrders: 2,
+				price: 6000.25,
+				quantity: 9,
+				time: 0
+			});
+			await writer.close();
+
+			expect(await readFile(filePath)).toHaveLength(DEPTH_HEADER_SIZE + DEPTH_RECORD_SIZE);
+		} finally {
+			await rm(directory, { force: true, recursive: true });
+		}
+	});
+
+	it('requires an open depth session and rolls session files', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'market-data-depth-session-'));
+		const writer = new MarketDepthSessionWriter(directory, 'ES', 1);
+
+		try {
+			await writer.open();
+			expect(() => writer.pushRecordValues(0, DepthCommand.ClearBook, 0, 0, 0, 0)).toThrow(
+				'Market depth session writer has no open session'
+			);
+
+			await writer.startSession(parseIsoToUnixMs('2026-06-01T22:00:00.000Z'));
+			writer.pushRecordValues(0, DepthCommand.ClearBook, 0, 0, 0, 0);
+			await writer.startSession(parseIsoToUnixMs('2026-06-02T22:00:00.000Z'));
+			writer.pushRecordValues(0, DepthCommand.ClearBook, 0, 0, 0, 0);
+			await writer.flush();
+			await writer.close();
+
+			expect(writer.recordCount).toBe(2);
+			expect(
+				(await readdir(directory)).filter((fileName) => fileName.endsWith('.depth'))
+			).toHaveLength(2);
 		} finally {
 			await rm(directory, { force: true, recursive: true });
 		}

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { TIMEFRAME_KEYS } from '../../contracts/timeframes.ts';
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 
@@ -31,16 +32,13 @@ async function withBridgeSource(
 		await writeFile(metadataFile, JSON.stringify(metadata));
 		const source = await createBridgeSource({
 			files: {
-				daily: file,
 				metadata: metadataFile,
-				minutes5: file,
 				orderbook: join(root, 'tradester_ES_orderbook.depth'),
-				priceLevel: file,
-				range10: file,
 				scid: join(root, 'tradester_ES.scid'),
-				seconds15: file,
-				tick100: file,
-				volume500: file
+				timeframes: Object.fromEntries(TIMEFRAME_KEYS.map((key) => [key, file])) as Record<
+					(typeof TIMEFRAME_KEYS)[number],
+					string
+				>
 			},
 			symbol: '/ES:XCME',
 			tempDir: join(root, 'temp')
@@ -65,7 +63,7 @@ describe('createBridgeSource', () => {
 			expect(source).not.toContain('return "tradester_ES_10r"');
 			expect(source).not.toContain('return "tradester_ES_100t"');
 			expect(source).not.toContain('return "tradester_ES_500v"');
-			expect(source).not.toContain('return "tradester_ES_1s_pl0.25"');
+			expect(source).not.toContain('return "tradester_ES_1s";');
 		});
 	});
 

@@ -6,8 +6,9 @@ import {
 	getSessionStart,
 	getUtcParts,
 	isMarketOpen
-} from '../../md-generation/market-time.ts';
-import { parseIsoToUnixMs, toIsoString, toUtcParts } from '../../shared/datetime/index.ts';
+} from '../../../md-generation/shared/market-time.ts';
+import { MARKET_SESSION_DURATION_MS } from '../../../md-generation/shared/market-time-constants.ts';
+import { parseIsoToUnixMs, toIsoString, toUtcParts } from '../../../shared/datetime/index.ts';
 
 describe('futures market time', () => {
 	it('detects futures open and maintenance periods in UTC', () => {
@@ -21,7 +22,7 @@ describe('futures market time', () => {
 		const start = getSessionStart('2026-06-05T21:00:00.000Z', 0);
 
 		expect(toIsoString(start)).toBe('2026-06-04T22:00:00.000Z');
-		expect(getSessionEnd(start) - start).toBe(23 * 60 * 60 * 1000);
+		expect(getSessionEnd(start) - start).toBe(MARKET_SESSION_DURATION_MS);
 	});
 
 	it('keeps UTC session starts fixed at 22:00', () => {

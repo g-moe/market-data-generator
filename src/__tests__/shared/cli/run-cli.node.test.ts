@@ -121,7 +121,6 @@ describe('createNodePorts', () => {
 			ports.log('Before start');
 			spinner.start('Working');
 			ports.log('Progress');
-			vi.advanceTimersByTime(100);
 			spinner.stop('Done');
 			spinner.error('Failed');
 		} finally {
@@ -131,11 +130,13 @@ describe('createNodePorts', () => {
 		const chunks = stripVTControlCharacters(output.chunks.join(''));
 		expect(chunks).toContain('Before start');
 		expect(chunks).toContain('Progress');
-		expect(chunks).toContain('.Working');
-		expect(chunks).toContain('..Working');
-		expect(chunks).toContain('\n[ok]Done');
+		expect(chunks).toContain('Working');
+		expect(chunks).not.toContain('.Working');
+		expect(chunks).not.toContain('..Working');
+		expect(chunks).not.toContain('...Working');
+		expect(chunks).toContain('\n✅ Done');
 		expect(chunks).toContain('Done');
-		expect(chunks).toContain('Failed');
+		expect(chunks).toContain('❌ Failed');
 	});
 });
 

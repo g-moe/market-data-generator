@@ -8,10 +8,12 @@ import { utcDateTimeToUnixMs } from '../../shared/datetime/index.ts';
 const HEADER_SIZE = 56;
 const RECORD_SIZE = 40;
 const DEFAULT_BUFFER_RECORDS = 16_384;
-const SCID_EPOCH_MS = utcDateTimeToUnixMs(1899, 12, 30, 0, 0, 0);
 const UINT32_SIZE = 0x1_0000_0000;
 const MICROSECONDS_PER_MILLISECOND = 1000n;
-export const SCID_EPOCH_OFFSET_MS = SCID_EPOCH_MS;
+
+export const SCID_HEADER_SIZE = HEADER_SIZE;
+export const SCID_RECORD_SIZE = RECORD_SIZE;
+export const SCID_EPOCH_OFFSET_MS = utcDateTimeToUnixMs(1899, 12, 30, 0, 0, 0);
 
 export class ScidTickWriter {
 	private handle: FileHandle | undefined;
@@ -55,7 +57,7 @@ export class ScidTickWriter {
 	}
 
 	pushTickValues(time: number, price: number, volume: number, side: TradeSide) {
-		this.pushScDateTimeMsValue((time - SCID_EPOCH_MS) * 1000, price, volume, side);
+		this.pushScDateTimeMsValue((time - SCID_EPOCH_OFFSET_MS) * 1000, price, volume, side);
 	}
 
 	pushScDateTimeMsValue(scDateTimeMs: number, price: number, volume: number, side: TradeSide) {
@@ -166,5 +168,5 @@ function writeTickValues(
 }
 
 export function toScDateTimeMs(time: number) {
-	return BigInt(time - SCID_EPOCH_MS) * MICROSECONDS_PER_MILLISECOND;
+	return BigInt(time - SCID_EPOCH_OFFSET_MS) * MICROSECONDS_PER_MILLISECOND;
 }

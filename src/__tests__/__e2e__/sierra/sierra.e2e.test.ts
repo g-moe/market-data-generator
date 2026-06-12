@@ -41,9 +41,7 @@ describe('sierra-sync e2e', () => {
 		expect(outputFiles.length).toBeGreaterThan(0);
 
 		for (const timeframe of getTimeframes(symbol)) {
-			const expectedOutputFileName = basename(
-				expectedPaths.files[timeframe.key as keyof typeof expectedPaths.files]
-			);
+			const expectedOutputFileName = basename(expectedPaths.files.timeframes[timeframe.key]);
 			const expectedJsonFileName = expectedOutputFileName.replace(/\.csv$/u, '.json');
 			const outputFile = join(result.outputDir, expectedOutputFileName);
 			const jsonFile = join(result.outputDir, expectedJsonFileName);

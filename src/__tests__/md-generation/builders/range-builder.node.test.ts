@@ -1,139 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MdCandle } from '../../contracts/types.ts';
-import { ID_SEQUENCE_MULTIPLIER } from '../../contracts/defaults.ts';
-import { TIMEFRAME_DEFINITIONS } from '../../contracts/timeframes.ts';
-import type { MarketTick } from '../../contracts/types.ts';
-import {
-	createBarId,
-	PriceLevelAggregator,
-	RangeAggregator,
-	TickAggregator,
-	TimeAggregator,
-	VolumeAggregator
-} from '../../md-generation/candles.ts';
-import { floorTime, getDailySessionStart } from '../../md-generation/market-time.ts';
-import { parseIsoToUnixMs } from '../../shared/datetime/index.ts';
+
+import { TIMEFRAME_DEFINITIONS } from '../../../contracts/timeframes.ts';
+import type { MarketTick } from '../../../contracts/types.ts';
+import { RangeAggregator } from '../../../md-generation/builders/range-builder.ts';
 
 const TEST_TICK_SIZE = 0.25;
 const STANDARD_RANGE_TICKS = TIMEFRAME_DEFINITIONS['10r'].size;
 
-describe('streaming candle aggregators', () => {
-	it('returns empty series without ticks', () => {
-		expect(new PriceLevelAggregator().finish()).toEqual([]);
+describe('RangeAggregator', () => {
+	it('returns an empty series without ticks', () => {
 		expect(new RangeAggregator(STANDARD_RANGE_TICKS, TEST_TICK_SIZE).finish()).toEqual([]);
-		expect(new TickAggregator(TIMEFRAME_DEFINITIONS['100t'].size).finish()).toEqual([]);
-		expect(new VolumeAggregator(TIMEFRAME_DEFINITIONS['500v'].size).finish()).toEqual([]);
-		expect(
-			new TimeAggregator((time) =>
-				floorTime(time, TIMEFRAME_DEFINITIONS['15s'].milliseconds)
-			).finish()
-		).toEqual([]);
-	});
-
-	it('builds price-level candles with volume by price', () => {
-		const aggregator = new PriceLevelAggregator();
-		const emitted = pushTicks(aggregator, [
-			tick({ price: 6000, volume: 2 }),
-			tick({ price: 6000.25, time: 1_700_000_000_500, volume: 3 }),
-			tick({ price: 6000, time: 1_700_000_001_000, volume: 5 })
-		]);
-		const result = [...emitted, ...aggregator.finish()];
-
-		expect(result).toHaveLength(2);
-		expect([...result[0].prices.entries()]).toEqual([
-			[6000, 2],
-			[6000.25, 3]
-		]);
-		expect(result[0]).toMatchObject({
-			close: 6000.25,
-			high: 6000.25,
-			low: 6000,
-			open: 6000,
-			volume: 5,
-			vwap: 6000.15
-		});
-	});
-
-	it('supports fixed-size time buckets', () => {
-		const emitted: MdCandle[] = [];
-		const aggregator = new TimeAggregator(TIMEFRAME_DEFINITIONS['15s'].milliseconds);
-
-		aggregator.pushTickValuesForBucket(
-			1_700_000_000_000,
-			6000,
-			2,
-			1_700_000_000_000,
-			emitted,
-			'ask'
-		);
-		aggregator.pushTickValuesForBucket(
-			1_700_000_001_000,
-			6005,
-			3,
-			1_700_000_000_000,
-			emitted,
-			'bid'
-		);
-
-		expect(aggregator.finish()).toMatchObject([
-			expect.objectContaining({
-				close: 6005,
-				high: 6005,
-				low: 6000,
-				open: 6000
-			})
-		]);
-		expect(emitted).toHaveLength(0);
-	});
-
-	it('throws when the bucket function is missing', () => {
-		const emitted: MdCandle[] = [];
-
-		expect(() => {
-			const aggregator = new TimeAggregator(undefined as unknown as (time: number) => number);
-
-			aggregator.pushTickValues(1_700_000_000_000, 6000, 1, emitted, 'ask');
-		}).toThrow('Time bucket function is not configured');
-	});
-
-	it('splits ticks across exact 500-volume candles', () => {
-		const aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS['500v'].size);
-		const emitted = pushTicks(aggregator, [tick({ volume: 300 }), tick({ volume: 700 })]);
-		const result = [...emitted, ...aggregator.finish()];
-
-		expect(result).toHaveLength(2);
-		expect(result.map((candle) => candle.volume)).toEqual([500, 500]);
-		expect(result.map((candle) => candle.id)).toEqual([
-			createBarId(1_700_000_000_000, 0),
-			createBarId(1_700_000_000_000, 1)
-		]);
-	});
-
-	it('builds 100-tick candles from whole ticks', () => {
-		const aggregator = new TickAggregator(3);
-		const emitted = pushTicks(aggregator, [
-			tick({ price: 6000, volume: 2 }),
-			tick({ price: 6001, volume: 3 }),
-			tick({ price: 5999, volume: 5 }),
-			tick({ price: 6002, volume: 7 })
-		]);
-		const result = [...emitted, ...aggregator.finish()];
-
-		expect(result).toHaveLength(2);
-		expect(result[0]).toMatchObject({
-			close: 5999,
-			high: 6001,
-			low: 5999,
-			open: 6000,
-			volume: 10
-		});
-		expect(result[1]).toMatchObject({
-			close: 6002,
-			high: 6002,
-			low: 6002,
-			open: 6002,
-			volume: 7
-		});
 	});
 
 	it('builds standard range candles with adjusted completed closes', () => {
@@ -306,40 +182,6 @@ describe('streaming candle aggregators', () => {
 			open: 4547.75
 		});
 	});
-
-	it('aggregates 15-second, 5-minute, and daily candles from ticks', () => {
-		const ticks = [
-			tick({ price: 6000, time: parseIsoToUnixMs('2026-06-01T22:00:00.000Z') }),
-			tick({ price: 6001, time: parseIsoToUnixMs('2026-06-01T22:00:14.000Z') }),
-			tick({ price: 6002, time: parseIsoToUnixMs('2026-06-01T22:00:15.000Z') }),
-			tick({ price: 6003, time: parseIsoToUnixMs('2026-06-01T22:05:00.000Z') })
-		];
-		const seconds15 = aggregateTime(ticks, (time) =>
-			floorTime(time, TIMEFRAME_DEFINITIONS['15s'].milliseconds)
-		);
-		const minutes5 = aggregateTime(ticks, (time) =>
-			floorTime(time, TIMEFRAME_DEFINITIONS['5m'].milliseconds)
-		);
-		const daily = aggregateTime(ticks, getDailySessionStart);
-
-		expect(seconds15).toHaveLength(3);
-		expect(minutes5).toHaveLength(2);
-		expect(daily).toHaveLength(1);
-		expect(daily[0]).toMatchObject({
-			close: 6003,
-			high: 6003,
-			low: 6000,
-			open: 6000
-		});
-	});
-});
-
-describe('createBarId', () => {
-	it('combines unix milliseconds and same-ms sequence', () => {
-		expect(createBarId(1_700_000_000_000, 2)).toBe(
-			1_700_000_000_000n * ID_SEQUENCE_MULTIPLIER + 2n
-		);
-	});
 });
 
 function tick(overrides: Partial<MarketTick> = {}): MarketTick {
@@ -351,16 +193,6 @@ function tick(overrides: Partial<MarketTick> = {}): MarketTick {
 		volume: 1,
 		...overrides
 	};
-}
-
-function aggregateTime(
-	ticks: MarketTick[],
-	getBucket: ConstructorParameters<typeof TimeAggregator>[0]
-) {
-	const aggregator = new TimeAggregator(getBucket);
-	const emitted = pushTicks(aggregator, ticks);
-
-	return [...emitted, ...aggregator.finish()];
 }
 
 function pushTicks<T>(

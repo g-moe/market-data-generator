@@ -17,10 +17,12 @@
 // 3. timeframe = tf:<interval><intervalType> (this is not the driver series, that is implicit for whatever the .csv file is. This tf is either the same as the file OR an alternate context)
 // - tf:same = implicit from csv file
 // - tf:1d = 1 day
+// - tf:1s = 1 second
 // - tf:5m = 5 minutes
+// - tf:10r = 10 range bars
 // - tf:15s = 15 seconds
-// - tf:500v = 500 volume bars
 // - tf:100t = 100 tick bars
+// - tf:500v = 500 volume bars
 
 // 4. indicator id = id:<indicator>
 // - id:sma = simple moving average

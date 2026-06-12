@@ -179,7 +179,7 @@ describe('validateCalcColumnKey', () => {
 	it('rejects invalid timeframe values', () => {
 		expect(() =>
 			validateCalcColumnKey('calc__name:100sma__tf:samd__id:sma__src:close__out:value')
-		).toThrow('tf must be same or a timeframe');
+		).toThrow('tf must be same or a canonical timeframe');
 	});
 
 	it('detects calc-prefixed keys only', () => {

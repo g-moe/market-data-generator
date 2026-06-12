@@ -9,7 +9,7 @@ import {
 	SIERRA_CHARTBOOK_FILE_NAME,
 	SIERRA_SOURCE_ROOT
 } from '../../sierra-sync/constants.ts';
-import { getSymbolConfig, getTimeframes } from '../../contracts/index.ts';
+import { getTimeframe, getTimeframes } from '../../contracts/index.ts';
 import { sierraExportFileName, sierraSyncPaths } from '../../sierra-sync/paths.ts';
 
 describe('sierraSyncPaths', () => {
@@ -24,27 +24,36 @@ describe('sierraSyncPaths', () => {
 			outputDir: resolve(DATA_OUT_ROOT, 'ES'),
 			tempDir: resolve(DATA_OUT_TEMP_ROOT, 'ES')
 		});
-		expect(paths.files.daily).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.csv'));
 		expect(paths.files.metadata).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES.json'));
-		expect(paths.files.priceLevel).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s_pl0.25.csv'));
-		expect(paths.files.minutes5).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv'));
-		expect(paths.files.range10).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_10r.csv'));
-		expect(paths.files.seconds15).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'));
-		expect(paths.files.tick100).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_100t.csv'));
-		expect(paths.files.volume500).toBe(resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'));
+		expect(paths.files.timeframes).toEqual({
+			'100t': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_100t.csv'),
+			'10r': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_10r.csv'),
+			'15s': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.csv'),
+			'1d': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.csv'),
+			'1s': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s.csv'),
+			'500v': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'),
+			'5m': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv')
+		});
 	});
 
 	it('builds Sierra bridge export names by suffix', () => {
-		expect(sierraExportFileName('/ES:XCME', '15s')).toBe('tradester_ES_15s_GraphData.txt');
-		expect(sierraExportFileName('/ES:XCME', '10r')).toBe('tradester_ES_10r_GraphData.txt');
-		expect(sierraExportFileName('/ES:XCME', '100t')).toBe('tradester_ES_100t_GraphData.txt');
-		expect(sierraExportFileName('/ES:XCME', '1d')).toBe('tradester_ES_1d_GraphData.txt');
+		expect(sierraExportFileName('/ES:XCME', getTimeframe('/ES:XCME', '15s'))).toBe(
+			'tradester_ES_15s_GraphData.txt'
+		);
+		expect(sierraExportFileName('/ES:XCME', getTimeframe('/ES:XCME', '10r'))).toBe(
+			'tradester_ES_10r_GraphData.txt'
+		);
+		expect(sierraExportFileName('/ES:XCME', getTimeframe('/ES:XCME', '100t'))).toBe(
+			'tradester_ES_100t_GraphData.txt'
+		);
+		expect(sierraExportFileName('/ES:XCME', getTimeframe('/ES:XCME', '1d'))).toBe(
+			'tradester_ES_1d_GraphData.txt'
+		);
 	});
 
 	it('builds the 1s timeframe suffix from symbol tick size', () => {
-		const config = getSymbolConfig('/ES:XCME');
 		const seconds1 = getTimeframes('/ES:XCME').find((timeframe) => timeframe.key === '1s');
 
-		expect(seconds1?.suffix).toBe(`1s_pl${config.tickSize}`);
+		expect(seconds1?.suffix).toBe('1s');
 	});
 });

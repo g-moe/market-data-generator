@@ -6,20 +6,21 @@ import type {
 	TradeSide,
 	UnixMs,
 	Volume
-} from '../contracts/types.ts';
+} from '../../contracts/types.ts';
 import {
 	DEPTH_END_OF_BATCH_FLAG,
 	DepthCommand,
 	type MarketDepthRecordWriter
-} from '../shared/file-ops/depth.ts';
-import { roundToTick } from './price.ts';
-
-export const ORDERBOOK_LEVEL_COUNT = 100;
-
-const ASK_ORDER_ID_OFFSET = 500_000n;
-const ORDER_ID_TIME_MULTIPLIER = 1_000_000n;
-const QUEUE_ID_LEVEL_MULTIPLIER = 1_000n;
-const SNAPSHOT_INTERVAL_MS = 10 * 60 * 1000;
+} from '../../shared/file-ops/depth.ts';
+import { roundToTick } from '../shared/price.ts';
+import {
+	ORDERBOOK_ASK_ORDER_ID_OFFSET,
+	ORDERBOOK_LEVEL_COUNT,
+	ORDERBOOK_ORDER_ID_LEVEL_MULTIPLIER,
+	ORDERBOOK_ORDER_ID_TIME_MULTIPLIER,
+	ORDERBOOK_QUEUE_ID_LEVEL_MULTIPLIER,
+	ORDERBOOK_SNAPSHOT_INTERVAL_MS
+} from './depth-orderbook-constants.ts';
 
 type DepthSide = 'BUY' | 'SELL';
 
@@ -101,7 +102,7 @@ export class OrderbookDepthStreamer {
 			return true;
 		}
 
-		return time - this.lastSnapshotTime >= SNAPSHOT_INTERVAL_MS;
+		return time - this.lastSnapshotTime >= ORDERBOOK_SNAPSHOT_INTERVAL_MS;
 	}
 
 	private writeFullSnapshot(
@@ -675,18 +676,18 @@ function getDeleteCommand(side: DepthSide) {
 }
 
 function createOrderId(time: UnixMs, side: DepthSide, levelIndex: number, orderIndex: number) {
-	const sideOffset = side === 'SELL' ? ASK_ORDER_ID_OFFSET : 0n;
+	const sideOffset = side === 'SELL' ? ORDERBOOK_ASK_ORDER_ID_OFFSET : 0n;
 
 	return (
-		BigInt(time) * ORDER_ID_TIME_MULTIPLIER +
+		BigInt(time) * ORDERBOOK_ORDER_ID_TIME_MULTIPLIER +
 		sideOffset +
-		BigInt(levelIndex) * 100n +
+		BigInt(levelIndex) * ORDERBOOK_ORDER_ID_LEVEL_MULTIPLIER +
 		BigInt(orderIndex + 1)
 	);
 }
 
 function createQueueId(levelIndex: number, orderIndex: number) {
-	return BigInt(levelIndex + 1) * QUEUE_ID_LEVEL_MULTIPLIER + BigInt(orderIndex + 1);
+	return BigInt(levelIndex + 1) * ORDERBOOK_QUEUE_ID_LEVEL_MULTIPLIER + BigInt(orderIndex + 1);
 }
 
 function hashLevelInput(priceTicks: number, side: DepthSide, salt: number) {

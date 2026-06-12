@@ -1,5 +1,4 @@
 import { stdout } from 'node:process';
-import { styleText } from 'node:util';
 import { Worker } from 'node:worker_threads';
 
 import { resolveSymbolArg } from './symbol-args.ts';
@@ -130,24 +129,16 @@ export function getGenerationWorkerExecArgvForModuleUrl(moduleUrl: string) {
 }
 
 function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
-	let frameIndex = 0;
 	let message = '';
-	let timer: ReturnType<typeof setInterval> | undefined;
 	let isRunning = false;
 
 	const render = () => {
 		if (!isRunning) return;
 
-		const frame = styleText('white', SPINNER_FRAMES[frameIndex]);
-		output.write(`\r\x1B[2K${frame}${message}`);
-		frameIndex = (frameIndex + 1) % SPINNER_FRAMES.length;
+		output.write(`\r\x1B[2K${message}`);
 	};
 
 	const stop = (symbol: string, nextMessage = message, leadingSeparator = false) => {
-		if (timer !== undefined) {
-			clearInterval(timer);
-			timer = undefined;
-		}
 		isRunning = false;
 
 		output.write(`\r\x1B[2K${leadingSeparator ? '\n' : ''}${symbol}${nextMessage}\n`);
@@ -155,7 +146,7 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 
 	return {
 		error: (nextMessage) => {
-			stop('[err]', nextMessage);
+			stop('❌ ', nextMessage);
 		},
 		log: (nextMessage) => {
 			output.write(`\r\x1B[2K${nextMessage}\n`);
@@ -166,15 +157,12 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 			isRunning = true;
 
 			render();
-			timer = setInterval(render, 100);
 		},
 		stop: (nextMessage) => {
-			stop('[ok]', nextMessage, true);
+			stop('✅ ', nextMessage, true);
 		}
 	};
 }
-
-const SPINNER_FRAMES = ['.', '..', '...'];
 
 export function createNodePorts({ output = stdout }: NodePortsOptions = {}): CliPorts {
 	const spinner = createTextSpinner(output);

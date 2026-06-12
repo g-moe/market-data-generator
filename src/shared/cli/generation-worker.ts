@@ -6,6 +6,7 @@ import type {
 	GeneratorInputs
 } from '../../contracts/types.ts';
 import { generateMarketData } from '../../md-generation/generate-market-data.ts';
+import { isProgressMilestone } from './progress.ts';
 
 type WorkerMessage =
 	| { result: GenerationResult }
@@ -15,6 +16,8 @@ type WorkerMessage =
 try {
 	const result = await generateMarketData(workerData as GeneratorInputs, {
 		onSessionComplete: (progress) => {
+			if (!isProgressMilestone(progress)) return;
+
 			parentPort?.postMessage({ progress } satisfies WorkerMessage);
 		}
 	});
