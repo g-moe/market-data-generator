@@ -51,7 +51,7 @@ export async function runCli(
 		ticksPerSession: options.ticksPerSession
 	});
 	const task = ports.spinner();
-	const message = `Generating market data for ${inputs.symbol}...`;
+	const message = `Generating market data for ${inputs.symbol}`;
 
 	task.start(message);
 	try {
@@ -156,14 +156,14 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 		frameIndex = (frameIndex + 1) % SPINNER_FRAMES.length;
 	};
 
-	const stop = (symbol: string, nextMessage = message) => {
+	const stop = (symbol: string, nextMessage = message, leadingSeparator = false) => {
 		if (timer !== undefined) {
 			clearInterval(timer);
 			timer = undefined;
 		}
 		isRunning = false;
 
-		output.write(`\r\x1B[2K${symbol}${nextMessage}\n`);
+		output.write(`\r\x1B[2K${leadingSeparator ? '\n' : ''}${symbol}${nextMessage}\n`);
 	};
 
 	return {
@@ -182,12 +182,12 @@ function createTextSpinner(output: typeof stdout): TerminalTaskSpinner {
 			timer = setInterval(render, 100);
 		},
 		stop: (nextMessage) => {
-			stop('[ok]', nextMessage);
+			stop('[ok]', nextMessage, true);
 		}
 	};
 }
 
-const SPINNER_FRAMES = ['-', '\\', '|', '/'];
+const SPINNER_FRAMES = ['.', '..', '...'];
 
 export function createNodePorts({ output = stdout }: NodePortsOptions = {}): CliPorts {
 	const spinner = createTextSpinner(output);
