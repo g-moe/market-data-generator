@@ -8,7 +8,6 @@ import type {
 	GenerationResult,
 	GeneratorInputs
 } from '../../contracts/types.ts';
-import { generateMarketData } from '../../md-generation/generate-market-data.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
 import { formatProgressMessage } from './progress.ts';
 
@@ -35,7 +34,6 @@ type RunCliOptions = {
 	outputDir?: string;
 	sessionCount?: number;
 	ticksPerSession?: number;
-	useWorker?: boolean;
 };
 
 export async function runCli(
@@ -55,17 +53,13 @@ export async function runCli(
 
 	task.start(message);
 	try {
-		const result = await generateAndWriteMarketData(
-			inputs,
-			(progress) => {
-				const message = formatProgressMessage(progress);
+		const result = await generateAndWriteMarketData(inputs, (progress) => {
+			const message = formatProgressMessage(progress);
 
-				if (message !== undefined) {
-					ports.log(message);
-				}
-			},
-			options.useWorker ?? false
-		);
+			if (message !== undefined) {
+				ports.log(message);
+			}
+		});
 
 		task.stop(`Wrote ${result.counts.ticks} ticks to ${result.inputs.outputDir}`);
 
@@ -83,15 +77,8 @@ type WorkerMessage =
 
 function generateAndWriteMarketData(
 	inputs: GeneratorInputs,
-	onProgress: (progress: GenerationProgress) => void,
-	useWorker: boolean
+	onProgress: (progress: GenerationProgress) => void
 ) {
-	if (!useWorker) {
-		return generateMarketData(inputs, {
-			onSessionComplete: onProgress
-		});
-	}
-
 	return new Promise<GenerationResult>((resolve, reject) => {
 		const worker = new Worker(getGenerationWorkerUrl(), {
 			execArgv: getGenerationWorkerExecArgv(),

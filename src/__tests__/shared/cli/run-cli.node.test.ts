@@ -82,9 +82,7 @@ describe('runCli worker handling', () => {
 
 		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
-		await expect(
-			runCliWithMockWorker('ES', ports({ events }), { useWorker: true })
-		).rejects.toThrow('worker failed');
+		await expect(runCliWithMockWorker('ES', ports({ events }))).rejects.toThrow('worker failed');
 		expect(events).toContain('error:Failed to generate market data');
 	});
 
@@ -104,9 +102,9 @@ describe('runCli worker handling', () => {
 
 		const { runCli: runCliWithMockWorker } = await import('../../../shared/cli/run-cli.ts');
 
-		await expect(
-			runCliWithMockWorker('ES', ports({ events }), { useWorker: true })
-		).rejects.toThrow('Generation worker exited with code 1');
+		await expect(runCliWithMockWorker('ES', ports({ events }))).rejects.toThrow(
+			'Generation worker exited with code 1'
+		);
 		expect(events).toContain('error:Failed to generate market data');
 	});
 });
