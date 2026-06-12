@@ -1,3 +1,5 @@
+// This e2e intentionally exercises the real CLI generation path with default full-run inputs. Do not shrink this to fixture data, snippets, mocks, or reduced counts.
+
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
@@ -5,69 +7,80 @@ import { join } from 'node:path';
 import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_SESSION_COUNT, DEFAULT_TICKS_PER_SESSION } from '../../../contracts/defaults.ts';
 import { TIMEFRAME_DEFINITIONS } from '../../../contracts/timeframes.ts';
-import { generateMarketData } from '../../../md-generation/generate-market-data.ts';
-import { normalizeInputs } from '../../../md-generation/inputs.ts';
-import { countGeneratedTickTimeBuckets } from '../../../md-generation/ticks.ts';
+import {
+	DEPTH_RETAINED_SESSION_COUNT,
+	PRICE_LEVEL_RETAINED_SESSION_COUNT,
+	RETAINED_CANDLE_BAR_COUNT
+} from '../../../md-generation/pipeline/pipeline-constants.ts';
+import { countGeneratedTickTimeBuckets } from '../../../md-generation/tick-engine/session-ticks.ts';
+import { runCli } from '../../../shared/cli/run-cli.ts';
+import { DEPTH_HEADER_SIZE, DEPTH_RECORD_SIZE } from '../../../shared/file-ops/depth.ts';
+import { SCID_HEADER_SIZE, SCID_RECORD_SIZE } from '../../../shared/file-ops/scid.ts';
 
-const REQUESTED_DAILY_SESSIONS = 20_000;
-const GENERATED_TICK_SESSIONS = 14_721; // this is not 20k because session before Unix epoch are padded
-const TICKS_PER_GENERATED_SESSION = 10_000;
-const RETAINED_PRICE_LEVEL_SESSIONS = 30;
-const RETAINED_RING_BARS = 20_000;
-const SCID_HEADER_BYTES = 56;
-const SCID_RECORD_BYTES = 40;
+const GENERATED_TICK_SESSIONS = 14_721;
 
 describe('md-generation e2e', () => {
 	const symbol = process.env.E2E_SYMBOL ?? 'ES';
 
-	it('writes the expected full-run lengths and keeps output deterministic', async () => {
+	it('writes full generated depth history and keeps output deterministic', async () => {
 		const dataInRoot = join(cwd(), 'data-in');
 		const outputDir = join(dataInRoot, symbol);
 
 		await rm(outputDir, { force: true, recursive: true });
 
-		const first = await generateMarketData(
-			normalizeInputs({
-				symbol
-			})
-		);
+		const first = await runCli(symbol, createSilentPorts());
 		const priceLevelRowsPerSession = countGeneratedTickTimeBuckets(
-			TICKS_PER_GENERATED_SESSION,
-			TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+			DEFAULT_TICKS_PER_SESSION,
+			TIMEFRAME_DEFINITIONS['1s'].milliseconds
 		);
-		const retainedPriceLevelRows = RETAINED_PRICE_LEVEL_SESSIONS * priceLevelRowsPerSession;
+		const retainedPriceLevelRows = PRICE_LEVEL_RETAINED_SESSION_COUNT * priceLevelRowsPerSession;
 
-		expect(first.inputs.sessionCount).toBe(REQUESTED_DAILY_SESSIONS);
-		expect(first.inputs.ticksPerSession).toBe(TICKS_PER_GENERATED_SESSION);
-		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION);
-		expect(first.counts.daily).toBe(REQUESTED_DAILY_SESSIONS);
-		expect(first.counts.priceLevel).toBe(retainedPriceLevelRows);
-		expect(first.counts.seconds15).toBe(RETAINED_RING_BARS);
-		expect(first.counts.minutes5).toBe(RETAINED_RING_BARS);
-		expect(first.counts.range10).toBe(RETAINED_RING_BARS);
-		expect(first.counts.tick100).toBe(RETAINED_RING_BARS);
-		expect(first.counts.volume500).toBe(RETAINED_RING_BARS);
-		expect(await countRows(first.files.daily)).toBe(REQUESTED_DAILY_SESSIONS);
-		expect(await countRows(first.files.priceLevel)).toBe(retainedPriceLevelRows);
-		expect(await countRows(first.files.seconds15)).toBe(RETAINED_RING_BARS);
-		expect(await countRows(first.files.minutes5)).toBe(RETAINED_RING_BARS);
-		expect(await countRows(first.files.range10)).toBe(RETAINED_RING_BARS);
-		expect(await countRows(first.files.tick100)).toBe(RETAINED_RING_BARS);
-		expect(await countRows(first.files.volume500)).toBe(RETAINED_RING_BARS);
+		expect(first.inputs.sessionCount).toBe(DEFAULT_SESSION_COUNT);
+		expect(first.inputs.ticksPerSession).toBe(DEFAULT_TICKS_PER_SESSION);
+		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * DEFAULT_TICKS_PER_SESSION);
+		expect(first.counts.timeframes['1d']).toBe(DEFAULT_SESSION_COUNT);
+		expect(first.counts.timeframes['1s']).toBe(retainedPriceLevelRows);
+		expect(first.counts.timeframes['15s']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['5m']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['10r']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['100t']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(first.counts.timeframes['500v']).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await getDepthFiles(first.files.orderbook)).toHaveLength(DEPTH_RETAINED_SESSION_COUNT);
+		expect(first.counts.orderbook).toBeGreaterThan(
+			DEPTH_RETAINED_SESSION_COUNT * DEFAULT_TICKS_PER_SESSION
+		);
+		expect(await countRows(first.files.timeframes['1d'])).toBe(DEFAULT_SESSION_COUNT);
+		expect(await countRows(first.files.timeframes['1s'])).toBe(retainedPriceLevelRows);
+		expect(await countRows(first.files.timeframes['15s'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['5m'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['10r'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['100t'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countRows(first.files.timeframes['500v'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+		expect(await countDepthRecords(first.files.orderbook)).toBe(first.counts.orderbook);
+		const firstOrderbookHashes = await hashDepthFiles(first.files.orderbook);
 		expect((await stat(first.files.scid)).size).toBe(
-			SCID_HEADER_BYTES + GENERATED_TICK_SESSIONS * TICKS_PER_GENERATED_SESSION * SCID_RECORD_BYTES
+			SCID_HEADER_SIZE + first.counts.ticks * SCID_RECORD_SIZE
 		);
 
 		const firstHashes = await hashGeneratedFiles(first.inputs.outputDir);
-		const second = await generateMarketData(
-			normalizeInputs({
-				symbol
-			})
-		);
+		const second = await runCli(symbol, createSilentPorts());
 		expect(await hashGeneratedFiles(second.inputs.outputDir)).toEqual(firstHashes);
+		expect(await hashDepthFiles(second.files.orderbook)).toEqual(firstOrderbookHashes);
 	});
 });
+
+function createSilentPorts() {
+	return {
+		log: () => {},
+		spinner: () => ({
+			error: () => {},
+			start: () => {},
+			stop: () => {}
+		})
+	};
+}
 
 async function hashGeneratedFiles(directory: string) {
 	const fileNames = (await readdir(directory))
@@ -96,4 +109,30 @@ function hashFile(filePath: string) {
 async function countRows(filePath: string) {
 	const text = await readFile(filePath, 'utf8');
 	return text.trimEnd().split('\n').length - 1;
+}
+
+async function getDepthFiles(directory: string) {
+	return (await readdir(directory)).filter((fileName) => fileName.endsWith('.depth')).sort();
+}
+
+async function countDepthRecords(directory: string) {
+	let records = 0;
+
+	for (const fileName of await getDepthFiles(directory)) {
+		const file = await stat(join(directory, fileName));
+
+		records += (file.size - DEPTH_HEADER_SIZE) / DEPTH_RECORD_SIZE;
+	}
+
+	return records;
+}
+
+async function hashDepthFiles(directory: string) {
+	const hashes: Record<string, string> = {};
+
+	for (const fileName of await getDepthFiles(directory)) {
+		hashes[fileName] = await hashFile(join(directory, fileName));
+	}
+
+	return hashes;
 }

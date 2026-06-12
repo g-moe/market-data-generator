@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
+import { stripVTControlCharacters } from 'node:util';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { listSymbolOptions } from '../../../shared/cli/symbol-args.ts';
@@ -31,7 +32,7 @@ describe('runCli', () => {
 
 			expect(result.counts.ticks).toBe(5);
 			expect(result.files.scid).toBe(join(outputDir, 'ES', 'tradester_ES.scid'));
-			expect(events).toContain('start:Generating market data for /ES:XCME...');
+			expect(events).toContain('start:Generating market data for /ES:XCME');
 			expect(events).toContain('log:Completed sessions 1-1 of 1');
 			expect(events).toContain(`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`);
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
@@ -120,18 +121,22 @@ describe('createNodePorts', () => {
 			ports.log('Before start');
 			spinner.start('Working');
 			ports.log('Progress');
-			vi.advanceTimersByTime(100);
 			spinner.stop('Done');
 			spinner.error('Failed');
 		} finally {
 			vi.useRealTimers();
 		}
 
-		const chunks = output.chunks.join('');
+		const chunks = stripVTControlCharacters(output.chunks.join(''));
 		expect(chunks).toContain('Before start');
 		expect(chunks).toContain('Progress');
+		expect(chunks).toContain('Working');
+		expect(chunks).not.toContain('.Working');
+		expect(chunks).not.toContain('..Working');
+		expect(chunks).not.toContain('...Working');
+		expect(chunks).toContain('\n✅ Done');
 		expect(chunks).toContain('Done');
-		expect(chunks).toContain('Failed');
+		expect(chunks).toContain('❌ Failed');
 	});
 });
 

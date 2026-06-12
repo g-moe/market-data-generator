@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -6,8 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { TIMEFRAME_DEFINITIONS } from '../../contracts/timeframes.ts';
 import { generateMarketData, getOutputFiles } from '../../md-generation/generate-market-data.ts';
 import { normalizeInputs } from '../../md-generation/inputs.ts';
-import { countGeneratedTickTimeBuckets } from '../../md-generation/ticks.ts';
+import {
+	DEPTH_RETAINED_SESSION_COUNT,
+	PRICE_LEVEL_RETAINED_SESSION_COUNT,
+	RETAINED_CANDLE_BAR_COUNT
+} from '../../md-generation/pipeline/pipeline-constants.ts';
+import { countGeneratedTickTimeBuckets } from '../../md-generation/tick-engine/session-ticks.ts';
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
+import {
+	DEPTH_HEADER_SIZE,
+	DEPTH_RECORD_SIZE,
+	readDepthHeader
+} from '../../shared/file-ops/depth.ts';
 
 describe('generateMarketData', () => {
 	it('writes all tick-first outputs for ES', async () => {
@@ -26,31 +36,55 @@ describe('generateMarketData', () => {
 			expect(result.files).toEqual(getOutputFiles(inputs));
 			expect(result.files.scid).toBe(join(outputRoot, 'ES', 'tradester_ES.scid'));
 			expect(result.files.metadata).toBe(join(outputRoot, 'ES', 'tradester_ES.json'));
-			expect(result.files.daily).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
-			expect(result.files.range10).toBe(join(outputRoot, 'ES', 'tradester_ES_10r.csv'));
-			expect(result.files.tick100).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
+			expect(result.files.orderbook).toBe(join(outputRoot, 'ES', 'depth'));
+			expect(result.files.timeframes['1d']).toBe(join(outputRoot, 'ES', 'tradester_ES_1d.csv'));
+			expect(result.files.timeframes['1s']).toBe(join(outputRoot, 'ES', 'tradester_ES_1s.csv'));
+			expect(result.files.timeframes['10r']).toBe(join(outputRoot, 'ES', 'tradester_ES_10r.csv'));
+			expect(result.files.timeframes['100t']).toBe(join(outputRoot, 'ES', 'tradester_ES_100t.csv'));
+			expect(result.counts.orderbook).toBeGreaterThan(200);
 			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
-			expect(JSON.parse(await readFile(result.files.metadata, 'utf8'))).toMatchObject({
+			const depthFiles = await getDepthFiles(result.files.orderbook);
+			const firstDepthFile = join(result.files.orderbook, depthFiles[0]);
+			expect(depthFiles).toHaveLength(2);
+			expect(depthFiles.every((fileName) => fileName.endsWith('.depth'))).toBe(true);
+			expect(readDepthHeader(await readFile(firstDepthFile))).toEqual({
+				fileTypeUniqueHeaderId: 'SCDD',
+				headerSize: DEPTH_HEADER_SIZE,
+				recordSize: DEPTH_RECORD_SIZE,
+				version: 1
+			});
+			expect(await countDepthRecords(result.files.orderbook)).toBe(result.counts.orderbook);
+			const metadata = JSON.parse(await readFile(result.files.metadata, 'utf8'));
+			expect(metadata).toMatchObject({
 				timeframes: {
-					daily: expect.objectContaining({
+					'100t': expect.any(Object),
+					'10r': expect.any(Object),
+					'15s': expect.any(Object),
+					'1d': expect.objectContaining({
 						endTime: expect.any(Number),
 						startTime: expect.any(Number)
 					}),
-					minutes5: expect.any(Object),
-					priceLevel: expect.any(Object),
-					range10: expect.any(Object),
-					seconds15: expect.any(Object),
-					tick100: expect.any(Object),
-					volume500: expect.any(Object)
+					'1s': expect.any(Object),
+					'500v': expect.any(Object),
+					'5m': expect.any(Object)
 				}
 			});
-			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
-			expect(await readFirstLine(result.files.range10)).toBe(CANDLE_ROW_HEADER);
-			expect(await readFirstLine(result.files.tick100)).toBe(CANDLE_ROW_HEADER);
-			expect(await readFirstLine(result.files.volume500)).toBe(CANDLE_ROW_HEADER);
-			expect(await readFirstLine(result.files.seconds15)).toBe(CANDLE_ROW_HEADER);
-			expect(await readFirstLine(result.files.minutes5)).toBe(CANDLE_ROW_HEADER);
-			expect(await readFirstLine(result.files.daily)).toBe(CANDLE_ROW_HEADER);
+			expect(metadata.timeframes.daily).toBeUndefined();
+			expect(metadata.timeframes.minutes5).toBeUndefined();
+			expect(metadata.timeframes.priceLevel).toBeUndefined();
+			expect(metadata.timeframes.range10).toBeUndefined();
+			expect(metadata.timeframes.seconds15).toBeUndefined();
+			expect(metadata.timeframes.tick100).toBeUndefined();
+			expect(metadata.timeframes.volume500).toBeUndefined();
+			expect(await readFirstLine(result.files.timeframes['1s'])).toBe(
+				`${CANDLE_ROW_HEADER},prices`
+			);
+			expect(await readFirstLine(result.files.timeframes['10r'])).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.timeframes['100t'])).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.timeframes['500v'])).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.timeframes['15s'])).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.timeframes['5m'])).toBe(CANDLE_ROW_HEADER);
+			expect(await readFirstLine(result.files.timeframes['1d'])).toBe(CANDLE_ROW_HEADER);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}
@@ -80,8 +114,11 @@ describe('generateMarketData', () => {
 			);
 
 			expect(await readFile(second.files.scid)).toEqual(await readFile(first.files.scid));
-			expect(await readFile(second.files.priceLevel, 'utf8')).toBe(
-				await readFile(first.files.priceLevel, 'utf8')
+			expect(await readFile(second.files.timeframes['1s'], 'utf8')).toBe(
+				await readFile(first.files.timeframes['1s'], 'utf8')
+			);
+			expect(await readDepthFiles(second.files.orderbook)).toEqual(
+				await readDepthFiles(first.files.orderbook)
 			);
 		} finally {
 			await rm(firstRoot, { force: true, recursive: true });
@@ -100,7 +137,10 @@ describe('generateMarketData', () => {
 
 		try {
 			const result = await generateMarketData(inputs);
-			const rows = (await readFile(result.files.volume500, 'utf8')).trimEnd().split('\n').slice(1);
+			const rows = (await readFile(result.files.timeframes['500v'], 'utf8'))
+				.trimEnd()
+				.split('\n')
+				.slice(1);
 			const volumes = rows.map((row) => Number(row.split(',')[7]));
 
 			expect(rows).toHaveLength(2);
@@ -121,7 +161,10 @@ describe('generateMarketData', () => {
 
 		try {
 			const result = await generateMarketData(inputs);
-			const rows = (await readFile(result.files.tick100, 'utf8')).trimEnd().split('\n').slice(1);
+			const rows = (await readFile(result.files.timeframes['100t'], 'utf8'))
+				.trimEnd()
+				.split('\n')
+				.slice(1);
 
 			expect(rows).toHaveLength(2);
 		} finally {
@@ -129,7 +172,7 @@ describe('generateMarketData', () => {
 		}
 	});
 
-	it('keeps ring-buffered time outputs at latest 20,000 bars', async () => {
+	it('keeps ring-buffered time outputs at latest retained bar count', async () => {
 		const outputRoot = await mkdtemp(join(tmpdir(), 'market-data-tail-'));
 		const inputs = normalizeInputs({
 			outputDir: outputRoot,
@@ -142,15 +185,21 @@ describe('generateMarketData', () => {
 			const result = await generateMarketData(inputs);
 			const priceLevelBucketsPerSession = countGeneratedTickTimeBuckets(
 				inputs.ticksPerSession,
-				TIMEFRAME_DEFINITIONS.priceLevel.milliseconds
+				TIMEFRAME_DEFINITIONS['1s'].milliseconds
 			);
 
-			expect(result.counts.daily).toBe(600);
-			expect(result.counts.priceLevel).toBe(30 * priceLevelBucketsPerSession);
-			expect(result.counts.seconds15).toBe(20_000);
-			expect(result.counts.minutes5).toBe(20_000);
-			expect(await countRows(result.files.seconds15)).toBe(20_000);
-			expect(await countRows(result.files.minutes5)).toBe(20_000);
+			expect(result.counts.timeframes['1d']).toBe(600);
+			expect(result.counts.timeframes['1s']).toBe(
+				PRICE_LEVEL_RETAINED_SESSION_COUNT * priceLevelBucketsPerSession
+			);
+			expect(result.counts.timeframes['15s']).toBe(RETAINED_CANDLE_BAR_COUNT);
+			expect(result.counts.timeframes['5m']).toBe(RETAINED_CANDLE_BAR_COUNT);
+			expect(await getDepthFiles(result.files.orderbook)).toHaveLength(
+				DEPTH_RETAINED_SESSION_COUNT
+			);
+			expect(await countDepthRecords(result.files.orderbook)).toBe(result.counts.orderbook);
+			expect(await countRows(result.files.timeframes['15s'])).toBe(RETAINED_CANDLE_BAR_COUNT);
+			expect(await countRows(result.files.timeframes['5m'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		} finally {
 			await rm(outputRoot, { force: true, recursive: true });
 		}
@@ -168,7 +217,7 @@ describe('generateMarketData', () => {
 
 		try {
 			const result = await generateMarketData(inputs);
-			const daily = (await readFile(result.files.daily, 'utf8'))
+			const daily = (await readFile(result.files.timeframes['1d'], 'utf8'))
 				.trimEnd()
 				.split('\n')
 				.slice(1)
@@ -192,4 +241,30 @@ async function readFirstLine(filePath: string) {
 async function countRows(filePath: string) {
 	const text = await readFile(filePath, 'utf8');
 	return text.trimEnd().split('\n').length - 1;
+}
+
+async function getDepthFiles(directory: string) {
+	return (await readdir(directory)).filter((fileName) => fileName.endsWith('.depth')).sort();
+}
+
+async function countDepthRecords(directory: string) {
+	let records = 0;
+
+	for (const fileName of await getDepthFiles(directory)) {
+		const file = await stat(join(directory, fileName));
+
+		records += (file.size - DEPTH_HEADER_SIZE) / DEPTH_RECORD_SIZE;
+	}
+
+	return records;
+}
+
+async function readDepthFiles(directory: string) {
+	const files: Record<string, Buffer> = {};
+
+	for (const fileName of await getDepthFiles(directory)) {
+		files[fileName] = await readFile(join(directory, fileName));
+	}
+
+	return files;
 }

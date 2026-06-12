@@ -37,7 +37,7 @@ describe('runCalcColumnKeyHelper node ports', () => {
 		]);
 		expect(prompts).toEqual([
 			'name',
-			'tf (same, 5m, 15s, 1d, 500v, 100t)',
+			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id',
 			'param key',
 			'out',

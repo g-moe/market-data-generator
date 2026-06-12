@@ -63,9 +63,9 @@ export async function mergeValidatedSierraExports({
 	const symbolId = getSymbolConfig(symbol).symbolId;
 
 	for (const timeframe of getTimeframes(symbol)) {
-		const inputFile = inputFiles[timeframe.key];
+		const inputFile = inputFiles.timeframes[timeframe.key];
 		await mergeValidatedSierraExport({
-			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe.suffix)),
+			exportFile: join(tempDir, sierraExportFileName(symbol, timeframe)),
 			inputFile,
 			outputFile: join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? inputFile),
 			symbol: symbolId,

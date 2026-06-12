@@ -1,4 +1,5 @@
 import type { Symbol } from './symbols.ts';
+import type { PriceLevelTimeframeKey, TimeframeKey } from './timeframes.ts';
 
 export type UnixMs = number;
 export type Price = number;
@@ -64,6 +65,44 @@ export type MdCandleVolumeByPrice = {
 	prices: Map<Price, Volume>;
 } & MdCandle;
 
+export type TimeframeCandle<Key extends TimeframeKey = TimeframeKey> = Key extends TimeframeKey
+	? Key extends PriceLevelTimeframeKey
+		? MdCandleVolumeByPrice
+		: MdCandle
+	: never;
+
+export type CandleEmissions = {
+	[Key in TimeframeKey]: TimeframeCandle<Key>[];
+};
+
+export type MdOrder = {
+	/** Unique OrderId */
+	id: bigint;
+	/** Price */
+	price: number;
+	/** Queue in line (sorted smallest to largest) */
+	queueId: bigint;
+	/** Side */
+	side: 'BUY' | 'SELL' | undefined;
+	/** Size of the order */
+	size: number;
+	/** Time */
+	time: UnixMs;
+};
+
+export type MdOrderbookLevel = {
+	/** Individual orders at this level */
+	orders: Map<MdOrder['id'], MdOrder>;
+	/** Price */
+	price: MdOrder['price'];
+	/** Side of market */
+	side: 'BUY' | 'SELL';
+	/** Total size of all orders at this level */
+	totalSize: MdOrder['size'];
+};
+
+export type MdOrderbook = Map<MdOrder['price'], MdOrderbookLevel>;
+
 export type StoredMdCandle = {
 	id: string;
 	close: number;
@@ -95,17 +134,10 @@ export type StoredMdCandleVolumeByPrice = {
 
 export type OutputFiles = {
 	metadata: string;
+	orderbook: string;
 	scid: string;
-	priceLevel: string;
-	range10: string;
-	tick100: string;
-	volume500: string;
-	seconds15: string;
-	minutes5: string;
-	daily: string;
+	timeframes: Record<TimeframeKey, string>;
 };
-
-export type TimeframeKey = Exclude<keyof OutputFiles, 'metadata' | 'scid'>;
 
 export type OutputMetadata = {
 	timeframes: Record<
@@ -121,14 +153,9 @@ export type GenerationResult = {
 	inputs: GeneratorInputs;
 	files: OutputFiles;
 	counts: {
+		orderbook: number;
 		ticks: number;
-		priceLevel: number;
-		range10: number;
-		tick100: number;
-		volume500: number;
-		seconds15: number;
-		minutes5: number;
-		daily: number;
+		timeframes: Record<TimeframeKey, number>;
 	};
 };
 

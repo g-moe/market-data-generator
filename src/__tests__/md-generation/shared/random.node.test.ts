@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRandom, randomSigned } from '../../md-generation/random.ts';
+import { createRandom, randomSigned } from '../../../md-generation/shared/random.ts';
 
 describe('createRandom', () => {
 	it('returns a deterministic sequence for the same seed', () => {

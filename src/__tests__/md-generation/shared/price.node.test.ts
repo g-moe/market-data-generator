@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { roundToTick } from '../../md-generation/price.ts';
+import { roundToTick } from '../../../md-generation/shared/price.ts';
 
 describe('roundToTick', () => {
 	it('rounds prices to the nearest allowed tick', () => {

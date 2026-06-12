@@ -1,6 +1,12 @@
 import { readFile } from 'node:fs/promises';
 
-import type { OutputFiles, OutputMetadata, Symbol, TimeframeKey } from '../contracts/index.ts';
+import type {
+	OutputFiles,
+	OutputMetadata,
+	ResolvedTimeframe,
+	Symbol,
+	TimeframeKey
+} from '../contracts/index.ts';
 import { getSymbolConfig } from '../contracts/symbols.ts';
 import { toUtcParts } from '../shared/datetime/index.ts';
 import { getTimeframes } from '../contracts/index.ts';
@@ -37,8 +43,7 @@ export async function createBridgeSource({
 		__TRADESTER_EXPORT_DIR__: escapeCppString(tempDir),
 		__TRADESTER_EXPORT_FILE_CASES__: ranges
 			.map(
-				(range, index) =>
-					`        case ${index}: return "${sierraExportFileName(symbol, range.suffix)}";`
+				(range, index) => `        case ${index}: return "${sierraExportFileName(symbol, range)}";`
 			)
 			.join('\n'),
 		__TRADESTER_START_DATE_CASES__: ranges
@@ -81,23 +86,24 @@ function readMetadataTimeRange(metadata: OutputMetadata, timeframe: TimeframeKey
 	return range;
 }
 
-function timeframeCondition(timeframe: { suffix: string }, index: number) {
-	if (timeframe.suffix === '1d')
-		return `    if (barPeriod.ChartDataType == DAILY_DATA || (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS && barPeriod.IntradayChartBarPeriodParameter1 == 1440 * 60)) return ${index};`;
+function timeframeCondition(timeframe: ResolvedTimeframe, index: number) {
+	switch (timeframe.type) {
+		case 'daily':
+			return `    if (barPeriod.ChartDataType == DAILY_DATA || (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS && barPeriod.IntradayChartBarPeriodParameter1 == 1440 * 60)) return ${index};`;
+		case 'price-level':
+		case 'time':
+			return sierraIntradayTimeframeCondition(timeframe.milliseconds, index);
+		case 'range':
+			return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_RANGE_IN_TICKS_STANDARD && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.size.toString()}) return ${index};`;
+		case 'tick':
+			return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_NUM_TRADES_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.size.toString()}) return ${index};`;
+		case 'volume':
+			return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.size.toString()}) return ${index};`;
+	}
+}
 
-	if (timeframe.suffix.endsWith('v'))
-		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_VOLUME_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
-
-	if (timeframe.suffix.endsWith('t'))
-		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_NUM_TRADES_PER_BAR && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
-
-	if (timeframe.suffix.endsWith('r'))
-		return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_RANGE_IN_TICKS_STANDARD && barPeriod.IntradayChartBarPeriodParameter1 == ${timeframe.suffix.slice(0, -1)}) return ${index};`;
-
-	let seconds: number;
-	if (timeframe.suffix.startsWith('1s_')) seconds = 1;
-	else if (timeframe.suffix.endsWith('m')) seconds = Number(timeframe.suffix.slice(0, -1)) * 60;
-	else seconds = Number(timeframe.suffix.slice(0, -1));
+function sierraIntradayTimeframeCondition(milliseconds: number, index: number) {
+	const seconds = milliseconds / 1000;
 
 	return `    if (barPeriod.ChartDataType == INTRADAY_DATA && barPeriod.IntradayChartBarPeriodType == IBPT_DAYS_MINS_SECS && barPeriod.IntradayChartBarPeriodParameter1 == ${seconds.toString()}) return ${index};`;
 }

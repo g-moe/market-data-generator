@@ -9,9 +9,18 @@ describe('formatProgressMessage', () => {
 				completed: 100,
 				sessionIndex: 0,
 				ticks: 100,
-				total: 200
+				total: 2000
 			})
-		).toBe('Completed sessions 1-100 of 200');
+		).toBeUndefined();
+
+		expect(
+			formatProgressMessage({
+				completed: 1000,
+				sessionIndex: 0,
+				ticks: 100,
+				total: 2000
+			})
+		).toBe('Completed sessions 1-1000 of 2000');
 	});
 
 	it('returns undefined for non-milestones', () => {
@@ -33,6 +42,6 @@ describe('formatProgressMessage', () => {
 				ticks: 250,
 				total: 200
 			})
-		).toBe('Completed sessions 101-200 of 200');
+		).toBe('Completed sessions 1-200 of 200');
 	});
 });

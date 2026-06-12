@@ -3,18 +3,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { TIMEFRAME_KEYS } from '../../contracts/timeframes.ts';
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 
 const DEFAULT_METADATA = {
 	timeframes: {
-		daily: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		minutes5: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		priceLevel: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		range10: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		seconds15: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		tick100: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
-		volume500: { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 }
+		'100t': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'10r': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'15s': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'1d': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'1s': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'500v': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 },
+		'5m': { endTime: 1_760_000_060_000, startTime: 1_760_000_000_000 }
 	}
 };
 
@@ -31,15 +32,13 @@ async function withBridgeSource(
 		await writeFile(metadataFile, JSON.stringify(metadata));
 		const source = await createBridgeSource({
 			files: {
-				daily: file,
 				metadata: metadataFile,
-				minutes5: file,
-				priceLevel: file,
-				range10: file,
+				orderbook: join(root, 'tradester_ES_orderbook.depth'),
 				scid: join(root, 'tradester_ES.scid'),
-				seconds15: file,
-				tick100: file,
-				volume500: file
+				timeframes: Object.fromEntries(TIMEFRAME_KEYS.map((key) => [key, file])) as Record<
+					(typeof TIMEFRAME_KEYS)[number],
+					string
+				>
 			},
 			symbol: '/ES:XCME',
 			tempDir: join(root, 'temp')
@@ -64,7 +63,7 @@ describe('createBridgeSource', () => {
 			expect(source).not.toContain('return "tradester_ES_10r"');
 			expect(source).not.toContain('return "tradester_ES_100t"');
 			expect(source).not.toContain('return "tradester_ES_500v"');
-			expect(source).not.toContain('return "tradester_ES_1s_pl0.25"');
+			expect(source).not.toContain('return "tradester_ES_1s";');
 		});
 	});
 
@@ -95,13 +94,13 @@ describe('createBridgeSource', () => {
 			},
 			{
 				timeframes: {
-					daily: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					minutes5: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					priceLevel: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					range10: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					seconds15: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					tick100: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
-					volume500: { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 }
+					'100t': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'10r': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'15s': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'1d': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'1s': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'500v': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 },
+					'5m': { endTime: 1_769_904_000_000, startTime: 1_769_817_600_000 }
 				}
 			}
 		);

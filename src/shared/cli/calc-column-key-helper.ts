@@ -1,6 +1,7 @@
 import { input } from '@inquirer/prompts';
 import type { z } from 'zod';
 
+import { CALC_TIMEFRAME_PROMPT } from '../../contracts/timeframes.ts';
 import {
 	buildCalcColumnKeys,
 	buildCalculationIndicators,
@@ -25,11 +26,9 @@ type CalcColumnPromptConfig = {
 	validate: (value: string) => true | string;
 };
 
-const TIMEFRAME_PROMPT = 'tf (same, 5m, 15s, 1d, 500v, 100t)';
-
 export async function runCalcColumnKeyHelper(ports = createNodeCalcColumnKeyHelperPorts()) {
 	const name = await askWithSchema(ports, 'name', calcNameSchema);
-	const timeframe = await askWithSchema(ports, TIMEFRAME_PROMPT, calcTimeframeSchema);
+	const timeframe = await askWithSchema(ports, CALC_TIMEFRAME_PROMPT, calcTimeframeSchema);
 	const indicatorId = await askWithSchema(ports, 'id', calcIndicatorIdSchema);
 	const params = await askParams(ports);
 	const outputs = await askOutputs(ports);

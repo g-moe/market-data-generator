@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CALC_TIMEFRAME_ERROR, CALC_TIMEFRAME_PATTERN } from '../contracts/timeframes.ts';
+
 export type CalcColumnParam = {
 	key: string;
 	value: string;
@@ -48,10 +50,7 @@ export const calcTimeframeSchema = z
 	.string()
 	.trim()
 	.min(1, 'tf is required')
-	.regex(
-		/^(?:same|\d+(?:s|m|d|v|t))$/u,
-		'tf must be same or a timeframe like 5m, 15s, 1d, 500v, or 100t'
-	);
+	.regex(CALC_TIMEFRAME_PATTERN, CALC_TIMEFRAME_ERROR);
 
 export const calcIndicatorIdSchema = z
 	.string()

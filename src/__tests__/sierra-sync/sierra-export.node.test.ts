@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
-import { getTimeframes } from '../../contracts/index.ts';
+import { getTimeframes, type OutputFiles } from '../../contracts/index.ts';
 import { SIERRA_EXPORT_HEADER } from '../../sierra-sync/constants.ts';
 import {
 	mergeValidatedSierraExports,
@@ -589,24 +589,24 @@ ${SAMPLE_SIERRA_ROW}, 99`
 		const tempDir = join(root, 'temp');
 		await mkdir(tempDir, { recursive: true });
 		const inputFiles = {
-			daily: join(inputDir, 'tradester_ES_1d.csv'),
 			metadata: join(inputDir, 'tradester_ES.json'),
-			minutes5: join(inputDir, 'tradester_ES_5m.csv'),
-			priceLevel: join(inputDir, 'tradester_ES_1s_pl0.25.csv'),
-			range10: join(inputDir, 'tradester_ES_10r.csv'),
+			orderbook: join(inputDir, 'tradester_ES_orderbook.depth'),
 			scid: join(inputDir, 'tradester_ES.scid'),
-			seconds15: join(inputDir, 'tradester_ES_15s.csv'),
-			tick100: join(inputDir, 'tradester_ES_100t.csv'),
-			volume500: join(inputDir, 'tradester_ES_500v.csv')
-		};
+			timeframes: Object.fromEntries(
+				getTimeframes('/ES:XCME').map((timeframe) => [
+					timeframe.key,
+					join(inputDir, `tradester_ES_${timeframe.suffix}.csv`)
+				])
+			) as OutputFiles['timeframes']
+		} satisfies OutputFiles;
 
-		for (const file of Object.values(inputFiles)) {
+		for (const file of Object.values(inputFiles.timeframes)) {
 			await writeFile(file, withGeneratedFile(SAMPLE_GENERATED_ROW));
 		}
 
 		for (const timeframe of getTimeframes('/ES:XCME')) {
 			await writeFile(
-				join(tempDir, sierraExportFileName('/ES:XCME', timeframe.suffix)),
+				join(tempDir, sierraExportFileName('/ES:XCME', timeframe)),
 				withSierraFile(SAMPLE_SIERRA_ROW)
 			);
 		}
@@ -621,7 +621,8 @@ ${SAMPLE_SIERRA_ROW}, 99`
 				})
 			).resolves.toMatchObject({});
 			for (const timeframe of getTimeframes('/ES:XCME')) {
-				const outputFile = join(outputDir, inputFiles[timeframe.key].split(/[\\/]/u).at(-1) ?? '');
+				const inputFile = inputFiles.timeframes[timeframe.key];
+				const outputFile = join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? '');
 
 				await expect(readFile(outputFile, 'utf8')).resolves.toBe(
 					`${CANDLE_ROW_HEADER}\n${SAMPLE_GENERATED_ROW}\n`

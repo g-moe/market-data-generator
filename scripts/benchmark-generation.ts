@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_ANCHOR_ISO, DEFAULT_SEED } from '../src/contracts/defaults.ts';
 import type { GeneratorInputs } from '../src/contracts/types.ts';
 import { generateMarketData } from '../src/md-generation/generate-market-data.ts';
+import { findSymbol, getSymbolConfig } from '../src/contracts/symbols.ts';
 
 type Scenario = {
 	name: string;
@@ -62,13 +63,31 @@ if (!Number.isInteger(iterations) || iterations < 1) {
 
 const sampleMemory = !process.argv.includes('--no-memory-sampling');
 const isolated = process.argv.includes('--isolated');
+const skipFingerprint = process.argv.includes('--skip-fingerprint');
 const scenarioArg = process.argv.find((arg) => arg.startsWith('--scenario='));
 const scenarioName = scenarioArg === undefined ? undefined : scenarioArg.split('=')[1];
+const sessionCountArg = process.argv.find((arg) => arg.startsWith('--session-count='));
+const ticksPerSessionArg = process.argv.find((arg) => arg.startsWith('--ticks-per-session='));
+const symbolArg = process.argv.find((arg) => arg.startsWith('--symbol='));
+const progressWindowArg = process.argv.find((arg) => arg.startsWith('--progress-window='));
+const progressWindow =
+	progressWindowArg === undefined ? undefined : Number(progressWindowArg.split('=')[1]);
+if (progressWindow !== undefined && (!Number.isInteger(progressWindow) || progressWindow < 1)) {
+	throw new Error('--progress-window must be a positive integer');
+}
+
+const customScenario = createCustomScenario({
+	sessionCountArg,
+	symbolArg,
+	ticksPerSessionArg
+});
 
 const selectedScenarios =
-	scenarioName === undefined
-		? SCENARIOS
-		: SCENARIOS.filter((scenario) => scenario.name === scenarioName);
+	customScenario !== undefined
+		? [customScenario]
+		: scenarioName === undefined
+			? SCENARIOS
+			: SCENARIOS.filter((scenario) => scenario.name === scenarioName);
 if (selectedScenarios.length === 0) {
 	throw new Error(`Unknown scenario: ${scenarioName}`);
 }
@@ -106,19 +125,32 @@ async function runIsolatedScenarios(scenarios: Scenario[]) {
 	const scriptPath = fileURLToPath(import.meta.url);
 	for (const scenario of scenarios) {
 		await new Promise<void>((resolve, reject) => {
-			const args = [
-				...process.execArgv,
-				scriptPath,
-				`--iterations=${iterations}`,
-				`--scenario=${scenario.name}`
-			];
+			const args = [...process.execArgv, scriptPath, `--iterations=${iterations}`];
+
+			if (customScenario === undefined) {
+				args.push(`--scenario=${scenario.name}`);
+			} else {
+				args.push(
+					`--session-count=${scenario.inputs.sessionCount}`,
+					`--symbol=${scenario.inputs.symbol}`,
+					`--ticks-per-session=${scenario.inputs.ticksPerSession}`
+				);
+			}
 
 			if (!sampleMemory) {
 				args.push('--no-memory-sampling');
 			}
 
+			if (progressWindow !== undefined) {
+				args.push(`--progress-window=${progressWindow}`);
+			}
+
 			if (process.argv.includes('--keep-output')) {
 				args.push('--keep-output');
+			}
+
+			if (skipFingerprint) {
+				args.push('--skip-fingerprint');
 			}
 
 			const child = spawn(process.execPath, args, {
@@ -159,14 +191,45 @@ async function runScenario(
 	let peakHeapUsed = sampleMemory ? startMemory.heapUsed : undefined;
 	let peakRss = sampleMemory ? startMemory.rss : undefined;
 	const start = performance.now();
+	let lastWindowCompleted = 0;
+	let lastWindowTime = start;
+	const sessionWindows: Array<{
+		elapsedMs: number;
+		sessionEnd: number;
+		sessionStart: number;
+		ticksPerSecond: number;
+	}> = [];
 	const generation = await generateMarketData(inputs, {
-		onSessionComplete: sampleMemory
-			? () => {
-					const memory = process.memoryUsage();
-					peakHeapUsed = Math.max(peakHeapUsed ?? 0, memory.heapUsed);
-					peakRss = Math.max(peakRss ?? 0, memory.rss);
-				}
-			: undefined
+		onSessionComplete:
+			sampleMemory || progressWindow !== undefined
+				? (progress) => {
+						const memory = process.memoryUsage();
+						if (sampleMemory) {
+							peakHeapUsed = Math.max(peakHeapUsed ?? 0, memory.heapUsed);
+							peakRss = Math.max(peakRss ?? 0, memory.rss);
+						}
+
+						if (
+							progressWindow === undefined ||
+							(progress.completed % progressWindow !== 0 && progress.completed !== progress.total)
+						) {
+							return;
+						}
+
+						const now = performance.now();
+						const windowSessions = progress.completed - lastWindowCompleted;
+						sessionWindows.push({
+							elapsedMs: Math.round(now - lastWindowTime),
+							sessionEnd: progress.completed,
+							sessionStart: lastWindowCompleted + 1,
+							ticksPerSecond: Math.round(
+								(windowSessions * scenario.inputs.ticksPerSession) / ((now - lastWindowTime) / 1000)
+							)
+						});
+						lastWindowCompleted = progress.completed;
+						lastWindowTime = now;
+					}
+				: undefined
 	});
 	const elapsedMs = performance.now() - start;
 
@@ -175,7 +238,7 @@ async function runScenario(
 	}
 
 	const endMemory = process.memoryUsage();
-	const output = await fingerprintDirectory(outputDir);
+	const output = skipFingerprint ? undefined : await fingerprintDirectory(outputDir);
 
 	if (!options.keepOutput) {
 		await rm(outputRoot, { force: true, recursive: true });
@@ -183,20 +246,69 @@ async function runScenario(
 
 	return {
 		elapsedMs: Math.round(elapsedMs),
-		hash: output.hash,
+		hash: output?.hash,
 		heapUsedDeltaMb: toMb(endMemory.heapUsed - startMemory.heapUsed),
 		heapUsedMb: toMb(endMemory.heapUsed),
 		heapUsedPeakMb: peakHeapUsed === undefined ? undefined : toMb(peakHeapUsed),
 		iteration: options.iteration,
 		name: scenario.name,
-		outputBytes: output.bytes,
+		outputBytes: output?.bytes,
 		outputRoot: options.keepOutput ? outputRoot : undefined,
 		rssDeltaMb: toMb(endMemory.rss - startMemory.rss),
 		rssMb: toMb(endMemory.rss),
 		rssPeakMb: peakRss === undefined ? undefined : toMb(peakRss),
+		sessionWindows: sessionWindows.length === 0 ? undefined : sessionWindows,
 		ticks: generation.counts.ticks,
 		ticksPerSecond: Math.round(generation.counts.ticks / (elapsedMs / 1000)),
 		warmup: options.warmup || undefined
+	};
+}
+
+function createCustomScenario({
+	sessionCountArg,
+	symbolArg,
+	ticksPerSessionArg
+}: {
+	sessionCountArg: string | undefined;
+	symbolArg: string | undefined;
+	ticksPerSessionArg: string | undefined;
+}): Scenario | undefined {
+	if (
+		sessionCountArg === undefined &&
+		ticksPerSessionArg === undefined &&
+		symbolArg === undefined
+	) {
+		return undefined;
+	}
+
+	const sessionCount = sessionCountArg === undefined ? 500 : Number(sessionCountArg.split('=')[1]);
+	const ticksPerSession =
+		ticksPerSessionArg === undefined ? 10_000 : Number(ticksPerSessionArg.split('=')[1]);
+	const symbol = findSymbol(symbolArg?.split('=')[1] ?? 'ES');
+	if (symbol === undefined) {
+		throw new Error('--symbol must be ES or NQ');
+	}
+
+	if (!Number.isInteger(sessionCount) || sessionCount < 1) {
+		throw new Error('--session-count must be a positive integer');
+	}
+
+	if (!Number.isInteger(ticksPerSession) || ticksPerSession < 1) {
+		throw new Error('--ticks-per-session must be a positive integer');
+	}
+
+	const symbolConfig = getSymbolConfig(symbol);
+
+	return {
+		inputs: {
+			anchorIso: DEFAULT_ANCHOR_ISO,
+			seed: DEFAULT_SEED,
+			sessionCount,
+			startPrice: symbolConfig.defaultStartPrice,
+			symbol,
+			ticksPerSession
+		},
+		name: `${symbolConfig.symbolId.toLowerCase()}-${sessionCount}s-${ticksPerSession}t`
 	};
 }
 
@@ -227,16 +339,35 @@ function summarize(results: ScenarioResult[]) {
 
 async function fingerprintDirectory(directory: string) {
 	const hash = createHash('sha256');
+	const bytes = await updateHashFromDirectory(hash, directory, '');
+
+	return { bytes, hash: hash.digest('hex') };
+}
+
+async function updateHashFromDirectory(
+	hash: ReturnType<typeof createHash>,
+	directory: string,
+	relativeDirectory: string
+) {
 	let bytes = 0;
+
 	for (const file of (await readdir(directory)).sort()) {
+		const relativePath = relativeDirectory === '' ? file : join(relativeDirectory, file);
 		const path = join(directory, file);
 		const fileStat = await stat(path);
+
+		if (fileStat.isDirectory()) {
+			bytes += await updateHashFromDirectory(hash, path, relativePath);
+
+			continue;
+		}
+
 		bytes += fileStat.size;
-		hash.update(file);
+		hash.update(relativePath);
 		await updateHashFromFile(hash, path);
 	}
 
-	return { bytes, hash: hash.digest('hex') };
+	return bytes;
 }
 
 async function updateHashFromFile(hash: ReturnType<typeof createHash>, path: string) {

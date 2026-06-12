@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RingBuffer } from '../../md-generation/ring-buffer.ts';
+import { RingBuffer } from '../../../md-generation/shared/ring-buffer.ts';
 
 describe('RingBuffer', () => {
 	it('keeps values in insertion order before capacity is reached', () => {

@@ -1,15 +1,14 @@
 import {
 	addUtcCalendarDays,
-	MILLISECONDS_PER_HOUR,
 	parseIsoToUnixMs,
 	toUtcParts,
 	utcDateTimeToUnixMs
-} from '../shared/datetime/index.ts';
-
-const SESSION_START_HOUR = 22;
-const SESSION_END_HOUR = 21;
-
-export const SESSION_DURATION_MS = 23 * MILLISECONDS_PER_HOUR;
+} from '../../shared/datetime/index.ts';
+import {
+	MARKET_SESSION_DURATION_MS,
+	MARKET_SESSION_END_HOUR,
+	MARKET_SESSION_START_HOUR
+} from './market-time-constants.ts';
 
 type UtcSessionParts = {
 	date: string;
@@ -40,7 +39,7 @@ export function getSessionStart(anchorIso: string, sessionsBack: number) {
 }
 
 export function getSessionEnd(sessionStart: number) {
-	return sessionStart + SESSION_DURATION_MS;
+	return sessionStart + MARKET_SESSION_DURATION_MS;
 }
 
 export function isMarketOpen(time: number) {
@@ -52,14 +51,16 @@ export function isMarketOpen(time: number) {
 	}
 
 	if (parts.weekday === 'Sun') {
-		return minuteOfDay >= SESSION_START_HOUR * 60;
+		return minuteOfDay >= MARKET_SESSION_START_HOUR * 60;
 	}
 
 	if (parts.weekday === 'Fri') {
-		return minuteOfDay < SESSION_END_HOUR * 60;
+		return minuteOfDay < MARKET_SESSION_END_HOUR * 60;
 	}
 
-	return !(minuteOfDay >= SESSION_END_HOUR * 60 && minuteOfDay < SESSION_START_HOUR * 60);
+	return !(
+		minuteOfDay >= MARKET_SESSION_END_HOUR * 60 && minuteOfDay < MARKET_SESSION_START_HOUR * 60
+	);
 }
 
 export function getDailySessionStart(time: number) {
@@ -102,19 +103,26 @@ function getSessionStartForTime(time: number) {
 		parts.year,
 		parts.month,
 		parts.day,
-		SESSION_START_HOUR,
+		MARKET_SESSION_START_HOUR,
 		0,
 		0
 	);
 	const minuteOfDay = parts.hour * 60 + parts.minute;
 
-	if (minuteOfDay >= SESSION_START_HOUR * 60) {
+	if (minuteOfDay >= MARKET_SESSION_START_HOUR * 60) {
 		return sameDayStart;
 	}
 
 	const previous = addUtcCalendarDays(parts.year, parts.month, parts.day, -1);
 
-	return utcDateTimeToUnixMs(previous.year, previous.month, previous.day, SESSION_START_HOUR, 0, 0);
+	return utcDateTimeToUnixMs(
+		previous.year,
+		previous.month,
+		previous.day,
+		MARKET_SESSION_START_HOUR,
+		0,
+		0
+	);
 }
 
 export function isTradingSessionStart(time: number) {
@@ -127,5 +135,12 @@ export function getPreviousSessionStart(sessionStart: number) {
 	const parts = getSessionDateParts(sessionStart);
 	const previous = addUtcCalendarDays(parts.year, parts.month, parts.day, -1);
 
-	return utcDateTimeToUnixMs(previous.year, previous.month, previous.day, SESSION_START_HOUR, 0, 0);
+	return utcDateTimeToUnixMs(
+		previous.year,
+		previous.month,
+		previous.day,
+		MARKET_SESSION_START_HOUR,
+		0,
+		0
+	);
 }

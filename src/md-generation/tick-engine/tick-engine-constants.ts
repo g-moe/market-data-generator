@@ -1,0 +1,1 @@
+export const TARGET_TICKS_PER_ACTIVE_SECOND = 8;

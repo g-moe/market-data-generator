@@ -5,8 +5,9 @@ import { getSymbolConfig } from '../contracts/symbols.ts';
 
 export async function assertInputDataExists(symbol: Symbol, files: OutputFiles) {
 	const missing: string[] = [];
+	const requiredFiles = [files.metadata, files.scid, ...Object.values(files.timeframes)];
 
-	for (const filePath of Object.values(files)) {
+	for (const filePath of requiredFiles) {
 		try {
 			const result = await stat(filePath);
 			if (!result.isFile()) missing.push(filePath);

@@ -24,7 +24,7 @@ describe('runCalcColumnKeyHelper', () => {
 		]);
 		expect(ports.prompts).toEqual([
 			'name',
-			'tf (same, 5m, 15s, 1d, 500v, 100t)',
+			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id',
 			'param key',
 			'param src value',
@@ -51,12 +51,12 @@ describe('runCalcColumnKeyHelper', () => {
 		]);
 		expect(ports.prompts.slice(0, 4)).toEqual([
 			'name',
-			'tf (same, 5m, 15s, 1d, 500v, 100t)',
-			'tf (same, 5m, 15s, 1d, 500v, 100t)',
+			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
+			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id'
 		]);
 		expect(ports.validationFailures).toContain(
-			'tf (same, 5m, 15s, 1d, 500v, 100t): tf must be same or a timeframe like 5m, 15s, 1d, 500v, or 100t'
+			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v): tf must be same or a canonical timeframe like 1d, 1s, 5m, 10r, 15s, 100t, or 500v'
 		);
 	});
 
