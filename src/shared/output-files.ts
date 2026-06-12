@@ -11,16 +11,16 @@ export function getOutputFiles(symbol: Symbol, outputDir: string): OutputFiles {
 	const prefix = `tradester_${symbolConfig.symbolId}`;
 
 	return {
-		daily: join(outputDir, `${prefix}_${suffixes.daily}.csv`),
+		daily: join(outputDir, `${prefix}_${suffixes['1d']}.csv`),
 		metadata: join(outputDir, `${prefix}.json`),
-		minutes5: join(outputDir, `${prefix}_${suffixes.minutes5}.csv`),
+		minutes5: join(outputDir, `${prefix}_${suffixes['5m']}.csv`),
 		orderbook: join(outputDir, 'depth'),
 		priceLevel: join(outputDir, `${prefix}_${suffixes['1s']}.csv`),
-		range10: join(outputDir, `${prefix}_${suffixes.range10}.csv`),
+		range10: join(outputDir, `${prefix}_${suffixes['10r']}.csv`),
 		scid: join(outputDir, `${prefix}.scid`),
-		seconds15: join(outputDir, `${prefix}_${suffixes.seconds15}.csv`),
-		tick100: join(outputDir, `${prefix}_${suffixes.tick100}.csv`),
-		volume500: join(outputDir, `${prefix}_${suffixes.volume500}.csv`)
+		seconds15: join(outputDir, `${prefix}_${suffixes['15s']}.csv`),
+		tick100: join(outputDir, `${prefix}_${suffixes['100t']}.csv`),
+		volume500: join(outputDir, `${prefix}_${suffixes['500v']}.csv`)
 	};
 }
 

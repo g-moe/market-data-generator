@@ -2,32 +2,32 @@ import type { Symbol } from './symbols.ts';
 import { getSymbolConfig } from './symbols.ts';
 
 export const TIMEFRAME_DEFINITIONS = {
+	'100t': {
+		size: 100,
+		type: 'tick'
+	},
+	'10r': {
+		size: 10,
+		type: 'range'
+	},
+	'15s': {
+		milliseconds: 15_000,
+		type: 'time'
+	},
+	'1d': {
+		type: 'daily'
+	},
 	'1s': {
 		milliseconds: 1_000,
 		type: 'price-level'
 	},
-	daily: {
-		type: 'daily'
-	},
-	minutes5: {
-		milliseconds: 300_000,
-		type: 'time'
-	},
-	range10: {
-		size: 10,
-		type: 'range'
-	},
-	seconds15: {
-		milliseconds: 15_000,
-		type: 'time'
-	},
-	tick100: {
-		size: 100,
-		type: 'tick'
-	},
-	volume500: {
+	'500v': {
 		size: 500,
 		type: 'volume'
+	},
+	'5m': {
+		milliseconds: 300_000,
+		type: 'time'
 	}
 } as const;
 
@@ -37,12 +37,12 @@ export function getTimeframes(symbol: Symbol) {
 	const config = getSymbolConfig(symbol);
 
 	return [
-		withKey('daily'),
-		withKey('minutes5'),
-		withKey('seconds15'),
-		withKey('tick100'),
-		withKey('range10'),
-		withKey('volume500'),
+		withKey('1d'),
+		withKey('5m'),
+		withKey('15s'),
+		withKey('100t'),
+		withKey('10r'),
+		withKey('500v'),
 		withOneSecondPriceLevelSuffix(config.tickSize)
 	] as const;
 }

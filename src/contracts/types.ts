@@ -134,14 +134,7 @@ export type OutputFiles = {
 	daily: string;
 };
 
-export type TimeframeKey =
-	| '1s'
-	| 'daily'
-	| 'minutes5'
-	| 'range10'
-	| 'seconds15'
-	| 'tick100'
-	| 'volume500';
+export type TimeframeKey = '1d' | '1s' | '5m' | '10r' | '15s' | '100t' | '500v';
 
 export type OutputMetadata = {
 	timeframes: Record<

@@ -51,19 +51,25 @@ describe('generateMarketData', () => {
 			const metadata = JSON.parse(await readFile(result.files.metadata, 'utf8'));
 			expect(metadata).toMatchObject({
 				timeframes: {
-					'1s': expect.any(Object),
-					daily: expect.objectContaining({
+					'100t': expect.any(Object),
+					'10r': expect.any(Object),
+					'15s': expect.any(Object),
+					'1d': expect.objectContaining({
 						endTime: expect.any(Number),
 						startTime: expect.any(Number)
 					}),
-					minutes5: expect.any(Object),
-					range10: expect.any(Object),
-					seconds15: expect.any(Object),
-					tick100: expect.any(Object),
-					volume500: expect.any(Object)
+					'1s': expect.any(Object),
+					'500v': expect.any(Object),
+					'5m': expect.any(Object)
 				}
 			});
+			expect(metadata.timeframes.daily).toBeUndefined();
+			expect(metadata.timeframes.minutes5).toBeUndefined();
 			expect(metadata.timeframes.priceLevel).toBeUndefined();
+			expect(metadata.timeframes.range10).toBeUndefined();
+			expect(metadata.timeframes.seconds15).toBeUndefined();
+			expect(metadata.timeframes.tick100).toBeUndefined();
+			expect(metadata.timeframes.volume500).toBeUndefined();
 			expect(await readFirstLine(result.files.priceLevel)).toBe(`${CANDLE_ROW_HEADER},prices`);
 			expect(await readFirstLine(result.files.range10)).toBe(CANDLE_ROW_HEADER);
 			expect(await readFirstLine(result.files.tick100)).toBe(CANDLE_ROW_HEADER);

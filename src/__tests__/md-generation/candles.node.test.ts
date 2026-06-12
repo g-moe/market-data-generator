@@ -15,17 +15,17 @@ import { floorTime, getDailySessionStart } from '../../md-generation/market-time
 import { parseIsoToUnixMs } from '../../shared/datetime/index.ts';
 
 const TEST_TICK_SIZE = 0.25;
-const STANDARD_RANGE_TICKS = TIMEFRAME_DEFINITIONS.range10.size;
+const STANDARD_RANGE_TICKS = TIMEFRAME_DEFINITIONS['10r'].size;
 
 describe('streaming candle aggregators', () => {
 	it('returns empty series without ticks', () => {
 		expect(new PriceLevelAggregator().finish()).toEqual([]);
 		expect(new RangeAggregator(STANDARD_RANGE_TICKS, TEST_TICK_SIZE).finish()).toEqual([]);
-		expect(new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size).finish()).toEqual([]);
-		expect(new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size).finish()).toEqual([]);
+		expect(new TickAggregator(TIMEFRAME_DEFINITIONS['100t'].size).finish()).toEqual([]);
+		expect(new VolumeAggregator(TIMEFRAME_DEFINITIONS['500v'].size).finish()).toEqual([]);
 		expect(
 			new TimeAggregator((time) =>
-				floorTime(time, TIMEFRAME_DEFINITIONS.seconds15.milliseconds)
+				floorTime(time, TIMEFRAME_DEFINITIONS['15s'].milliseconds)
 			).finish()
 		).toEqual([]);
 	});
@@ -56,7 +56,7 @@ describe('streaming candle aggregators', () => {
 
 	it('supports fixed-size time buckets', () => {
 		const emitted: MdCandle[] = [];
-		const aggregator = new TimeAggregator(TIMEFRAME_DEFINITIONS.seconds15.milliseconds);
+		const aggregator = new TimeAggregator(TIMEFRAME_DEFINITIONS['15s'].milliseconds);
 
 		aggregator.pushTickValuesForBucket(
 			1_700_000_000_000,
@@ -97,7 +97,7 @@ describe('streaming candle aggregators', () => {
 	});
 
 	it('splits ticks across exact 500-volume candles', () => {
-		const aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
+		const aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS['500v'].size);
 		const emitted = pushTicks(aggregator, [tick({ volume: 300 }), tick({ volume: 700 })]);
 		const result = [...emitted, ...aggregator.finish()];
 
@@ -315,10 +315,10 @@ describe('streaming candle aggregators', () => {
 			tick({ price: 6003, time: parseIsoToUnixMs('2026-06-01T22:05:00.000Z') })
 		];
 		const seconds15 = aggregateTime(ticks, (time) =>
-			floorTime(time, TIMEFRAME_DEFINITIONS.seconds15.milliseconds)
+			floorTime(time, TIMEFRAME_DEFINITIONS['15s'].milliseconds)
 		);
 		const minutes5 = aggregateTime(ticks, (time) =>
-			floorTime(time, TIMEFRAME_DEFINITIONS.minutes5.milliseconds)
+			floorTime(time, TIMEFRAME_DEFINITIONS['5m'].milliseconds)
 		);
 		const daily = aggregateTime(ticks, getDailySessionStart);
 

@@ -76,7 +76,22 @@ export async function mergeValidatedSierraExports({
 }
 
 function getOutputFileKey(timeframe: TimeframeKey) {
-	return timeframe === '1s' ? 'priceLevel' : timeframe;
+	switch (timeframe) {
+		case '1d':
+			return 'daily';
+		case '1s':
+			return 'priceLevel';
+		case '5m':
+			return 'minutes5';
+		case '10r':
+			return 'range10';
+		case '15s':
+			return 'seconds15';
+		case '100t':
+			return 'tick100';
+		case '500v':
+			return 'volume500';
+	}
 }
 
 export async function mergeValidatedSierraExport({

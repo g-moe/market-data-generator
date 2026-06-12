@@ -83,11 +83,11 @@ export async function generateMarketData(
 	const files = getOutputFiles(inputs);
 	const seconds15BarsPerSession = countSessionBuckets(
 		inputs.ticksPerSession,
-		TIMEFRAME_DEFINITIONS.seconds15.milliseconds
+		TIMEFRAME_DEFINITIONS['15s'].milliseconds
 	);
 	const minutes5BarsPerSession = countSessionBuckets(
 		inputs.ticksPerSession,
-		TIMEFRAME_DEFINITIONS.minutes5.milliseconds
+		TIMEFRAME_DEFINITIONS['5m'].milliseconds
 	);
 	const seconds15StartSession = getRingRetainedSessionStart(
 		inputs.sessionCount,
@@ -101,19 +101,19 @@ export async function generateMarketData(
 	// Initialize streaming aggregators and retained output buffers.
 	const priceLevelAggregator = new PriceLevelAggregator();
 	const range10Aggregator = new RangeAggregator(
-		TIMEFRAME_DEFINITIONS.range10.size,
+		TIMEFRAME_DEFINITIONS['10r'].size,
 		symbolConfig.tickSize
 	);
-	const tick100Aggregator = new TickAggregator(TIMEFRAME_DEFINITIONS.tick100.size);
-	const volume500Aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS.volume500.size);
+	const tick100Aggregator = new TickAggregator(TIMEFRAME_DEFINITIONS['100t'].size);
+	const volume500Aggregator = new VolumeAggregator(TIMEFRAME_DEFINITIONS['500v'].size);
 	const orderbook = new MarketDepthSessionWriter(files.orderbook, symbolConfig.symbolId);
 	const orderbookStreamer = new OrderbookDepthStreamer(orderbook, symbolConfig.tickSize);
 	const seconds15Aggregator = new IntervalTimeAggregator(
-		TIMEFRAME_DEFINITIONS.seconds15.milliseconds,
+		TIMEFRAME_DEFINITIONS['15s'].milliseconds,
 		seconds15StartSession * seconds15BarsPerSession
 	);
 	const minutes5Aggregator = new IntervalTimeAggregator(
-		TIMEFRAME_DEFINITIONS.minutes5.milliseconds,
+		TIMEFRAME_DEFINITIONS['5m'].milliseconds,
 		minutes5StartSession * minutes5BarsPerSession
 	);
 	const volume500Ring = new RingBuffer<MdCandle>(RING_BUFFER_BAR_COUNT);
@@ -303,16 +303,16 @@ export async function generateMarketData(
 		const minutes5Rows = [...minutes5Ring.iterate()];
 
 		const metadata = createOutputMetadata({
-			'1s': priceLevelRange.getRange(),
-			daily: {
+			'100t': getCandleRange(tick100Rows),
+			'10r': getCandleRange(range10Rows),
+			'15s': getCandleRange(seconds15Rows),
+			'1d': {
 				endTime: getLastNonZeroSessionStart(sessionStarts),
 				startTime: getFirstNonZeroSessionStart(sessionStarts)
 			},
-			minutes5: getCandleRange(minutes5Rows),
-			range10: getCandleRange(range10Rows),
-			seconds15: getCandleRange(seconds15Rows),
-			tick100: getCandleRange(tick100Rows),
-			volume500: getCandleRange(volume500Rows)
+			'1s': priceLevelRange.getRange(),
+			'500v': getCandleRange(volume500Rows),
+			'5m': getCandleRange(minutes5Rows)
 		});
 
 		await Promise.all([

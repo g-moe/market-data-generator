@@ -622,8 +622,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 				})
 			).resolves.toMatchObject({});
 			for (const timeframe of getTimeframes('/ES:XCME')) {
-				const inputFile =
-					timeframe.key === '1s' ? inputFiles.priceLevel : inputFiles[timeframe.key];
+				const inputFile = inputFiles[getOutputFileKey(timeframe.key)];
 				const outputFile = join(outputDir, inputFile.split(/[\\/]/u).at(-1) ?? '');
 
 				await expect(readFile(outputFile, 'utf8')).resolves.toBe(
@@ -640,3 +639,22 @@ ${SAMPLE_SIERRA_ROW}, 99`
 		}
 	});
 });
+
+function getOutputFileKey(timeframe: ReturnType<typeof getTimeframes>[number]['key']) {
+	switch (timeframe) {
+		case '1d':
+			return 'daily';
+		case '1s':
+			return 'priceLevel';
+		case '5m':
+			return 'minutes5';
+		case '10r':
+			return 'range10';
+		case '15s':
+			return 'seconds15';
+		case '100t':
+			return 'tick100';
+		case '500v':
+			return 'volume500';
+	}
+}
