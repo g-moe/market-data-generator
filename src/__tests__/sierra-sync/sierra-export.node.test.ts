@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { CANDLE_ROW_HEADER } from '../../shared/file-ops/csv.ts';
-import { getTimeframes, type OutputFiles } from '../../contracts/index.ts';
+import { getTimeframes } from '../../contracts/index.ts';
 import { SIERRA_EXPORT_HEADER } from '../../sierra-sync/constants.ts';
 import {
 	mergeValidatedSierraExports,
@@ -13,6 +13,7 @@ import {
 } from '../../sierra-sync/sierra-export.ts';
 import { sierraExportFileName } from '../../sierra-sync/paths.ts';
 import { parseIsoToUnixMs } from '../../shared/datetime/index.ts';
+import { getOutputFiles } from '../../shared/output-files.ts';
 
 const SAMPLE_TIME = parseIsoToUnixMs('2026-06-05T21:00:04.000Z');
 const SAMPLE_GENERATED_ROW = `id,${SAMPLE_TIME.toString()},0,1,2,0.5,1.5,10,4,6,1.25`;
@@ -177,7 +178,7 @@ ${SAMPLE_SIERRA_ROW}`)
 });
 
 describe('mergeValidatedSierraExport', () => {
-	it('matches generated rows by timestamp when Sierra has extra boundary rows', async () => {
+	it('ignores Sierra boundary rows before the generated start', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'sierra-export-'));
 		const generated = join(root, 'generated.csv');
 		const sierra = join(root, 'sierra.txt');
@@ -220,6 +221,38 @@ ${SAMPLE_GENERATED_ROW},99
 				symbol: SAMPLE_SYMBOL,
 				timeframe: SAMPLE_TIMEFRAME
 			});
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	});
+
+	it('throws when Sierra inserts an unmatched row after the generated start', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'sierra-export-inserted-row-'));
+		const generated = join(root, 'generated.csv');
+		const sierra = join(root, 'sierra.txt');
+		const output = join(root, 'output.csv');
+
+		try {
+			await writeFile(
+				generated,
+				withGeneratedFile(`${SAMPLE_GENERATED_ROW}
+id2,${(SAMPLE_TIME + 1000).toString()},1,1.5,2.5,1,2,20,9,11,1.75`)
+			);
+			await writeFile(
+				sierra,
+				`${SIERRA_EXPORT_HEADER}
+${SAMPLE_SIERRA_ROW}
+2026-06-05, 21:00:04.500000, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0
+2026-06-05, 21:00:05.000000, 1.5, 2.5, 1, 2, 20, 1, 1, 1, 1, 9, 11`
+			);
+
+			await expect(
+				mergeSampleSierraExport({
+					exportFile: sierra,
+					inputFile: generated,
+					outputFile: output
+				})
+			).rejects.toThrow('Sierra timestamp mismatch');
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}
@@ -588,17 +621,7 @@ ${SAMPLE_SIERRA_ROW}, 99`
 		const outputDir = join(root, 'out');
 		const tempDir = join(root, 'temp');
 		await mkdir(tempDir, { recursive: true });
-		const inputFiles = {
-			metadata: join(inputDir, 'tradester_ES.json'),
-			orderbook: join(inputDir, 'tradester_ES_orderbook.depth'),
-			scid: join(inputDir, 'tradester_ES.scid'),
-			timeframes: Object.fromEntries(
-				getTimeframes('/ES:XCME').map((timeframe) => [
-					timeframe.key,
-					join(inputDir, `tradester_ES_${timeframe.suffix}.csv`)
-				])
-			) as OutputFiles['timeframes']
-		} satisfies OutputFiles;
+		const inputFiles = getOutputFiles('/ES:XCME', inputDir);
 
 		for (const file of Object.values(inputFiles.timeframes)) {
 			await writeFile(file, withGeneratedFile(SAMPLE_GENERATED_ROW));

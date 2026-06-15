@@ -21,6 +21,7 @@ import type { GenerationSession, PipelineSummary } from './pipeline/generation-p
 import { TickStream } from './tick-engine/tick-stream.ts';
 import { getSessionOpenPrice } from './tick-engine/session-ticks.ts';
 import { UNIX_EPOCH_MS } from './shared/market-time-constants.ts';
+import { writeAlignedScids } from './scid-output.ts';
 
 type GenerateMarketDataOptions = {
 	onSessionComplete?: (progress: GenerationProgress) => void;
@@ -76,7 +77,15 @@ export async function generateMarketData(
 		await pipeline.finish();
 
 		const summary = pipeline.summary();
-		await writeOutputMetadata(files.metadata, createOutputMetadata(summary));
+		const metadata = createOutputMetadata(summary);
+
+		await writeAlignedScids({
+			metadata,
+			scids: files.scids,
+			sessions,
+			ticksPerSession: inputs.ticksPerSession
+		});
+		await writeOutputMetadata(files.metadata, metadata);
 
 		return {
 			counts: {

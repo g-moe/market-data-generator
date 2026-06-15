@@ -1,6 +1,5 @@
 import { TIMEFRAME_DEFINITIONS, type TimeTimeframeKey } from '../../contracts/timeframes.ts';
 import type {
-	GeneratorInputs,
 	MarketTick,
 	MdCandle,
 	Price,
@@ -20,7 +19,10 @@ import type {
 	GenerationBuilder
 } from '../pipeline/generation-pipeline.ts';
 import type { StandardRetainedCandleSink } from '../candle-output.ts';
-import { countGeneratedTickTimeBuckets } from '../tick-engine/session-ticks.ts';
+import {
+	isSessionInRetainedTimeWindow,
+	type RetainedTimeWindow
+} from '../shared/retained-time-window.ts';
 
 export class TimeAggregator {
 	private current: MutableCandle | undefined;
@@ -104,33 +106,21 @@ export class TimeBuilder<Key extends TimeTimeframeKey> implements GenerationBuil
 	private active = false;
 	private readonly aggregator: TimeAggregator;
 	private readonly emitted: MdCandle[] = [];
-	private priceLevelRetained = false;
-	private readonly startSessionIndex: number;
 
 	constructor(
 		private readonly key: Key,
 		private readonly sink: StandardRetainedCandleSink,
-		private readonly inputs: GeneratorInputs,
-		retainedBars: number,
-		private readonly priceLevelRetainSessions: number,
-		private readonly omitSideWhenPriceLevelRetained = false
+		private readonly retainedWindow: RetainedTimeWindow
 	) {
 		const bucketMs = TIMEFRAME_DEFINITIONS[key].milliseconds;
-		const barsPerSession = countGeneratedTickTimeBuckets(inputs.ticksPerSession, bucketMs);
-		this.startSessionIndex = Math.max(
-			0,
-			inputs.sessionCount - Math.ceil(retainedBars / barsPerSession)
-		);
-		this.aggregator = new TimeAggregator(bucketMs, this.startSessionIndex * barsPerSession);
+		this.aggregator = new TimeAggregator(bucketMs, retainedWindow.initialBarPosition);
 	}
 
 	open() {}
 
 	startSession(session: GenerationSession) {
 		this.emitted.length = 0;
-		this.active = session.generated && session.index >= this.startSessionIndex;
-		this.priceLevelRetained =
-			session.index >= Math.max(0, this.inputs.sessionCount - this.priceLevelRetainSessions);
+		this.active = isSessionInRetainedTimeWindow(session, this.retainedWindow);
 	}
 
 	isTickActive() {
@@ -155,17 +145,13 @@ export class TimeBuilder<Key extends TimeTimeframeKey> implements GenerationBuil
 	}
 
 	pushTickValues(time: UnixMs, price: Price, volume: Volume, side: TradeSide) {
-		this.aggregator.pushTickValues(
-			time,
-			price,
-			volume,
-			this.emitted,
-			this.omitSideWhenPriceLevelRetained && this.priceLevelRetained ? undefined : side
-		);
+		this.aggregator.pushTickValues(time, price, volume, this.emitted, side);
 	}
 
-	finalizeSession(_session: GenerationSession) {
-		void _session;
+	finalizeSession(session: GenerationSession) {
+		if (session.generated) {
+			this.emitted.push(...this.aggregator.finish());
+		}
 
 		this.sink.push(this.emitted);
 	}

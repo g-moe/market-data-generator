@@ -33,8 +33,8 @@ describe('createNodeSierraOps node adapters', () => {
 			const sourceScid = join(paths.root, 'source.scid');
 			await writeFile(sourceScid, 'SCID payload');
 
-			const scidTarget = await ops.copyScid(sourceScid, 'tradester_ES.scid');
-			expect(scidTarget).toBe(join(paths.dataDir, 'tradester_ES.scid'));
+			const scidTarget = await ops.copyScid(sourceScid, 'tradester_ES_1d.scid');
+			expect(scidTarget).toBe(join(paths.dataDir, 'tradester_ES_1d.scid'));
 			await expect(readFile(scidTarget, 'utf8')).resolves.toBe('SCID payload');
 			await expect(stat(`${scidTarget}.partial`)).rejects.toMatchObject({ code: 'ENOENT' });
 

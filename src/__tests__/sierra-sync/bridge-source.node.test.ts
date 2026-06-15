@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { TIMEFRAME_KEYS } from '../../contracts/timeframes.ts';
 import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
+import { getOutputFiles } from '../../shared/output-files.ts';
 
 const DEFAULT_METADATA = {
 	timeframes: {
@@ -32,9 +33,7 @@ async function withBridgeSource(
 		await writeFile(metadataFile, JSON.stringify(metadata));
 		const source = await createBridgeSource({
 			files: {
-				metadata: metadataFile,
-				orderbook: join(root, 'tradester_ES_orderbook.depth'),
-				scid: join(root, 'tradester_ES.scid'),
+				...getOutputFiles('/ES:XCME', root),
 				timeframes: Object.fromEntries(TIMEFRAME_KEYS.map((key) => [key, file])) as Record<
 					(typeof TIMEFRAME_KEYS)[number],
 					string
@@ -51,19 +50,18 @@ async function withBridgeSource(
 }
 
 describe('createBridgeSource', () => {
-	it('uses the target SCID data file for every chart', async () => {
-		const expectedDataFile = `${SIERRA_DATA_DIR.replaceAll('\\', '\\\\')}\\\\tradester_ES.scid`;
+	it('uses the timeframe SCID data file for each chart', async () => {
+		const dataDirectory = SIERRA_DATA_DIR.replaceAll('\\', '\\\\');
 
 		await withBridgeSource((source) => {
-			expect(source).toContain('SCString TargetDataFile()');
-			expect(source).toContain(`return "${expectedDataFile}";`);
-			expect(source).not.toContain('return "tradester_ES_1d"');
-			expect(source).not.toContain('return "tradester_ES_5m"');
-			expect(source).not.toContain('return "tradester_ES_15s"');
-			expect(source).not.toContain('return "tradester_ES_10r"');
-			expect(source).not.toContain('return "tradester_ES_100t"');
-			expect(source).not.toContain('return "tradester_ES_500v"');
-			expect(source).not.toContain('return "tradester_ES_1s";');
+			expect(source).toContain('SCString TargetDataFile(int index)');
+			expect(source).toContain(`case 0: return "${dataDirectory}\\\\tradester_ES_1d.scid";`);
+			expect(source).toContain(`case 1: return "${dataDirectory}\\\\tradester_ES_1s.scid";`);
+			expect(source).toContain(`case 2: return "${dataDirectory}\\\\tradester_ES_5m.scid";`);
+			expect(source).toContain(`case 3: return "${dataDirectory}\\\\tradester_ES_10r.scid";`);
+			expect(source).toContain(`case 4: return "${dataDirectory}\\\\tradester_ES_15s.scid";`);
+			expect(source).toContain(`case 5: return "${dataDirectory}\\\\tradester_ES_100t.scid";`);
+			expect(source).toContain(`case 6: return "${dataDirectory}\\\\tradester_ES_500v.scid";`);
 		});
 	});
 

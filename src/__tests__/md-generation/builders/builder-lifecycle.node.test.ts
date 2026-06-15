@@ -8,13 +8,12 @@ import { ScidBuilder } from '../../../md-generation/builders/scid-builder.ts';
 import { TickBuilder } from '../../../md-generation/builders/tick-builder.ts';
 import { TimeBuilder } from '../../../md-generation/builders/time-builder.ts';
 import { VolumeBuilder } from '../../../md-generation/builders/volume-builder.ts';
-import { normalizeInputs } from '../../../md-generation/inputs.ts';
 import type {
 	GeneratedTick,
 	GenerationSession
 } from '../../../md-generation/pipeline/generation-pipeline.ts';
 import type {
-	PriceLevelStreamingCandleSink,
+	PriceLevelRetainedCandleSink,
 	StandardRetainedCandleSink,
 	StandardStreamingCandleSink
 } from '../../../md-generation/candle-output.ts';
@@ -188,33 +187,32 @@ describe('builder lifecycle wrappers', () => {
 		expect(volumeBuilder.summary().timeframes['500v']?.count).toBe(2);
 	});
 
-	it('retains price-level streaming output only for trailing sessions', async () => {
-		const sink = createPriceLevelSink();
-		const builder = new PriceLevelBuilder(sink, 1, 2);
+	it('pushes generated price-level output into the retained sink', async () => {
+		const sink = createPriceLevelRetainedSink();
+		const builder = new PriceLevelBuilder(sink, retainedWindow({ startSessionIndex: 1 }));
 		const skipped = session({ generated: true, index: 0 });
 		const retained = session({ generated: true, index: 1 });
 
 		builder.startSession(skipped);
 		expect(builder.isTickActive()).toBe(false);
 		builder.step(tick({ session: skipped, time: 0 }));
-		await builder.finalizeSession(skipped);
+		builder.finalizeSession(skipped);
 
 		builder.startSession(retained);
 		expect(builder.isTickActive()).toBe(true);
 		builder.step(tick({ price: 6000, session: retained, side: 'ask', time: 0, volume: 2 }));
 		builder.pushTickValues(1000, 6001, 3, 'bid');
-		await builder.finalizeSession(retained);
+		builder.finalizeSession(retained);
 		await builder.finish();
-		await builder.close();
 
-		expect(sink.writes.map((rows) => rows.length)).toEqual([0, 1, 1]);
-		expect(sink.writes[1][0]).toMatchObject({
+		expect(sink.pushes.map((rows) => rows.length)).toEqual([0, 2, 0]);
+		expect(sink.pushes[1][0]).toMatchObject({
 			askVolume: 2,
 			bidVolume: 0,
 			close: 6000,
 			volume: 2
 		});
-		expect(sink.writes[2][0]).toMatchObject({
+		expect(sink.pushes[1][1]).toMatchObject({
 			askVolume: 0,
 			bidVolume: 3,
 			close: 6001,
@@ -223,36 +221,29 @@ describe('builder lifecycle wrappers', () => {
 		expect(builder.summary().timeframes['1s']?.count).toBe(2);
 	});
 
-	it('omits 5-minute candle side volume when price-level rows are retained', () => {
+	it('flushes time retained builders at session boundaries and keeps side volume', () => {
 		const sink = createRetainedSink();
-		const inputs = normalizeInputs({
-			sessionCount: 2,
-			symbol: 'ES',
-			ticksPerSession: 1
-		});
-		const builder = new TimeBuilder('5m', sink, inputs, 20_000, 1, true);
+		const builder = new TimeBuilder('5m', sink, retainedWindow());
 		const firstSession = session({ generated: true, index: 0 });
-		const retainedPriceLevelSession = session({ generated: true, index: 1 });
+		const secondSession = session({ generated: true, index: 1 });
 
 		builder.startSession(firstSession);
 		builder.step(tick({ session: firstSession, side: 'ask', time: 0, volume: 2 }));
 		builder.pushTickValues(300_000, 6001, 3, 'bid');
 		builder.finalizeSession(firstSession);
 
-		builder.startSession(retainedPriceLevelSession);
-		builder.step(
-			tick({ session: retainedPriceLevelSession, side: 'ask', time: 600_000, volume: 5 })
-		);
+		builder.startSession(secondSession);
+		builder.step(tick({ session: secondSession, side: 'ask', time: 600_000, volume: 5 }));
 		builder.pushTickValues(900_000, 6002, 7, 'bid');
-		builder.finalizeSession(retainedPriceLevelSession);
+		builder.finalizeSession(secondSession);
 
 		expect(sink.pushes[0][0]).toMatchObject({
 			askVolume: 2,
 			bidVolume: 0,
 			volume: 2
 		});
-		expect(sink.pushes[1][1]).toMatchObject({
-			askVolume: 0,
+		expect(sink.pushes[1][0]).toMatchObject({
+			askVolume: 5,
 			bidVolume: 0,
 			volume: 5
 		});
@@ -277,22 +268,20 @@ function createStreamingSink(): StandardStreamingCandleSink & { writes: MdCandle
 	};
 }
 
-function createPriceLevelSink(): PriceLevelStreamingCandleSink & { writes: MdCandle[][] } {
-	const writes: MdCandle[][] = [];
+function createPriceLevelRetainedSink(): PriceLevelRetainedCandleSink & { pushes: MdCandle[][] } {
+	const pushes: MdCandle[][] = [];
 
 	return {
-		close: vi.fn<() => Promise<void>>(),
-		open: vi.fn<() => Promise<void>>(),
-		rowCount: 0,
+		finish: vi.fn<() => Promise<void>>(),
+		push: vi.fn<(candles: MdCandle[]) => void>((candles) => {
+			pushes.push([...candles]);
+		}),
+		pushes,
 		summary: () => ({
-			count: writes.reduce((count, rows) => count + rows.length, 0),
+			count: pushes.reduce((count, rows) => count + rows.length, 0),
 			range: { endTime: 1000, startTime: 0 }
-		}),
-		write: vi.fn<(candles: MdCandle[]) => Promise<void>>(async (candles) => {
-			writes.push([...candles]);
-		}),
-		writes
-	} as PriceLevelStreamingCandleSink & { writes: MdCandle[][] };
+		})
+	} as PriceLevelRetainedCandleSink & { pushes: MdCandle[][] };
 }
 
 function createRetainedSink(): StandardRetainedCandleSink & { pushes: MdCandle[][] } {
@@ -308,6 +297,16 @@ function createRetainedSink(): StandardRetainedCandleSink & { pushes: MdCandle[]
 			count: pushes.reduce((count, rows) => count + rows.length, 0),
 			range: { endTime: 1000, startTime: 0 }
 		})
+	};
+}
+
+function retainedWindow(
+	overrides: Partial<{ initialBarPosition: number; startSessionIndex: number }> = {}
+) {
+	return {
+		initialBarPosition: 0,
+		startSessionIndex: 0,
+		...overrides
 	};
 }
 

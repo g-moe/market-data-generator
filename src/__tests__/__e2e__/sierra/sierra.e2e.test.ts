@@ -21,7 +21,7 @@ describe('sierra-sync e2e', () => {
 
 		// Spec step 1-5 are executed by runSierraSync:
 		// 1) close Sierra
-		// 2) copy bridge/scid/chartbook into Sierra
+		// 2) copy bridge/scids/chartbook into Sierra
 		// 3) open Sierra
 		// 4) wait for data-out-temp export files
 		// 5) validate and write data-out with calc__ columns

@@ -74,7 +74,8 @@ class RetainedCandleSink<TCandle extends MdCandle> implements RetainedSink<TCand
 
 	constructor(
 		private readonly filePath: string,
-		private readonly key: RetainedCandleTimeframeKey,
+		private readonly key: TimeframeKey,
+		private readonly createWriter: (filePath: string) => CandleRowWriter<TCandle>,
 		capacity: number
 	) {
 		this.ring = new RingBuffer<TCandle>(capacity);
@@ -86,7 +87,7 @@ class RetainedCandleSink<TCandle extends MdCandle> implements RetainedSink<TCand
 
 	async finish() {
 		this.rows = [...this.ring.iterate()];
-		const writer = createStandardCandleWriter(this.filePath);
+		const writer = this.createWriter(this.filePath);
 
 		await writer.open();
 
@@ -127,13 +128,6 @@ export function createStreamingCandleSink(
 	);
 }
 
-export function createStreamingPriceLevelSink(filePath: string): PriceLevelStreamingCandleSink {
-	return new StreamingCandleSink<TimeframeCandle<PriceLevelTimeframeKey>>(
-		'1s',
-		new CandleRowWriter(filePath, PRICE_LEVEL_CANDLE_ROW_HEADER, toStoredPriceLevelCandleRow)
-	);
-}
-
 export function createRetainedCandleSink(
 	filePath: string,
 	key: RetainedCandleTimeframeKey,
@@ -142,6 +136,19 @@ export function createRetainedCandleSink(
 	return new RetainedCandleSink<TimeframeCandle<RetainedCandleTimeframeKey>>(
 		filePath,
 		key,
+		createStandardCandleWriter,
+		capacity
+	);
+}
+
+export function createRetainedPriceLevelSink(
+	filePath: string,
+	capacity: number
+): PriceLevelRetainedCandleSink {
+	return new RetainedCandleSink<TimeframeCandle<PriceLevelTimeframeKey>>(
+		filePath,
+		'1s',
+		createPriceLevelCandleWriter,
 		capacity
 	);
 }
@@ -150,11 +157,15 @@ function createStandardCandleWriter(filePath: string) {
 	return new CandleRowWriter(filePath, CANDLE_ROW_HEADER, toStoredCandleRow);
 }
 
+function createPriceLevelCandleWriter(filePath: string) {
+	return new CandleRowWriter(filePath, PRICE_LEVEL_CANDLE_ROW_HEADER, toStoredPriceLevelCandleRow);
+}
+
 export type StandardStreamingCandleSink = StreamingSink<
 	TimeframeCandle<StandardCandleTimeframeKey>
 >;
-export type PriceLevelStreamingCandleSink = StreamingSink<TimeframeCandle<PriceLevelTimeframeKey>>;
 export type StandardRetainedCandleSink = RetainedSink<TimeframeCandle<RetainedCandleTimeframeKey>>;
+export type PriceLevelRetainedCandleSink = RetainedSink<TimeframeCandle<PriceLevelTimeframeKey>>;
 
 function getCandleRange(
 	key: TimeframeKey,
