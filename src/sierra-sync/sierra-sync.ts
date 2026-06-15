@@ -1,4 +1,4 @@
-import type { Symbol } from '../contracts/index.ts';
+import type { Symbol, TimeframeKey } from '../contracts/index.ts';
 import { findSymbol, getSymbolConfig } from '../contracts/symbols.ts';
 import { createBridgeSource } from './bridge-source.ts';
 import { getTimeframes } from '../contracts/index.ts';
@@ -12,7 +12,7 @@ export type SierraSyncResult = {
 	chartbookInstalledPath: string;
 	inputDir: string;
 	outputDir: string;
-	scidInstalledPath: string;
+	scidInstalledPaths: Record<TimeframeKey, string>;
 	tempDir: string;
 };
 
@@ -40,9 +40,8 @@ export async function runSierraSync(
 	const symbol = requireSymbol(rawSymbol);
 	const config = getSymbolConfig(symbol);
 	const paths = sierraSyncPaths(symbol);
-	const exportFiles = getTimeframes(symbol).map((timeframe) =>
-		sierraExportFileName(symbol, timeframe)
-	);
+	const timeframes = getTimeframes(symbol);
+	const exportFiles = timeframes.map((timeframe) => sierraExportFileName(symbol, timeframe));
 
 	log(`Checking data-in/${config.symbolId}`);
 	await assertInputDataExists(symbol, paths.files);
@@ -67,11 +66,20 @@ export async function runSierraSync(
 	log('Building Sierra bridge');
 	await ops.buildBridge();
 
-	log('Installing SCID and chartbook');
-	log(`Copying generated tick SCID into Data directory as ${paths.chartbookScidFileName}`);
-	const scidInstalledPath = await ops.copyScid(paths.files.scid, paths.chartbookScidFileName);
+	log('Installing SCIDs and chartbook');
+	const scidInstalledPaths = {} as Record<TimeframeKey, string>;
 
-	log(`SCID copy verified at ${scidInstalledPath}`);
+	for (const timeframe of timeframes) {
+		const fileName = paths.scidFileNames[timeframe.key];
+
+		log(`Copying generated ${timeframe.suffix} SCID into Data directory as ${fileName}`);
+		scidInstalledPaths[timeframe.key] = await ops.copyScid(
+			paths.files.scids[timeframe.key],
+			fileName
+		);
+	}
+
+	log('SCID copies verified');
 	log('Copying chartbook into Sierra Data directory');
 	const chartbookInstalledPath = await ops.copyChartbook(paths.chartbookSourcePath);
 
@@ -103,7 +111,7 @@ export async function runSierraSync(
 		chartbookInstalledPath,
 		inputDir: paths.inputDir,
 		outputDir: paths.outputDir,
-		scidInstalledPath,
+		scidInstalledPaths,
 		tempDir: paths.tempDir
 	};
 }

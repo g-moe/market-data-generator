@@ -135,7 +135,7 @@ export type StoredMdCandleVolumeByPrice = {
 export type OutputFiles = {
 	metadata: string;
 	orderbook: string;
-	scid: string;
+	scids: Record<TimeframeKey, string>;
 	timeframes: Record<TimeframeKey, string>;
 };
 

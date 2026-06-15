@@ -106,13 +106,12 @@ export async function mergeValidatedSierraExport({
 		timeframe
 	});
 	const hasCalcColumns = calcHeaders.length > 0;
-	const sierraByTime = groupSierraRowsByTime(sierra);
+	const sierraStartIndex = findSierraStartIndex(sierra, comparableRows[0], inputFile);
 	const outputRows = [buildMergedHeader(generated.header, calcHeaders)];
 
 	for (let i = 0; i < comparableRows.length; i++) {
 		const generatedRow = comparableRows[i];
-		const sierraRows = sierraByTime.get(generatedRow.time);
-		const sierraRow = sierraRows?.shift();
+		const sierraRow = sierra[sierraStartIndex + i];
 		if (sierraRow === undefined)
 			throw new Error(
 				`Missing Sierra bar in ${inputFile} at row ${i.toString()}: generated timestamp ${generatedRow.time.toString()}`
@@ -227,20 +226,17 @@ function isGeneratedPaddingRow(row: GeneratedRow) {
 	);
 }
 
-function groupSierraRowsByTime(rows: SierraExportRow[]) {
-	const byTime = new Map<number, SierraExportRow[]>();
+function findSierraStartIndex(
+	rows: SierraExportRow[],
+	generatedStart: GeneratedRow,
+	filePath: string
+) {
+	const index = rows.findIndex((row) => row.time === generatedStart.time);
+	if (index !== -1) return index;
 
-	for (const row of rows) {
-		const current = byTime.get(row.time);
-		if (current !== undefined) {
-			current.push(row);
-			continue;
-		}
-
-		byTime.set(row.time, [row]);
-	}
-
-	return byTime;
+	throw new Error(
+		`Missing Sierra bar in ${filePath} at row 0: generated timestamp ${generatedStart.time.toString()}`
+	);
 }
 
 function parseCalcColumns(headers: string[]): CalcColumn[] {

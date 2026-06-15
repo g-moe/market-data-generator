@@ -8,13 +8,11 @@ import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SESSION_COUNT, DEFAULT_TICKS_PER_SESSION } from '../../../contracts/defaults.ts';
-import { TIMEFRAME_DEFINITIONS } from '../../../contracts/timeframes.ts';
+import { TIMEFRAME_KEYS } from '../../../contracts/timeframes.ts';
 import {
 	DEPTH_RETAINED_SESSION_COUNT,
-	PRICE_LEVEL_RETAINED_SESSION_COUNT,
 	RETAINED_CANDLE_BAR_COUNT
 } from '../../../md-generation/pipeline/pipeline-constants.ts';
-import { countGeneratedTickTimeBuckets } from '../../../md-generation/tick-engine/session-ticks.ts';
 import { runCli } from '../../../shared/cli/run-cli.ts';
 import { DEPTH_HEADER_SIZE, DEPTH_RECORD_SIZE } from '../../../shared/file-ops/depth.ts';
 import { SCID_HEADER_SIZE, SCID_RECORD_SIZE } from '../../../shared/file-ops/scid.ts';
@@ -31,17 +29,12 @@ describe('md-generation e2e', () => {
 		await rm(outputDir, { force: true, recursive: true });
 
 		const first = await runCli(symbol, createSilentPorts());
-		const priceLevelRowsPerSession = countGeneratedTickTimeBuckets(
-			DEFAULT_TICKS_PER_SESSION,
-			TIMEFRAME_DEFINITIONS['1s'].milliseconds
-		);
-		const retainedPriceLevelRows = PRICE_LEVEL_RETAINED_SESSION_COUNT * priceLevelRowsPerSession;
 
 		expect(first.inputs.sessionCount).toBe(DEFAULT_SESSION_COUNT);
 		expect(first.inputs.ticksPerSession).toBe(DEFAULT_TICKS_PER_SESSION);
 		expect(first.counts.ticks).toBe(GENERATED_TICK_SESSIONS * DEFAULT_TICKS_PER_SESSION);
 		expect(first.counts.timeframes['1d']).toBe(DEFAULT_SESSION_COUNT);
-		expect(first.counts.timeframes['1s']).toBe(retainedPriceLevelRows);
+		expect(first.counts.timeframes['1s']).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(first.counts.timeframes['15s']).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(first.counts.timeframes['5m']).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(first.counts.timeframes['10r']).toBe(RETAINED_CANDLE_BAR_COUNT);
@@ -52,7 +45,7 @@ describe('md-generation e2e', () => {
 			DEPTH_RETAINED_SESSION_COUNT * DEFAULT_TICKS_PER_SESSION
 		);
 		expect(await countRows(first.files.timeframes['1d'])).toBe(DEFAULT_SESSION_COUNT);
-		expect(await countRows(first.files.timeframes['1s'])).toBe(retainedPriceLevelRows);
+		expect(await countRows(first.files.timeframes['1s'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(await countRows(first.files.timeframes['15s'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(await countRows(first.files.timeframes['5m'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(await countRows(first.files.timeframes['10r'])).toBe(RETAINED_CANDLE_BAR_COUNT);
@@ -60,9 +53,12 @@ describe('md-generation e2e', () => {
 		expect(await countRows(first.files.timeframes['500v'])).toBe(RETAINED_CANDLE_BAR_COUNT);
 		expect(await countDepthRecords(first.files.orderbook)).toBe(first.counts.orderbook);
 		const firstOrderbookHashes = await hashDepthFiles(first.files.orderbook);
-		expect((await stat(first.files.scid)).size).toBe(
+		expect((await stat(first.files.scids['1d'])).size).toBe(
 			SCID_HEADER_SIZE + first.counts.ticks * SCID_RECORD_SIZE
 		);
+		for (const key of TIMEFRAME_KEYS.filter((timeframe) => timeframe !== '1d')) {
+			expect((await stat(first.files.scids[key])).size).toBeGreaterThan(SCID_HEADER_SIZE);
+		}
 
 		const firstHashes = await hashGeneratedFiles(first.inputs.outputDir);
 		const second = await runCli(symbol, createSilentPorts());

@@ -20,9 +20,10 @@ import { TimeBuilder } from '../builders/time-builder.ts';
 import { VolumeBuilder } from '../builders/volume-builder.ts';
 import {
 	createRetainedCandleSink,
-	createStreamingCandleSink,
-	createStreamingPriceLevelSink
+	createRetainedPriceLevelSink,
+	createStreamingCandleSink
 } from '../candle-output.ts';
+import { createRetainedTimeWindow } from '../shared/retained-time-window.ts';
 import type {
 	BuilderSummary,
 	GeneratedTick,
@@ -30,11 +31,7 @@ import type {
 	GenerationSession,
 	PipelineSummary
 } from './generation-pipeline.ts';
-import {
-	DEPTH_RETAINED_SESSION_COUNT,
-	PRICE_LEVEL_RETAINED_SESSION_COUNT,
-	RETAINED_CANDLE_BAR_COUNT
-} from './pipeline-constants.ts';
+import { DEPTH_RETAINED_SESSION_COUNT, RETAINED_CANDLE_BAR_COUNT } from './pipeline-constants.ts';
 
 export function createMarketDataPipeline(config: {
 	files: OutputFiles;
@@ -46,7 +43,7 @@ export function createMarketDataPipeline(config: {
 	const createRetainedSink = (key: RetainedCandleTimeframeKey) =>
 		createRetainedCandleSink(config.files.timeframes[key], key, RETAINED_CANDLE_BAR_COUNT);
 
-	const scid = new ScidBuilder(new ScidTickWriter(config.files.scid));
+	const scid = new ScidBuilder(new ScidTickWriter(config.files.scids['1d']));
 	const depth = new DepthBuilder(
 		new MarketDepthSessionWriter(config.files.orderbook, config.symbolConfig.symbolId),
 		config.symbolConfig.tickSize,
@@ -55,24 +52,18 @@ export function createMarketDataPipeline(config: {
 	);
 	const daily = new DailyBuilder(createStreamingCandleSink(config.files.timeframes['1d'], '1d'));
 	const priceLevel = new PriceLevelBuilder(
-		createStreamingPriceLevelSink(config.files.timeframes['1s']),
-		PRICE_LEVEL_RETAINED_SESSION_COUNT,
-		config.inputs.sessionCount
+		createRetainedPriceLevelSink(config.files.timeframes['1s'], RETAINED_CANDLE_BAR_COUNT),
+		createRetainedTimeWindow('1s', config.inputs, RETAINED_CANDLE_BAR_COUNT)
 	);
 	const seconds15 = new TimeBuilder(
 		'15s',
 		createRetainedSink('15s'),
-		config.inputs,
-		RETAINED_CANDLE_BAR_COUNT,
-		PRICE_LEVEL_RETAINED_SESSION_COUNT
+		createRetainedTimeWindow('15s', config.inputs, RETAINED_CANDLE_BAR_COUNT)
 	);
 	const minutes5 = new TimeBuilder(
 		'5m',
 		createRetainedSink('5m'),
-		config.inputs,
-		RETAINED_CANDLE_BAR_COUNT,
-		PRICE_LEVEL_RETAINED_SESSION_COUNT,
-		true
+		createRetainedTimeWindow('5m', config.inputs, RETAINED_CANDLE_BAR_COUNT)
 	);
 	const range10 = new RangeBuilder(
 		config.inputs,

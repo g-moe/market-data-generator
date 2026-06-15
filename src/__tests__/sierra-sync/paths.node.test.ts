@@ -18,7 +18,6 @@ describe('sierraSyncPaths', () => {
 
 		expect(paths).toMatchObject({
 			bridgeSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_BRIDGE_FILE_NAME),
-			chartbookScidFileName: 'tradester_ES.scid',
 			chartbookSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
 			inputDir: resolve(DATA_IN_ROOT, 'ES'),
 			outputDir: resolve(DATA_OUT_ROOT, 'ES'),
@@ -33,6 +32,24 @@ describe('sierraSyncPaths', () => {
 			'1s': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s.csv'),
 			'500v': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.csv'),
 			'5m': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.csv')
+		});
+		expect(paths.files.scids).toEqual({
+			'100t': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_100t.scid'),
+			'10r': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_10r.scid'),
+			'15s': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_15s.scid'),
+			'1d': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1d.scid'),
+			'1s': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_1s.scid'),
+			'500v': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_500v.scid'),
+			'5m': resolve(DATA_IN_ROOT, 'ES', 'tradester_ES_5m.scid')
+		});
+		expect(paths.scidFileNames).toEqual({
+			'100t': 'tradester_ES_100t.scid',
+			'10r': 'tradester_ES_10r.scid',
+			'15s': 'tradester_ES_15s.scid',
+			'1d': 'tradester_ES_1d.scid',
+			'1s': 'tradester_ES_1s.scid',
+			'500v': 'tradester_ES_500v.scid',
+			'5m': 'tradester_ES_5m.scid'
 		});
 	});
 

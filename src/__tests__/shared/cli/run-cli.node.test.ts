@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe('runCli', () => {
-	it('collects inputs, shows progress, and writes the SCID file', async () => {
+	it('collects inputs, shows progress, and writes SCID files', async () => {
 		const events: string[] = [];
 		const outputDir = await mkdtemp(join(tmpdir(), 'market-data-cli-'));
 
@@ -31,11 +31,11 @@ describe('runCli', () => {
 			});
 
 			expect(result.counts.ticks).toBe(5);
-			expect(result.files.scid).toBe(join(outputDir, 'ES', 'tradester_ES.scid'));
+			expect(result.files.scids['1d']).toBe(join(outputDir, 'ES', 'tradester_ES_1d.scid'));
 			expect(events).toContain('start:Generating market data for /ES:XCME');
 			expect(events).toContain('log:Completed sessions 1-1 of 1');
 			expect(events).toContain(`stop:Wrote 5 ticks to ${join(outputDir, 'ES')}`);
-			expect((await readFile(result.files.scid)).toString('ascii', 0, 4)).toBe('SCID');
+			expect((await readFile(result.files.scids['1d'])).toString('ascii', 0, 4)).toBe('SCID');
 		} finally {
 			await rm(outputDir, { force: true, recursive: true });
 		}

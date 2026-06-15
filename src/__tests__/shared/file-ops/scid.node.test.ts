@@ -10,7 +10,7 @@ import { parseIsoToUnixMs } from '../../../shared/datetime/index.ts';
 describe('scid output', () => {
 	it('writes raw ticks as Sierra Chart intraday records', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-'));
-		const filePath = join(directory, 'tradester_ES.scid');
+		const filePath = join(directory, 'tradester_ES_1d.scid');
 
 		try {
 			const writer = new ScidTickWriter(filePath);
@@ -49,7 +49,7 @@ describe('scid output', () => {
 
 	it('flushes without writes when no ticks are pending', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-flush-'));
-		const filePath = join(directory, 'tradester_ES.scid');
+		const filePath = join(directory, 'tradester_ES_1d.scid');
 
 		try {
 			const writer = new ScidTickWriter(filePath);
@@ -67,7 +67,7 @@ describe('scid output', () => {
 
 	it('errors when writing after close', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-closed-'));
-		const filePath = join(directory, 'tradester_ES.scid');
+		const filePath = join(directory, 'tradester_ES_1d.scid');
 
 		try {
 			const writer = new ScidTickWriter(filePath);
@@ -83,7 +83,7 @@ describe('scid output', () => {
 
 	it('skips syncing when the buffered tick count is zero', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-empty-sync-'));
-		const filePath = join(directory, 'tradester_ES.scid');
+		const filePath = join(directory, 'tradester_ES_1d.scid');
 
 		try {
 			const writer = new ScidTickWriter(filePath, 1);
@@ -106,7 +106,7 @@ describe('scid output', () => {
 
 	it('creates parent directories and overwrites existing files', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'market-data-scid-'));
-		const filePath = join(directory, 'nested', 'tradester_ES.scid');
+		const filePath = join(directory, 'nested', 'tradester_ES_1d.scid');
 
 		try {
 			await mkdir(join(directory, 'nested'), { recursive: true });

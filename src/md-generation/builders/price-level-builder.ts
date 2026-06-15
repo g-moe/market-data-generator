@@ -19,12 +19,17 @@ import type {
 	GenerationSession,
 	GenerationBuilder
 } from '../pipeline/generation-pipeline.ts';
-import type { PriceLevelStreamingCandleSink } from '../candle-output.ts';
+import type { PriceLevelRetainedCandleSink } from '../candle-output.ts';
+import {
+	isSessionInRetainedTimeWindow,
+	type RetainedTimeWindow
+} from '../shared/retained-time-window.ts';
 
 export class PriceLevelAggregator {
 	private current: { candle: MutableCandle; prices: Map<number, number> } | undefined;
-	private pos = 0;
 	private readonly bucketMs = TIMEFRAME_DEFINITIONS['1s'].milliseconds;
+
+	constructor(private pos = 0) {}
 
 	pushTick(tick: MarketTick, emitted: MdCandleVolumeByPrice[]) {
 		this.pushTickValues(tick.time, tick.price, tick.volume, emitted, tick.side);
@@ -94,23 +99,22 @@ function finalizeMutablePriceLevelCandle(
 
 export class PriceLevelBuilder implements GenerationBuilder {
 	private active = false;
-	private readonly aggregator = new PriceLevelAggregator();
+	private readonly aggregator: PriceLevelAggregator;
 	private readonly emitted: MdCandleVolumeByPrice[] = [];
 	private readonly key: PriceLevelTimeframeKey = '1s';
 
 	constructor(
-		private readonly sink: PriceLevelStreamingCandleSink,
-		private readonly retainSessions: number,
-		private readonly sessionCount: number
-	) {}
-
-	async open() {
-		await this.sink.open();
+		private readonly sink: PriceLevelRetainedCandleSink,
+		private readonly retainedWindow: RetainedTimeWindow
+	) {
+		this.aggregator = new PriceLevelAggregator(retainedWindow.initialBarPosition);
 	}
+
+	open() {}
 
 	startSession(session: GenerationSession) {
 		this.emitted.length = 0;
-		this.active = session.generated && this.isRetained(session);
+		this.active = isSessionInRetainedTimeWindow(session, this.retainedWindow);
 	}
 
 	isTickActive() {
@@ -138,19 +142,20 @@ export class PriceLevelBuilder implements GenerationBuilder {
 		this.aggregator.pushTickValues(time, price, volume, this.emitted, side);
 	}
 
-	async finalizeSession(_session: GenerationSession) {
-		void _session;
+	finalizeSession(session: GenerationSession) {
+		if (session.generated) {
+			this.emitted.push(...this.aggregator.finish());
+		}
 
-		await this.sink.write(this.emitted);
+		this.sink.push(this.emitted);
 	}
 
 	async finish() {
-		await this.sink.write(this.aggregator.finish());
+		this.sink.push(this.aggregator.finish());
+		await this.sink.finish();
 	}
 
-	async close() {
-		await this.sink.close();
-	}
+	close() {}
 
 	summary() {
 		return {
@@ -158,9 +163,5 @@ export class PriceLevelBuilder implements GenerationBuilder {
 				[this.key]: this.sink.summary()
 			}
 		};
-	}
-
-	private isRetained(session: GenerationSession) {
-		return session.index >= Math.max(0, this.sessionCount - this.retainSessions);
 	}
 }

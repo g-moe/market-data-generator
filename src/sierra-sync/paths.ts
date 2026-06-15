@@ -1,7 +1,7 @@
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 
-import type { OutputFiles, ResolvedTimeframe, Symbol } from '../contracts/index.ts';
-import { getSymbolConfig } from '../contracts/index.ts';
+import type { OutputFiles, ResolvedTimeframe, Symbol, TimeframeKey } from '../contracts/index.ts';
+import { createTimeframeRecord, getSymbolConfig } from '../contracts/index.ts';
 import {
 	DATA_IN_ROOT,
 	DATA_OUT_ROOT,
@@ -18,21 +18,22 @@ export type SierraSyncPaths = {
 	tempDir: string;
 	bridgeSourcePath: string;
 	chartbookSourcePath: string;
-	chartbookScidFileName: string;
 	files: OutputFiles;
+	scidFileNames: Record<TimeframeKey, string>;
 };
 
 export function sierraSyncPaths(symbol: Symbol): SierraSyncPaths {
 	const config = getSymbolConfig(symbol);
 	const inputDir = resolve(DATA_IN_ROOT, config.symbolId);
+	const files = getOutputFiles(symbol, inputDir);
 
 	return {
 		bridgeSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_BRIDGE_FILE_NAME),
-		chartbookScidFileName: chartbookScidFileName(symbol),
 		chartbookSourcePath: resolve(SIERRA_SOURCE_ROOT, SIERRA_CHARTBOOK_FILE_NAME),
-		files: getOutputFiles(symbol, inputDir),
+		files,
 		inputDir,
 		outputDir: resolve(DATA_OUT_ROOT, config.symbolId),
+		scidFileNames: createTimeframeRecord((key) => basename(files.scids[key])),
 		tempDir: resolve(DATA_OUT_TEMP_ROOT, config.symbolId)
 	};
 }
@@ -41,10 +42,4 @@ export function sierraExportFileName(symbol: Symbol, timeframe: Pick<ResolvedTim
 	const config = getSymbolConfig(symbol);
 
 	return `tradester_${config.symbolId}_${timeframe.suffix}_GraphData.txt`;
-}
-
-function chartbookScidFileName(symbol: Symbol) {
-	const config = getSymbolConfig(symbol);
-
-	return `tradester_${config.symbolId}.scid`;
 }

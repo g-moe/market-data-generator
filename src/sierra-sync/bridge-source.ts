@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 
 import type {
 	OutputFiles,
@@ -27,7 +28,8 @@ export async function createBridgeSource({
 	const metadata = await readOutputMetadata(files.metadata);
 	const ranges = getTimeframes(symbol).map((timeframe) => ({
 		...timeframe,
-		...readMetadataTimeRange(metadata, timeframe.key)
+		...readMetadataTimeRange(metadata, timeframe.key),
+		dataFile: sierraDataFilePath(basename(files.scids[timeframe.key]))
 	}));
 
 	return replaceTemplateTokens(template, {
@@ -49,7 +51,9 @@ export async function createBridgeSource({
 		__TRADESTER_START_DATE_CASES__: ranges
 			.map((range, index) => `        case ${index}: return ${scDateCall(range.startTime)};`)
 			.join('\n'),
-		__TRADESTER_TARGET_DATA_FILE__: escapeCppString(sierraDataFilePath(config.symbolId)),
+		__TRADESTER_TARGET_DATA_FILE_CASES__: ranges
+			.map((range, index) => `        case ${index}: return "${escapeCppString(range.dataFile)}";`)
+			.join('\n'),
 		__TRADESTER_TICK_SIZE__: config.tickSize.toString()
 	});
 }
@@ -112,8 +116,8 @@ function nextDateTime(time: number) {
 	return time + 24 * 60 * 60 * 1000;
 }
 
-function sierraDataFilePath(symbolId: string) {
-	return `${SIERRA_DATA_DIR}\\tradester_${symbolId}.scid`;
+function sierraDataFilePath(fileName: string) {
+	return `${SIERRA_DATA_DIR}\\${fileName}`;
 }
 
 function scDateCall(time: number) {

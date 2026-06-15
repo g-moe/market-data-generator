@@ -12,7 +12,11 @@ export function getOutputFiles(symbol: Symbol, outputDir: string): OutputFiles {
 	return {
 		metadata: join(outputDir, `${prefix}.json`),
 		orderbook: join(outputDir, 'depth'),
-		scid: join(outputDir, `${prefix}.scid`),
+		scids: createTimeframeRecord((key) => {
+			const timeframe = getTimeframe(symbol, key);
+
+			return join(outputDir, `${prefix}_${timeframe.suffix}.scid`);
+		}),
 		timeframes: createTimeframeRecord((key) => {
 			const timeframe = getTimeframe(symbol, key);
 

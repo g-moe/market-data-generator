@@ -76,8 +76,16 @@ describe('runSierraSync', () => {
 				chartbookInstalledPath: 'installed-chartbook',
 				inputDir,
 				outputDir,
-				scidInstalledPath: 'installed-scid',
 				tempDir
+			});
+			expect(result.scidInstalledPaths).toEqual({
+				'100t': 'installed-scid',
+				'10r': 'installed-scid',
+				'15s': 'installed-scid',
+				'1d': 'installed-scid',
+				'1s': 'installed-scid',
+				'500v': 'installed-scid',
+				'5m': 'installed-scid'
 			});
 			expect(calls).toEqual([
 				`cleanTempDir:${tempDir}`,
@@ -85,7 +93,13 @@ describe('runSierraSync', () => {
 				'closeSierra',
 				'installBridgeSource:bridge-source',
 				'buildBridge',
-				'copyScid:tradester_ES.scid',
+				'copyScid:tradester_ES_1d.scid',
+				'copyScid:tradester_ES_1s.scid',
+				'copyScid:tradester_ES_5m.scid',
+				'copyScid:tradester_ES_10r.scid',
+				'copyScid:tradester_ES_15s.scid',
+				'copyScid:tradester_ES_100t.scid',
+				'copyScid:tradester_ES_500v.scid',
 				'copyChartbook',
 				'openSierra',
 				'waitForFiles:tradester_ES_1d_GraphData.txt|tradester_ES_1s_GraphData.txt|tradester_ES_5m_GraphData.txt|tradester_ES_10r_GraphData.txt|tradester_ES_15s_GraphData.txt|tradester_ES_100t_GraphData.txt|tradester_ES_500v_GraphData.txt'

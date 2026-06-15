@@ -48,7 +48,9 @@ export class ScidBuilder implements GenerationBuilder {
 		void _session;
 	}
 
-	finish() {}
+	async finish() {
+		await this.writer.close();
+	}
 
 	async close() {
 		await this.writer.close();

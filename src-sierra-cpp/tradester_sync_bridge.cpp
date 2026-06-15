@@ -5,11 +5,19 @@ SCDLLName("Tradester Sync Bridge")
 
 namespace {
 
-SCString TargetDataFile() { return "__TRADESTER_TARGET_DATA_FILE__"; }
 float TargetTickSize() { return __TRADESTER_TICK_SIZE__; }
 int TargetSessionStartTime() { return SCDateTime(22, 0, 0, 0).GetTime(); }
 int TargetSessionEndTime() { return SCDateTime(21, 0, 0, 0).GetTime(); }
 SCString ExportDirectory() { SCString path; path = "__TRADESTER_EXPORT_DIR__"; return path; }
+
+SCString TargetDataFile(int index)
+{
+    switch (index)
+    {
+__TRADESTER_TARGET_DATA_FILE_CASES__
+        default: return "";
+    }
+}
 
 int ChartExportIndex(SCStudyInterfaceRef sc)
 {
@@ -80,7 +88,7 @@ __TRADESTER_END_DATE_CASES__
 
 bool ChartNeedsSetup(SCStudyInterfaceRef sc, int exportIndex)
 {
-    return std::strcmp(sc.DataFile.GetChars(), TargetDataFile().GetChars()) != 0 ||
+    return std::strcmp(sc.DataFile.GetChars(), TargetDataFile(exportIndex).GetChars()) != 0 ||
         sc.TickSize != TargetTickSize() ||
         sc.LoadChartDataByDateRange == 0 ||
         sc.ChartDataStartDate != StartDate(exportIndex) ||
@@ -121,7 +129,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
     {
         exportComplete = 0;
         lastLoggedArraySize = -2;
-        sc.DataFile = TargetDataFile();
+        sc.DataFile = TargetDataFile(exportIndex);
         sc.TickSize = TargetTickSize();
         sc.LoadChartDataByDateRange = 1;
         sc.ChartDataStartDate = StartDate(exportIndex);
