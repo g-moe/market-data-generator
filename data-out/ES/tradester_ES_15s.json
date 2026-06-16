@@ -1,0 +1,302 @@
+{
+	"indicators": [
+		{
+			"id": "smaHigh",
+			"inputs": {
+				"tf": "same",
+				"source": "high",
+				"length": "10"
+			},
+			"name": "sma",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "ema50",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "50"
+			},
+			"name": "ema",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "vwma500",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "500"
+			},
+			"name": "vwma",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "wma26",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "26"
+			},
+			"name": "wma",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "rma34",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "34"
+			},
+			"name": "rma",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "hma200",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "200"
+			},
+			"name": "hma",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "crossabove",
+			"inputs": {
+				"tf": "same",
+				"series1": "close",
+				"series2": "sma20"
+			},
+			"name": "crossaboveSma20",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "crossbelow",
+			"inputs": {
+				"tf": "same",
+				"series1": "close",
+				"series2": "sma20"
+			},
+			"name": "crossbelowSma20",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "stdev",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "14"
+			},
+			"name": "stdDev14",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "change",
+			"inputs": {
+				"tf": "same",
+				"source": "open",
+				"length": "5"
+			},
+			"name": "change",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "truerange",
+			"inputs": {
+				"tf": "same"
+			},
+			"name": "truerange",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "linreg",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "28"
+			},
+			"name": "linearRegression",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "pivothigh",
+			"inputs": {
+				"tf": "same",
+				"source": "high",
+				"length": "3"
+			},
+			"name": "pivothigh3",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "pivotlow",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "3"
+			},
+			"name": "pivotlow3",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "rateofcahnge",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "50"
+			},
+			"name": "rateofchangeClose50",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "sum",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "500"
+			},
+			"name": "sum500",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "cumulative",
+			"inputs": {
+				"tf": "same",
+				"source": "high"
+			},
+			"name": "cumulativeHigh",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "atr",
+			"inputs": {
+				"tf": "same",
+				"length": "14"
+			},
+			"name": "atr",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "bb",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "20",
+				"mult": "2.0"
+			},
+			"name": "bb",
+			"outputKeys": [
+				"top",
+				"mid",
+				"bot"
+			]
+		},
+		{
+			"id": "macd",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"fastLength": "12",
+				"slowLength": "26",
+				"signalLength": "9"
+			},
+			"name": "macd",
+			"outputKeys": [
+				"macd",
+				"signal",
+				"hist"
+			]
+		},
+		{
+			"id": "rsi",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "14"
+			},
+			"name": "rsi",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "stochastic",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"high": "high",
+				"low": "low",
+				"length": "10"
+			},
+			"name": "stochastic",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "vwap",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"resetCondition": "daily"
+			},
+			"name": "vwapDaily",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "vwapBands",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"resetCondition": "daily",
+				"bandMult1": "2.0"
+			},
+			"name": "vwapDailyBands",
+			"outputKeys": [
+				"vwap",
+				"top1",
+				"bot1"
+			]
+		}
+	],
+	"symbol": "ES",
+	"timeframe": "15s"
+}
