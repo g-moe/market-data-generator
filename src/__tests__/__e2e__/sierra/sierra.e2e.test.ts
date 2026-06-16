@@ -50,6 +50,10 @@ describe('sierra-sync e2e', () => {
 			expect(outputFiles).toContain(expectedJsonFileName);
 
 			const csvHeader = (await readFile(outputFile, 'utf8')).split(/\r?\n/u)[0] ?? '';
+			const calcHeaders = csvHeader
+				.split(',')
+				.map((header) => header.trim())
+				.filter((header) => header.startsWith('calc__'));
 			const calculationsJson = JSON.parse(await readFile(jsonFile, 'utf8')) as {
 				indicators: unknown[];
 				symbol: string;
@@ -59,9 +63,8 @@ describe('sierra-sync e2e', () => {
 			expect(calculationsJson.symbol).toBe(symbolId);
 			expect(calculationsJson.timeframe).toBe(timeframe.suffix);
 			expect(Array.isArray(calculationsJson.indicators)).toBe(true);
-			expect(calculationsJson.indicators.length).toBeGreaterThanOrEqual(
-				csvHeader.includes('calc__') ? 1 : 0
-			);
+			expect(calcHeaders.length).toBeGreaterThan(0);
+			expect(calculationsJson.indicators.length).toBeGreaterThan(0);
 		}
 	});
 });

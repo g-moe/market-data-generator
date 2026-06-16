@@ -84,6 +84,13 @@ describe('createBridgeSource', () => {
 		});
 	});
 
+	it('exports after other chart studies have calculated', async () => {
+		await withBridgeSource((source) => {
+			expect(source).toContain('sc.CalculationPrecedence = VERY_LOW_PREC_LEVEL;');
+			expect(source).toContain('sc.WriteBarAndStudyDataToFileEx(writeParams);');
+		});
+	});
+
 	it('uses generated metadata as the Sierra bridge date range source', async () => {
 		await withBridgeSource(
 			(source) => {

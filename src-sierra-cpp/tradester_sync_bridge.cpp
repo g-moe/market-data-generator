@@ -107,6 +107,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
         sc.GraphName = "Tradester Sync Bridge";
         sc.StudyDescription = "Exports Sierra chart bars once for Tradester validation.";
         sc.GraphRegion = 0;
+        sc.CalculationPrecedence = VERY_LOW_PREC_LEVEL;
         sc.AutoLoop = 0;
         return;
     }
