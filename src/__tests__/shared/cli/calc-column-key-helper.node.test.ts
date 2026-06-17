@@ -19,11 +19,11 @@ describe('runCalcColumnKeyHelper', () => {
 		]);
 
 		await expect(runCalcColumnKeyHelper(ports)).resolves.toEqual([
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
 		]);
 		expect(ports.prompts).toEqual([
-			'name',
+			'label',
 			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id',
 			'param key',
@@ -39,7 +39,7 @@ describe('runCalcColumnKeyHelper', () => {
 		expect(ports.writes).toContain('Out keys: leave blank when done.');
 		expect(ports.writes).toContain('Calc column keys:');
 		expect(ports.writes).toContain(
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
 		);
 	});
 
@@ -47,10 +47,10 @@ describe('runCalcColumnKeyHelper', () => {
 		const ports = createPorts(['100sma', 'samd', 'same', 'sma', '', 'value', '']);
 
 		await expect(runCalcColumnKeyHelper(ports)).resolves.toEqual([
-			'calc__name:100sma__tf:same__id:sma__out:value'
+			'calc__label:100sma__tf:same__id:sma__out:value'
 		]);
 		expect(ports.prompts.slice(0, 4)).toEqual([
-			'name',
+			'label',
 			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id'
@@ -64,10 +64,10 @@ describe('runCalcColumnKeyHelper', () => {
 		const ports = createPorts(['', '100sma', 'same', 'sma', '', '', 'value', '']);
 
 		await expect(runCalcColumnKeyHelper(ports)).resolves.toEqual([
-			'calc__name:100sma__tf:same__id:sma__out:value'
+			'calc__label:100sma__tf:same__id:sma__out:value'
 		]);
-		expect(ports.prompts.slice(0, 2)).toEqual(['name', 'name']);
-		expect(ports.validationFailures).toContain('name: name is required');
+		expect(ports.prompts.slice(0, 2)).toEqual(['label', 'label']);
+		expect(ports.validationFailures).toContain('label: label is required');
 		expect(ports.validationFailures).toContain('out: At least one out key is required');
 	});
 
@@ -89,8 +89,8 @@ describe('runCalcColumnKeyHelper', () => {
 		]);
 
 		await expect(runCalcColumnKeyHelper(ports)).resolves.toEqual([
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:hist'
 		]);
 		expect(ports.validationFailures).toContain('param key: duplicate parameter key "src"');
 		expect(ports.validationFailures).toContain('out: duplicate out key "value"');

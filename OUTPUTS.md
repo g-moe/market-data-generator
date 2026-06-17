@@ -2,17 +2,17 @@
 
 ```typescript
 // Format:
-// calc__name:<humanName>__tf:<timeframe>__id:<indicator>__<param>:<value>__out:<output>
+// calc__label:<humanLabel>__tf:<timeframe>__id:<indicator>__<param>:<value>__out:<output>
 
 // 1. prefix = "calc__"
 // - columns that we care about the value
 // - anything without this prefix is ignored
 
-// 2. name = name:<humanName>
-// - human/internal reference name
+// 2. label = label:<humanLabel>
+// - human/internal reference label
 // - used for readability, not machine meaning
 // - should contain only letters and numbers
-// - example: name:20smaOn5minChart
+// - example: label:20smaOn5minChart
 
 // 3. timeframe = tf:<interval><intervalType> (this is not the driver series, that is implicit for whatever the .csv file is. This tf is either the same as the file OR an alternate context)
 // - tf:same = implicit from csv file
@@ -40,38 +40,38 @@
 
 // 6. indicator output
 // - the column value is the calculated indicator output for that full definition
-// - example: calc__name:100sma__tf:same__id:sma__src:close__len:100__out:value
+// - example: calc__label:100sma__tf:same__id:sma__src:close__len:100__out:value
 
 // Examples:
 // 100 sma
-// calc__name:100sma__tf:same__id:sma__src:close__len:100__out:value
+// calc__label:100sma__tf:same__id:sma__src:close__len:100__out:value
 
 // 20d sma
-// calc__name:20daySMA__tf:1d__id:sma__src:close__len:20__out:value
+// calc__label:20daySMA__tf:1d__id:sma__src:close__len:20__out:value
 
 // MACD
-// calc__name:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value
-// calc__name:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist
-// calc__name:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:signal
+// calc__label:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value
+// calc__label:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist
+// calc__label:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:signal
 ```
 
-# Parsing Column Name
+# Parsing Column Label
 
 ```typescript
-type ParsedCalcColumnName = {
+type ParsedCalcColumnLabel = {
 	id: string;
-	name: string;
+	label: string;
 	params: Record<string, string>;
 	out: string;
 	tf: string;
 };
 
-export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
-	const parts = columnName.replace('calc__', '').split('__');
+export function parseCalcColumnLabel(columnLabel: string): ParsedCalcColumnLabel {
+	const parts = columnLabel.replace('calc__', '').split('__');
 
-	const parsed: ParsedCalcColumnName = {
+	const parsed: ParsedCalcColumnLabel = {
 		id: '',
-		name: '',
+		label: '',
 		params: {},
 		out: '',
 		tf: ''
@@ -81,7 +81,7 @@ export function parseCalcColumnName(columnName: string): ParsedCalcColumnName {
 		const [key, value] = part.split(':');
 
 		if (key === 'id') parsed.id = value;
-		else if (key === 'name') parsed.name = value;
+		else if (key === 'label') parsed.label = value;
 		else if (key === 'out') parsed.out = value;
 		else if (key === 'tf') parsed.tf = value;
 		else parsed.params[key] = value;
@@ -105,7 +105,7 @@ type CalculationsJSON = {
     symbol: <symbol>
     timeframe: <timeframe>,
     indicators: {
-        name: <humanName>,
+        label: <humanLabel>,
         id: <indicator>
         inputs: {
             key: value

@@ -6,7 +6,7 @@ import {
 	buildCalcColumnKeys,
 	buildCalculationIndicators,
 	calcIndicatorIdSchema,
-	calcNameSchema,
+	calcLabelSchema,
 	calcOutputSchema,
 	calcParamKeySchema,
 	calcParamValueSchema,
@@ -27,14 +27,14 @@ type CalcColumnPromptConfig = {
 };
 
 export async function runCalcColumnKeyHelper(ports = createNodeCalcColumnKeyHelperPorts()) {
-	const name = await askWithSchema(ports, 'name', calcNameSchema);
+	const label = await askWithSchema(ports, 'label', calcLabelSchema);
 	const timeframe = await askWithSchema(ports, CALC_TIMEFRAME_PROMPT, calcTimeframeSchema);
 	const indicatorId = await askWithSchema(ports, 'id', calcIndicatorIdSchema);
 	const params = await askParams(ports);
 	const outputs = await askOutputs(ports);
 	const input: CalcColumnKeyInput = {
 		indicatorId,
-		name,
+		label,
 		outputs,
 		params,
 		timeframe

@@ -4,7 +4,7 @@ import {
 	buildCalcColumnKeys,
 	buildCalculationsJson,
 	isCalcColumnKey,
-	parseCalcColumnName,
+	parseCalcColumnLabel,
 	validateCalcColumnKey
 } from '../../shared/calc-column-key.ts';
 
@@ -13,7 +13,7 @@ describe('buildCalcColumnKeys', () => {
 		expect(
 			buildCalcColumnKeys({
 				indicatorId: 'macd',
-				name: 'macd5m',
+				label: 'macd5m',
 				outputs: ['value', 'hist', 'signal'],
 				params: [
 					{ key: 'src', value: 'close' },
@@ -24,9 +24,9 @@ describe('buildCalcColumnKeys', () => {
 				timeframe: 'same'
 			})
 		).toEqual([
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value',
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist',
-			'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:signal'
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value',
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist',
+			'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:signal'
 		]);
 	});
 
@@ -34,7 +34,7 @@ describe('buildCalcColumnKeys', () => {
 		expect(() =>
 			buildCalcColumnKeys({
 				indicatorId: 'sma',
-				name: 'sma100',
+				label: 'sma100',
 				outputs: [],
 				params: [{ key: 'src', value: 'close' }],
 				timeframe: '5m'
@@ -46,7 +46,7 @@ describe('buildCalcColumnKeys', () => {
 		expect(() =>
 			buildCalcColumnKeys({
 				indicatorId: 'sma',
-				name: 'sma100',
+				label: 'sma100',
 				outputs: ['value'],
 				params: [
 					{ key: 'src', value: 'close' },
@@ -61,7 +61,7 @@ describe('buildCalcColumnKeys', () => {
 		expect(() =>
 			buildCalcColumnKeys({
 				indicatorId: 'macd',
-				name: 'macd5m',
+				label: 'macd5m',
 				outputs: ['value', 'value'],
 				params: [{ key: 'src', value: 'close' }],
 				timeframe: 'same'
@@ -70,15 +70,15 @@ describe('buildCalcColumnKeys', () => {
 	});
 });
 
-describe('parseCalcColumnName', () => {
-	it('parses one calc column name into one object', () => {
+describe('parseCalcColumnLabel', () => {
+	it('parses one calc column label into one object', () => {
 		expect(
-			parseCalcColumnName(
-				'calc__name:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist'
+			parseCalcColumnLabel(
+				'calc__label:macd__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist'
 			)
 		).toEqual({
 			id: 'macd',
-			name: 'macd',
+			label: 'macd',
 			out: 'hist',
 			params: {
 				fast: '12',
@@ -91,9 +91,9 @@ describe('parseCalcColumnName', () => {
 	});
 
 	it('returns an empty params object when the column has no params', () => {
-		expect(parseCalcColumnName('calc__name:100sma__tf:same__id:sma__out:value')).toEqual({
+		expect(parseCalcColumnLabel('calc__label:100sma__tf:same__id:sma__out:value')).toEqual({
 			id: 'sma',
-			name: '100sma',
+			label: '100sma',
 			out: 'value',
 			params: {},
 			tf: 'same'
@@ -106,9 +106,9 @@ describe('buildCalculationsJson', () => {
 		expect(
 			buildCalculationsJson({
 				calcColumnKeys: [
-					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value',
-					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist',
-					'calc__name:100sma__tf:1d__id:sma__src:close__len:100__out:value'
+					'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:value',
+					'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__slow:26__signal:9__out:hist',
+					'calc__label:100sma__tf:1d__id:sma__src:close__len:100__out:value'
 				],
 				symbol: 'ES',
 				timeframe: '5m'
@@ -124,7 +124,7 @@ describe('buildCalculationsJson', () => {
 						src: 'close',
 						tf: 'same'
 					},
-					name: 'macd5m',
+					label: 'macd5m',
 					outputKeys: ['value', 'hist']
 				},
 				{
@@ -134,7 +134,7 @@ describe('buildCalculationsJson', () => {
 						src: 'close',
 						tf: '1d'
 					},
-					name: '100sma',
+					label: '100sma',
 					outputKeys: ['value']
 				}
 			],
@@ -147,8 +147,8 @@ describe('buildCalculationsJson', () => {
 		expect(() =>
 			buildCalculationsJson({
 				calcColumnKeys: [
-					'calc__name:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
-					'calc__name:macd5m__tf:same__id:macd__fast:12__src:close__out:value'
+					'calc__label:macd5m__tf:same__id:macd__src:close__fast:12__out:value',
+					'calc__label:macd5m__tf:same__id:macd__fast:12__src:close__out:value'
 				],
 				symbol: 'ES',
 				timeframe: '5m'
@@ -160,30 +160,38 @@ describe('buildCalculationsJson', () => {
 describe('validateCalcColumnKey', () => {
 	it('accepts calc keys with same-file timeframe context', () => {
 		expect(() =>
-			validateCalcColumnKey('calc__name:100sma__tf:same__id:sma__src:close__len:100__out:value')
+			validateCalcColumnKey('calc__label:100sma__tf:same__id:sma__src:close__len:100__out:value')
 		).not.toThrow();
 	});
 
 	it('rejects repeated singleton keys', () => {
 		expect(() =>
-			validateCalcColumnKey('calc__name:100sma__tf:same__id:sma__src:close__out:value__name:Other')
+			validateCalcColumnKey(
+				'calc__label:100sma__tf:same__id:sma__src:close__out:value__label:Other'
+			)
+		).toThrow('duplicate label segment');
+	});
+
+	it('rejects legacy name segments as params', () => {
+		expect(() =>
+			validateCalcColumnKey('calc__label:100sma__tf:same__id:sma__src:close__out:value__name:Other')
 		).toThrow('duplicate name segment');
 	});
 
 	it('rejects duplicate input keys', () => {
 		expect(() =>
-			validateCalcColumnKey('calc__name:100sma__tf:same__id:sma__src:close__src:open__out:value')
+			validateCalcColumnKey('calc__label:100sma__tf:same__id:sma__src:close__src:open__out:value')
 		).toThrow('duplicate parameter key "src"');
 	});
 
 	it('rejects invalid timeframe values', () => {
 		expect(() =>
-			validateCalcColumnKey('calc__name:100sma__tf:samd__id:sma__src:close__out:value')
+			validateCalcColumnKey('calc__label:100sma__tf:samd__id:sma__src:close__out:value')
 		).toThrow('tf must be same or a canonical timeframe');
 	});
 
 	it('detects calc-prefixed keys only', () => {
-		expect(isCalcColumnKey('calc__name:100sma__tf:same__id:sma__out:value')).toBe(true);
+		expect(isCalcColumnKey('calc__label:100sma__tf:same__id:sma__out:value')).toBe(true);
 		expect(isCalcColumnKey('tradester_signal')).toBe(false);
 	});
 });

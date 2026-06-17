@@ -33,10 +33,10 @@ describe('runCalcColumnKeyHelper node ports', () => {
 			await import('../../../shared/cli/calc-column-key-helper.ts');
 
 		await expect(runCalcColumnKeyHelper()).resolves.toEqual([
-			'calc__name:sma5m__tf:same__id:sma__out:value'
+			'calc__label:sma5m__tf:same__id:sma__out:value'
 		]);
 		expect(prompts).toEqual([
-			'name',
+			'label',
 			'tf (same, 1d, 1s, 5m, 10r, 15s, 100t, 500v)',
 			'id',
 			'param key',
@@ -44,6 +44,6 @@ describe('runCalcColumnKeyHelper node ports', () => {
 			'out'
 		]);
 		expect(writes).toContain('Calc column keys:');
-		expect(writes).toContain('calc__name:sma5m__tf:same__id:sma__out:value');
+		expect(writes).toContain('calc__label:sma5m__tf:same__id:sma__out:value');
 	});
 });

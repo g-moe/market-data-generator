@@ -7,7 +7,7 @@
 				"source": "high",
 				"length": "10"
 			},
-			"name": "sma",
+			"label": "sma",
 			"outputKeys": [
 				"value"
 			]
@@ -19,7 +19,7 @@
 				"source": "close",
 				"length": "50"
 			},
-			"name": "ema",
+			"label": "ema",
 			"outputKeys": [
 				"value"
 			]
@@ -31,7 +31,7 @@
 				"source": "close",
 				"length": "500"
 			},
-			"name": "vwma",
+			"label": "vwma",
 			"outputKeys": [
 				"value"
 			]
@@ -43,7 +43,7 @@
 				"source": "close",
 				"length": "26"
 			},
-			"name": "wma",
+			"label": "wma",
 			"outputKeys": [
 				"value"
 			]
@@ -55,7 +55,7 @@
 				"source": "close",
 				"length": "34"
 			},
-			"name": "rma",
+			"label": "rma",
 			"outputKeys": [
 				"value"
 			]
@@ -67,7 +67,7 @@
 				"source": "close",
 				"length": "200"
 			},
-			"name": "hma",
+			"label": "hma",
 			"outputKeys": [
 				"value"
 			]
@@ -79,7 +79,7 @@
 				"series1": "close",
 				"series2": "sma20"
 			},
-			"name": "crossaboveSma20",
+			"label": "crossaboveSma20",
 			"outputKeys": [
 				"value"
 			]
@@ -91,7 +91,7 @@
 				"series1": "close",
 				"series2": "sma20"
 			},
-			"name": "crossbelowSma20",
+			"label": "crossbelowSma20",
 			"outputKeys": [
 				"value"
 			]
@@ -103,7 +103,7 @@
 				"source": "close",
 				"length": "14"
 			},
-			"name": "stdDev14",
+			"label": "stdDev14",
 			"outputKeys": [
 				"value"
 			]
@@ -115,7 +115,7 @@
 				"source": "open",
 				"length": "5"
 			},
-			"name": "change",
+			"label": "change",
 			"outputKeys": [
 				"value"
 			]
@@ -125,7 +125,7 @@
 			"inputs": {
 				"tf": "same"
 			},
-			"name": "truerange",
+			"label": "truerange",
 			"outputKeys": [
 				"value"
 			]
@@ -137,7 +137,7 @@
 				"source": "close",
 				"length": "28"
 			},
-			"name": "linearRegression",
+			"label": "linearRegression",
 			"outputKeys": [
 				"value"
 			]
@@ -149,7 +149,7 @@
 				"source": "high",
 				"length": "3"
 			},
-			"name": "pivothigh3",
+			"label": "pivothigh3",
 			"outputKeys": [
 				"value"
 			]
@@ -161,7 +161,7 @@
 				"source": "low",
 				"length": "3"
 			},
-			"name": "pivotlow3",
+			"label": "pivotlow3",
 			"outputKeys": [
 				"value"
 			]
@@ -173,7 +173,7 @@
 				"source": "close",
 				"length": "50"
 			},
-			"name": "rateofchangeClose50",
+			"label": "rateofchangeClose50",
 			"outputKeys": [
 				"value"
 			]
@@ -185,7 +185,7 @@
 				"source": "close",
 				"length": "500"
 			},
-			"name": "sum500",
+			"label": "sum500",
 			"outputKeys": [
 				"value"
 			]
@@ -196,7 +196,7 @@
 				"tf": "same",
 				"source": "high"
 			},
-			"name": "cumulativeHigh",
+			"label": "cumulativeHigh",
 			"outputKeys": [
 				"value"
 			]
@@ -207,7 +207,7 @@
 				"tf": "same",
 				"length": "14"
 			},
-			"name": "atr",
+			"label": "atr",
 			"outputKeys": [
 				"value"
 			]
@@ -220,7 +220,7 @@
 				"length": "20",
 				"mult": "2.0"
 			},
-			"name": "bb",
+			"label": "bb",
 			"outputKeys": [
 				"top",
 				"mid",
@@ -236,7 +236,7 @@
 				"slowLength": "26",
 				"signalLength": "9"
 			},
-			"name": "macd",
+			"label": "macd",
 			"outputKeys": [
 				"macd",
 				"signal",
@@ -250,7 +250,7 @@
 				"source": "close",
 				"length": "14"
 			},
-			"name": "rsi",
+			"label": "rsi",
 			"outputKeys": [
 				"value"
 			]
@@ -264,7 +264,7 @@
 				"low": "low",
 				"length": "10"
 			},
-			"name": "stochastic",
+			"label": "stochastic",
 			"outputKeys": [
 				"value"
 			]
@@ -276,7 +276,7 @@
 				"source": "close",
 				"resetCondition": "daily"
 			},
-			"name": "vwapDaily",
+			"label": "vwapDaily",
 			"outputKeys": [
 				"value"
 			]
@@ -289,7 +289,7 @@
 				"resetCondition": "daily",
 				"bandMult1": "2.0"
 			},
-			"name": "vwapDailyBands",
+			"label": "vwapDailyBands",
 			"outputKeys": [
 				"vwap",
 				"top1",

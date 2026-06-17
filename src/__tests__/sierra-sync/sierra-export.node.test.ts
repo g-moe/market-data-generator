@@ -21,9 +21,9 @@ const SAMPLE_SIERRA_TIME = '2026-06-05, 21:00:04.000000';
 const SAMPLE_SIERRA_ROW = `${SAMPLE_SIERRA_TIME}, 1, 2, 0.5, 1.5, 10, 1, 1, 1, 1, 4, 6`;
 const SAMPLE_SYMBOL = 'ES';
 const SAMPLE_TIMEFRAME = '5m';
-const SAMPLE_CALC_SIGNAL = 'calc__name:Signal__tf:5m__id:sma__src:close__len:20__out:value';
-const SAMPLE_CALC_SIGNAL_HIST = 'calc__name:Signal__tf:5m__id:sma__src:close__len:20__out:hist';
-const SAMPLE_CALC_RSI = 'calc__name:Rsi__tf:same__id:rsi__src:close__len:14__out:value';
+const SAMPLE_CALC_SIGNAL = 'calc__label:Signal__tf:5m__id:sma__src:close__len:20__out:value';
+const SAMPLE_CALC_SIGNAL_HIST = 'calc__label:Signal__tf:5m__id:sma__src:close__len:20__out:hist';
+const SAMPLE_CALC_RSI = 'calc__label:Rsi__tf:same__id:rsi__src:close__len:14__out:value';
 
 function withGeneratedFile(line: string): string {
 	return `${CANDLE_ROW_HEADER}
@@ -113,7 +113,7 @@ describe('parseSierraExportRows', () => {
 
 	it('validates calc headers even when header-only export data is provided', () => {
 		expect(() =>
-			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__name:Signal__tf:5m__id:sma`)
+			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__label:Signal__tf:5m__id:sma`)
 		).toThrow('Invalid calc column');
 	});
 
@@ -133,7 +133,7 @@ ${SAMPLE_SIERRA_ROW}`)
 
 	it('throws when calc headers do not match the output format', () => {
 		expect(() =>
-			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__name:Bad-Name__tf:5m__id:sma__out:value
+			parseSierraExportRows(`${SIERRA_EXPORT_HEADER}, calc__label:Bad-Name__tf:5m__id:sma__out:value
 ${SAMPLE_SIERRA_ROW}, 99`)
 		).toThrow('Invalid calc column');
 	});
@@ -141,15 +141,15 @@ ${SAMPLE_SIERRA_ROW}, 99`)
 	it('throws when calc headers repeat singleton keys', () => {
 		const cases = [
 			{
-				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__name:Other',
-				message: 'duplicate name segment'
+				header: 'calc__label:Signal__tf:5m__id:sma__src:close__out:value__label:Other',
+				message: 'duplicate label segment'
 			},
 			{
-				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__id:ema',
+				header: 'calc__label:Signal__tf:5m__id:sma__src:close__out:value__id:ema',
 				message: 'duplicate id segment'
 			},
 			{
-				header: 'calc__name:Signal__tf:5m__id:sma__src:close__out:value__out:hist',
+				header: 'calc__label:Signal__tf:5m__id:sma__src:close__out:value__out:hist',
 				message: 'duplicate out segment'
 			}
 		];
@@ -214,7 +214,7 @@ ${SAMPLE_GENERATED_ROW},99
 							src: 'close',
 							tf: '5m'
 						},
-						name: 'Signal',
+						label: 'Signal',
 						outputKeys: ['value']
 					}
 				],
@@ -385,7 +385,7 @@ ${SAMPLE_GENERATED_ROW},99,45,55
 							src: 'close',
 							tf: '5m'
 						},
-						name: 'Signal',
+						label: 'Signal',
 						outputKeys: ['value', 'hist']
 					},
 					{
@@ -395,7 +395,7 @@ ${SAMPLE_GENERATED_ROW},99,45,55
 							src: 'close',
 							tf: 'same'
 						},
-						name: 'Rsi',
+						label: 'Rsi',
 						outputKeys: ['value']
 					}
 				],
