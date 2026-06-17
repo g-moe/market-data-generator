@@ -6,6 +6,7 @@ SCDLLName("Tradester Sync Bridge")
 namespace {
 
 float TargetTickSize() { return __TRADESTER_TICK_SIZE__; }
+int TargetBaseGraphValueFormat() { return __TRADESTER_BASE_GRAPH_VALUE_FORMAT__; }
 int TargetSessionStartTime() { return SCDateTime(22, 0, 0, 0).GetTime(); }
 int TargetSessionEndTime() { return SCDateTime(21, 0, 0, 0).GetTime(); }
 SCString ExportDirectory() { SCString path; path = "__TRADESTER_EXPORT_DIR__"; return path; }
@@ -36,7 +37,7 @@ void LogChartState(SCStudyInterfaceRef sc, int exportIndex, const char* stage)
 
     SCString message;
     message.Format(
-        "Tradester Sync Bridge %s | chart=%d exportIndex=%d arraySize=%d downloading=%d dataType=%d periodType=%d periodParam1=%d symbol=%s start=%d end=%d",
+        "Tradester Sync Bridge %s | chart=%d exportIndex=%d arraySize=%d downloading=%d dataType=%d periodType=%d periodParam1=%d symbol=%s tickSize=%f baseGraphValueFormat=%d start=%d end=%d",
         stage,
         sc.ChartNumber,
         exportIndex,
@@ -46,6 +47,8 @@ void LogChartState(SCStudyInterfaceRef sc, int exportIndex, const char* stage)
         barPeriod.IntradayChartBarPeriodType,
         barPeriod.IntradayChartBarPeriodParameter1,
         sc.DataFile.GetChars(),
+        static_cast<double>(sc.TickSize),
+        sc.BaseGraphValueFormat,
         sc.ChartDataStartDate,
         sc.ChartDataEndDate
     );
@@ -90,12 +93,33 @@ bool ChartNeedsSetup(SCStudyInterfaceRef sc, int exportIndex)
 {
     return std::strcmp(sc.DataFile.GetChars(), TargetDataFile(exportIndex).GetChars()) != 0 ||
         sc.TickSize != TargetTickSize() ||
+        sc.BaseGraphValueFormat != TargetBaseGraphValueFormat() ||
         sc.LoadChartDataByDateRange == 0 ||
         sc.ChartDataStartDate != StartDate(exportIndex) ||
         sc.ChartDataEndDate != EndDate(exportIndex) ||
         sc.StartTime1 != TargetSessionStartTime() ||
         sc.EndTime1 != TargetSessionEndTime() ||
         sc.UseSecondStartEndTimes != 0;
+}
+
+int ApplyInheritedStudyValueFormats(SCStudyInterfaceRef sc)
+{
+    int changedCount = 0;
+
+    for (int studyIndex = 1;; studyIndex++)
+    {
+        const int studyID = sc.GetStudyIDByIndex(sc.ChartNumber, studyIndex);
+        if (studyID == 0)
+            break;
+
+        if (sc.GetChartStudyValueFormat(sc.ChartNumber, studyID) == VALUEFORMAT_INHERITED)
+            continue;
+
+        if (sc.SetChartStudyValueFormat(sc.ChartNumber, studyID, VALUEFORMAT_INHERITED) != 0)
+            changedCount++;
+    }
+
+    return changedCount;
 }
 
 }
@@ -107,6 +131,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
         sc.GraphName = "Tradester Sync Bridge";
         sc.StudyDescription = "Exports Sierra chart bars once for Tradester validation.";
         sc.GraphRegion = 0;
+        sc.ValueFormat = VALUEFORMAT_INHERITED;
         sc.CalculationPrecedence = VERY_LOW_PREC_LEVEL;
         sc.AutoLoop = 0;
         return;
@@ -132,6 +157,7 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
         lastLoggedArraySize = -2;
         sc.DataFile = TargetDataFile(exportIndex);
         sc.TickSize = TargetTickSize();
+        sc.BaseGraphValueFormat = TargetBaseGraphValueFormat();
         sc.LoadChartDataByDateRange = 1;
         sc.ChartDataStartDate = StartDate(exportIndex);
         sc.ChartDataEndDate = EndDate(exportIndex);
@@ -175,6 +201,17 @@ SCSFExport scsf_TradesterSyncBridge(SCStudyInterfaceRef sc)
     path += "\\";
     path += ExportFileName(exportIndex);
     LogChartState(sc, exportIndex, "write-export");
+    const int changedStudyFormats = ApplyInheritedStudyValueFormats(sc);
+    if (changedStudyFormats > 0)
+    {
+        SCString message;
+        message.Format(
+            "Tradester Sync Bridge applied inherited value format to %d studies on chart %d",
+            changedStudyFormats,
+            sc.ChartNumber
+        );
+        sc.AddMessageToLog(message, 0);
+    }
 
     n_ACSIL::s_WriteBarAndStudyDataToFile writeParams;
     writeParams.StartingIndex = 0;

@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { TIMEFRAME_KEYS } from '../../contracts/timeframes.ts';
-import { createBridgeSource } from '../../sierra-sync/bridge-source.ts';
+import {
+	createBridgeSource,
+	sierraDecimalValueFormatFromTickSize
+} from '../../sierra-sync/bridge-source.ts';
 import { SIERRA_DATA_DIR } from '../../sierra-sync/constants.ts';
 import { getOutputFiles } from '../../shared/output-files.ts';
 
@@ -50,6 +53,13 @@ async function withBridgeSource(
 }
 
 describe('createBridgeSource', () => {
+	it('derives Sierra decimal value formats from symbol tick sizes', () => {
+		expect(sierraDecimalValueFormatFromTickSize(1)).toBe(0);
+		expect(sierraDecimalValueFormatFromTickSize(0.5)).toBe(1);
+		expect(sierraDecimalValueFormatFromTickSize(0.25)).toBe(2);
+		expect(sierraDecimalValueFormatFromTickSize(0.125)).toBe(3);
+	});
+
 	it('uses the timeframe SCID data file for each chart', async () => {
 		const dataDirectory = SIERRA_DATA_DIR.replaceAll('\\', '\\\\');
 
@@ -88,6 +98,20 @@ describe('createBridgeSource', () => {
 		await withBridgeSource((source) => {
 			expect(source).toContain('sc.CalculationPrecedence = VERY_LOW_PREC_LEVEL;');
 			expect(source).toContain('sc.WriteBarAndStudyDataToFileEx(writeParams);');
+		});
+	});
+
+	it('sets base graph and study value formats from symbol tick size before export', async () => {
+		await withBridgeSource((source) => {
+			expect(source).toContain('int TargetBaseGraphValueFormat() { return 2; }');
+			expect(source).toContain('sc.BaseGraphValueFormat != TargetBaseGraphValueFormat()');
+			expect(source).toContain('sc.BaseGraphValueFormat = TargetBaseGraphValueFormat();');
+			expect(source).toContain('ApplyInheritedStudyValueFormats(sc);');
+			expect(source).toContain('sc.GetStudyIDByIndex(sc.ChartNumber, studyIndex);');
+			expect(source).toContain(
+				'sc.SetChartStudyValueFormat(sc.ChartNumber, studyID, VALUEFORMAT_INHERITED)'
+			);
+			expect(source).not.toContain('__TRADESTER_BASE_GRAPH_VALUE_FORMAT__');
 		});
 	});
 

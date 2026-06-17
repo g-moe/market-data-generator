@@ -1,73 +1,73 @@
 {
 	"indicators": [
 		{
-			"id": "smaHigh",
+			"id": "sma",
 			"inputs": {
 				"tf": "same",
 				"source": "high",
 				"length": "10"
 			},
-			"label": "sma",
+			"label": "smaHigh10",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "ema50",
+			"id": "ema",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
 				"length": "50"
 			},
-			"label": "ema",
+			"label": "ema50",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "vwma500",
+			"id": "vwma",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
 				"length": "500"
 			},
-			"label": "vwma",
+			"label": "vwma500",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "wma26",
+			"id": "wma",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
 				"length": "26"
 			},
-			"label": "wma",
+			"label": "wma26",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "rma34",
+			"id": "rma",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
 				"length": "34"
 			},
-			"label": "rma",
+			"label": "rma34",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "hma200",
+			"id": "hma",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
 				"length": "200"
 			},
-			"label": "hma",
+			"label": "hma200",
 			"outputKeys": [
 				"value"
 			]
@@ -115,7 +115,7 @@
 				"source": "open",
 				"length": "5"
 			},
-			"label": "change",
+			"label": "changeOpen5",
 			"outputKeys": [
 				"value"
 			]
@@ -137,7 +137,7 @@
 				"source": "close",
 				"length": "28"
 			},
-			"label": "linearRegression",
+			"label": "linearRegressionClose28",
 			"outputKeys": [
 				"value"
 			]
@@ -167,7 +167,7 @@
 			]
 		},
 		{
-			"id": "rateofcahnge",
+			"id": "rateofchange",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
@@ -207,7 +207,7 @@
 				"tf": "same",
 				"length": "14"
 			},
-			"label": "atr",
+			"label": "atr14",
 			"outputKeys": [
 				"value"
 			]
@@ -220,7 +220,7 @@
 				"length": "20",
 				"mult": "2.0"
 			},
-			"label": "bb",
+			"label": "bb20",
 			"outputKeys": [
 				"top",
 				"mid",
@@ -236,7 +236,7 @@
 				"slowLength": "26",
 				"signalLength": "9"
 			},
-			"label": "macd",
+			"label": "macd12269",
 			"outputKeys": [
 				"macd",
 				"signal",
@@ -250,7 +250,7 @@
 				"source": "close",
 				"length": "14"
 			},
-			"label": "rsi",
+			"label": "rsi14",
 			"outputKeys": [
 				"value"
 			]
@@ -264,7 +264,7 @@
 				"low": "low",
 				"length": "10"
 			},
-			"label": "stochastic",
+			"label": "stochastic10",
 			"outputKeys": [
 				"value"
 			]
@@ -282,7 +282,7 @@
 			]
 		},
 		{
-			"id": "vwapBands",
+			"id": "vwapbands",
 			"inputs": {
 				"tf": "same",
 				"source": "close",

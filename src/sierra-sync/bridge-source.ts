@@ -33,6 +33,9 @@ export async function createBridgeSource({
 	}));
 
 	return replaceTemplateTokens(template, {
+		__TRADESTER_BASE_GRAPH_VALUE_FORMAT__: sierraDecimalValueFormatFromTickSize(
+			config.tickSize
+		).toString(),
 		__TRADESTER_CHART_EXPORT_CASES__: ranges
 			.map((range, index) => timeframeCondition(range, index))
 			.join('\n\n'),
@@ -56,6 +59,19 @@ export async function createBridgeSource({
 			.join('\n'),
 		__TRADESTER_TICK_SIZE__: config.tickSize.toString()
 	});
+}
+
+export function sierraDecimalValueFormatFromTickSize(tickSize: number) {
+	if (!Number.isFinite(tickSize) || tickSize <= 0) {
+		throw new Error(`Tick size must be a positive finite number: ${tickSize.toString()}`);
+	}
+
+	for (let decimals = 0; decimals <= 9; decimals++) {
+		const scaled = tickSize * 10 ** decimals;
+		if (Math.abs(scaled - Math.round(scaled)) < Number.EPSILON * 10) return decimals;
+	}
+
+	throw new Error(`Tick size requires more than 9 decimal places: ${tickSize.toString()}`);
 }
 
 function replaceTemplateTokens(template: string, replacements: Record<string, string>) {
