@@ -1,299 +1,148 @@
 {
 	"indicators": [
 		{
-			"id": "sma",
+			"id": "vpLines",
 			"inputs": {
 				"tf": "same",
-				"source": "high",
-				"length": "10"
+				"reset": "daily",
+				"developing": "true",
+				"valueAreaPct": "70.0"
 			},
-			"label": "smaHigh10",
+			"label": "vpLinesDeveloping",
 			"outputKeys": [
-				"value"
+				"poc",
+				"vah",
+				"val"
 			]
 		},
 		{
-			"id": "ema",
+			"id": "vpLines",
 			"inputs": {
 				"tf": "same",
-				"source": "close",
-				"length": "50"
+				"reset": "daily",
+				"developing": "false",
+				"valueAreaPct": "70.0"
 			},
-			"label": "ema50",
+			"label": "vpLines",
 			"outputKeys": [
-				"value"
+				"poc",
+				"vah",
+				"val"
 			]
 		},
 		{
-			"id": "vwma",
+			"id": "cvd",
 			"inputs": {
 				"tf": "same",
-				"source": "close",
-				"length": "500"
+				"resetDaily": "false"
 			},
-			"label": "vwma500",
+			"label": "cvd",
 			"outputKeys": [
-				"value"
+				"open",
+				"close"
 			]
 		},
 		{
-			"id": "wma",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "26"
-			},
-			"label": "wma26",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "rma",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "34"
-			},
-			"label": "rma34",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "hma",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "200"
-			},
-			"label": "hma200",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "crossabove",
-			"inputs": {
-				"tf": "same",
-				"series1": "close",
-				"series2": "sma20"
-			},
-			"label": "crossaboveSma20",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "crossbelow",
-			"inputs": {
-				"tf": "same",
-				"series1": "close",
-				"series2": "sma20"
-			},
-			"label": "crossbelowSma20",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "stdev",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "14"
-			},
-			"label": "stdDev14",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "change",
-			"inputs": {
-				"tf": "same",
-				"source": "open",
-				"length": "5"
-			},
-			"label": "changeOpen5",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "truerange",
+			"id": "volumeDelta",
 			"inputs": {
 				"tf": "same"
 			},
-			"label": "truerange",
+			"label": "volumeDelta",
+			"outputKeys": [
+				"askVolume",
+				"bidVolume"
+			]
+		},
+		{
+			"id": "timeHighlightRange",
+			"inputs": {
+				"tf": "same",
+				"startTime": "083000",
+				"endTime": "123000",
+				"timezone": "chart"
+			},
+			"label": "timeHighlightRange",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "linreg",
+			"id": "timeHighlight",
+			"inputs": {
+				"tf": "same",
+				"startTime": "120000"
+			},
+			"label": "timeHighlight",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "donchian",
+			"inputs": {
+				"tf": "same",
+				"length": "100"
+			},
+			"label": "donchian",
+			"outputKeys": [
+				"highestHigh",
+				"lowestLow",
+				"mid"
+			]
+		},
+		{
+			"id": "keltner",
 			"inputs": {
 				"tf": "same",
 				"source": "close",
-				"length": "28"
+				"length": "50",
+				"multiplier": "1.6"
 			},
-			"label": "linearRegressionClose28",
+			"label": "keltner",
 			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "pivothigh",
-			"inputs": {
-				"tf": "same",
-				"source": "high",
-				"length": "3"
-			},
-			"label": "pivothigh3",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "pivotlow",
-			"inputs": {
-				"tf": "same",
-				"source": "low",
-				"length": "3"
-			},
-			"label": "pivotlow3",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "rateofchange",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "50"
-			},
-			"label": "rateofchangeClose50",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "sum",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "500"
-			},
-			"label": "sum500",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "cumulative",
-			"inputs": {
-				"tf": "same",
-				"source": "high"
-			},
-			"label": "cumulativeHigh",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "atr",
-			"inputs": {
-				"tf": "same",
-				"length": "14"
-			},
-			"label": "atr14",
-			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "bb",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "20",
-				"mult": "2.0"
-			},
-			"label": "bb20",
-			"outputKeys": [
+				"basis",
 				"top",
-				"mid",
 				"bot"
 			]
 		},
 		{
-			"id": "macd",
+			"id": "supertrend",
 			"inputs": {
 				"tf": "same",
-				"source": "close",
-				"fastLength": "12",
-				"slowLength": "26",
-				"signalLength": "9"
+				"source": "hl2",
+				"length": "3",
+				"multiplier": "2"
 			},
-			"label": "macd12269",
-			"outputKeys": [
-				"macd",
-				"signal",
-				"hist"
-			]
-		},
-		{
-			"id": "rsi",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"length": "14"
-			},
-			"label": "rsi14",
+			"label": "supertrend",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "stochastic",
+			"id": "heikinAshi",
 			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"high": "high",
-				"low": "low",
-				"length": "10"
+				"tf": "same"
 			},
-			"label": "stochastic10",
+			"label": "heikinAshi",
 			"outputKeys": [
-				"value"
+				"open",
+				"high",
+				"low",
+				"close"
 			]
 		},
 		{
-			"id": "vwap",
+			"id": "ohlcForTimePeriod",
 			"inputs": {
 				"tf": "same",
-				"source": "close",
-				"resetCondition": "daily"
+				"resetSeconds": "3600"
 			},
-			"label": "vwapDaily",
+			"label": "ohlcForTimePeriod",
 			"outputKeys": [
-				"value"
-			]
-		},
-		{
-			"id": "vwapbands",
-			"inputs": {
-				"tf": "same",
-				"source": "close",
-				"resetCondition": "daily",
-				"bandMult1": "2.0"
-			},
-			"label": "vwapDailyBands",
-			"outputKeys": [
-				"vwap",
-				"top1",
-				"bot1"
+				"open",
+				"high",
+				"low",
+				"close"
 			]
 		}
 	],
