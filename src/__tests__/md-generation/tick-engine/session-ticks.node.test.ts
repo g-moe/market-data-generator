@@ -64,6 +64,21 @@ describe('generateSessionTicksForStart', () => {
 		}
 	});
 
+	it('does not generate non-positive prices', () => {
+		const inputs = normalizeInputs({
+			seed: 1,
+			sessionCount: 1,
+			symbol: 'ZN',
+			ticksPerSession: 5
+		});
+		const symbol = getSymbolConfig(inputs.symbol);
+		const ticks = collectSessionTicks(inputs, 0, symbol.tickSize);
+
+		expect(ticks.every((tick) => tick.price > 0)).toBe(true);
+		expect(Math.min(...ticks.map((tick) => tick.price))).toBe(symbol.tickSize);
+		expect(getSessionOpenPrice(0, inputs, symbol, 0)).toBe(symbol.tickSize);
+	});
+
 	it('clusters generated ticks into deterministic active seconds', () => {
 		const inputs = normalizeInputs({
 			sessionCount: 1,

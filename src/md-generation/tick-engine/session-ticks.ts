@@ -4,7 +4,6 @@ import type { SymbolConfig } from '../../contracts/symbols.ts';
 import type { GeneratorInputs, MarketTick } from '../../contracts/types.ts';
 import { MILLISECONDS_PER_SECOND } from '../../shared/datetime/index.ts';
 import { MARKET_SESSION_DURATION_MS } from '../shared/market-time-constants.ts';
-import { roundToTick } from '../shared/price.ts';
 import { TARGET_TICKS_PER_ACTIVE_SECOND } from './tick-engine-constants.ts';
 
 const RANDOM_MULTIPLIER = 1_664_525;
@@ -71,7 +70,7 @@ export function generateSessionTickValuesForStart(
 	const sessionEnd = sessionStart + MARKET_SESSION_DURATION_MS - 1;
 
 	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
-	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
+	let priceTicks = priceToTicks(sessionStartPrice, symbolConfig);
 
 	for (let index = 0; index < ticksPerSession; index++) {
 		const activeSecondIndex = Math.floor(index / ticksPerActiveSecond);
@@ -96,7 +95,7 @@ export function generateSessionTickValuesForStart(
 		const moveTicks = Math.round(
 			signedMove * volatility * (randomState * RANDOM_UNIT > 0.7 ? 2 : 1)
 		);
-		priceTicks += moveTicks;
+		priceTicks = moveGeneratedPriceTicks(priceTicks, moveTicks);
 
 		randomState = nextRandomState(randomState);
 		const side = randomState * RANDOM_UNIT > 0.5 ? 'ask' : 'bid';
@@ -174,11 +173,7 @@ export function getSessionOpenPrice(
 	symbolConfig: SymbolConfig,
 	sessionIndex: number
 ) {
-	if (sessionIndex === 0)
-		return normalizeGeneratedPrice(
-			roundToTick(previousClose, symbolConfig.tickSize),
-			symbolConfig.tickDecimals
-		);
+	if (sessionIndex === 0) return priceFromPrice(previousClose, symbolConfig);
 
 	const randomState = nextRandomState(
 		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
@@ -186,10 +181,7 @@ export function getSessionOpenPrice(
 	const gap =
 		(randomState * RANDOM_UNIT * 2 - 1) * symbolConfig.tickSize * getSessionGapTicks(sessionIndex);
 
-	return normalizeGeneratedPrice(
-		roundToTick(previousClose + gap, symbolConfig.tickSize),
-		symbolConfig.tickDecimals
-	);
+	return priceFromPrice(previousClose + gap, symbolConfig);
 }
 
 export function getFirstSessionTickPrice(
@@ -198,7 +190,7 @@ export function getFirstSessionTickPrice(
 	sessionIndex: number,
 	sessionStartPrice: number
 ) {
-	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
+	let priceTicks = priceToTicks(sessionStartPrice, symbolConfig);
 	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 
 	randomState = nextRandomState(randomState);
@@ -206,7 +198,7 @@ export function getFirstSessionTickPrice(
 
 	randomState = nextRandomState(randomState);
 	const moveTicks = Math.round(signedMove * 4 * (randomState * RANDOM_UNIT > 0.7 ? 2 : 1));
-	priceTicks += moveTicks;
+	priceTicks = moveGeneratedPriceTicks(priceTicks, moveTicks);
 
 	return priceFromTicks(priceTicks, symbolConfig);
 }
@@ -221,6 +213,22 @@ function getSessionGapTicks(sessionIndex: number) {
 
 function priceFromTicks(priceTicks: number, symbolConfig: SymbolConfig) {
 	return normalizeGeneratedPrice(priceTicks * symbolConfig.tickSize, symbolConfig.tickDecimals);
+}
+
+function priceFromPrice(price: number, symbolConfig: SymbolConfig) {
+	return priceFromTicks(priceToTicks(price, symbolConfig), symbolConfig);
+}
+
+function priceToTicks(price: number, symbolConfig: SymbolConfig) {
+	return positivePriceTicks(Math.round(price / symbolConfig.tickSize));
+}
+
+function moveGeneratedPriceTicks(priceTicks: number, moveTicks: number) {
+	return positivePriceTicks(priceTicks + moveTicks);
+}
+
+function positivePriceTicks(priceTicks: number) {
+	return Math.max(1, priceTicks);
 }
 
 function normalizeGeneratedPrice(price: number, tickDecimals: number) {
