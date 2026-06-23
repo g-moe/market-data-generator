@@ -1,0 +1,151 @@
+{
+	"indicators": [
+		{
+			"id": "vpLines",
+			"inputs": {
+				"tf": "same",
+				"reset": "daily",
+				"developing": "true",
+				"valueAreaPct": "70.0"
+			},
+			"label": "vpLinesDeveloping",
+			"outputKeys": [
+				"poc",
+				"vah",
+				"val"
+			]
+		},
+		{
+			"id": "vpLines",
+			"inputs": {
+				"tf": "same",
+				"reset": "daily",
+				"developing": "false",
+				"valueAreaPct": "70.0"
+			},
+			"label": "vpLines",
+			"outputKeys": [
+				"poc",
+				"vah",
+				"val"
+			]
+		},
+		{
+			"id": "cvd",
+			"inputs": {
+				"tf": "same",
+				"resetDaily": "false"
+			},
+			"label": "cvd",
+			"outputKeys": [
+				"open",
+				"close"
+			]
+		},
+		{
+			"id": "volumeDelta",
+			"inputs": {
+				"tf": "same"
+			},
+			"label": "volumeDelta",
+			"outputKeys": [
+				"askVolume",
+				"bidVolume"
+			]
+		},
+		{
+			"id": "timeHighlightRange",
+			"inputs": {
+				"tf": "same",
+				"startTime": "083000",
+				"endTime": "123000",
+				"timezone": "chart"
+			},
+			"label": "timeHighlightRange",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "timeHighlight",
+			"inputs": {
+				"tf": "same",
+				"startTime": "120000"
+			},
+			"label": "timeHighlight",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "donchian",
+			"inputs": {
+				"tf": "same",
+				"length": "100"
+			},
+			"label": "donchian",
+			"outputKeys": [
+				"highestHigh",
+				"lowestLow",
+				"mid"
+			]
+		},
+		{
+			"id": "keltner",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "50",
+				"multiplier": "1.6"
+			},
+			"label": "keltner",
+			"outputKeys": [
+				"basis",
+				"top",
+				"bot"
+			]
+		},
+		{
+			"id": "supertrend",
+			"inputs": {
+				"tf": "same",
+				"source": "hl2",
+				"length": "3",
+				"multiplier": "2"
+			},
+			"label": "supertrend",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "heikinAshi",
+			"inputs": {
+				"tf": "same"
+			},
+			"label": "heikinAshi",
+			"outputKeys": [
+				"open",
+				"high",
+				"low",
+				"close"
+			]
+		},
+		{
+			"id": "ohlcForTimePeriod",
+			"inputs": {
+				"tf": "same",
+				"resetSeconds": "3600"
+			},
+			"label": "ohlcForTimePeriod",
+			"outputKeys": [
+				"open",
+				"high",
+				"low",
+				"close"
+			]
+		}
+	],
+	"symbol": "ZN",
+	"timeframe": "15s"
+}
