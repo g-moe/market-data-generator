@@ -28,18 +28,28 @@ import { getFirstSessionTickPrice, getSessionOpenPrice } from '../tick-engine/se
 
 type MutableRangeCandle = MutableCandle & {
 	actualClose: number;
-	pendingOpenRange: { high: number; low: number } | undefined;
+	pendingOpenRange: PendingOpenRange | undefined;
 };
+
+type PendingOpenRange = {
+	close: number;
+	high: number;
+	low: number;
+	openSide: RangeSide | undefined;
+};
+
+type RangeSide = 'high' | 'low';
 
 export class RangeAggregator {
 	private current: MutableRangeCandle | undefined;
-	private previousRange: { high: number; low: number } | undefined;
+	private previousRange: { close: number; high: number; low: number } | undefined;
 	private pos = 0;
 	private sequence: SequenceState = { lastTime: undefined, nextValue: 0 };
 
 	constructor(
 		private readonly rangeTicks: number,
-		private readonly tickSize: number
+		private readonly tickSize: number,
+		private readonly tickDecimals: number
 	) {}
 
 	pushTick(tick: MarketTick, emitted: MdCandle[]) {
@@ -53,33 +63,37 @@ export class RangeAggregator {
 		emitted: MdCandle[],
 		side: TradeSide | undefined = undefined
 	) {
+		const tickPrice = this.normalizeInputPrice(price);
+
 		if (this.current === undefined) {
 			this.current = createMutableRangeCandleForValues(
-				price,
+				tickPrice,
 				time,
 				volume,
 				side,
-				price,
-				this.getPendingOpenRange(price)
+				tickPrice,
+				this.getPendingOpenRange(tickPrice)
 			);
 
 			return;
 		}
 
-		if (this.isWithinCurrentRange(price)) {
-			addRangeTickValues(this.current, price, volume, side);
+		this.resolvePendingOpenForPrice(this.current, tickPrice);
+
+		if (this.isWithinCurrentRange(tickPrice)) {
+			addRangeTickValues(this.current, tickPrice, volume, side);
 
 			return;
 		}
 
-		const completed = this.completeCurrentForNextPrice(price);
+		const completed = this.completeCurrentForNextPrice(tickPrice);
 		this.emitCompleted(completed, emitted);
 		this.current = createMutableRangeCandleForValues(
-			this.getNextOpen(completed, price),
+			this.getNextOpen(completed, tickPrice),
 			time,
 			volume,
 			side,
-			price
+			tickPrice
 		);
 	}
 
@@ -96,21 +110,20 @@ export class RangeAggregator {
 	private isWithinCurrentRange(price: number) {
 		if (this.current === undefined) return true;
 
-		return (
-			Math.max(this.current.high, price) - Math.min(this.current.low, price) <=
-			this.rangeTicks * this.tickSize
-		);
+		const high = Math.max(this.priceToTicks(this.current.high), this.priceToTicks(price));
+		const low = Math.min(this.priceToTicks(this.current.low), this.priceToTicks(price));
+
+		return high - low <= this.rangeTicks;
 	}
 
 	private completeCurrentForNextPrice(nextPrice: number) {
 		const current = this.requireCurrent();
 		this.resolvePendingOpen(current);
-		const range = this.rangeTicks * this.tickSize;
 
-		if (nextPrice > current.high) {
-			current.high = current.low + range;
-		} else if (nextPrice < current.low) {
-			current.low = current.high - range;
+		if (this.isAbove(nextPrice, current.high)) {
+			current.high = this.addTicks(current.low, this.rangeTicks);
+		} else if (this.isBelow(nextPrice, current.low)) {
+			current.low = this.addTicks(current.high, -this.rangeTicks);
 		}
 
 		current.close = this.getAdjustedClose(current, nextPrice);
@@ -121,93 +134,138 @@ export class RangeAggregator {
 	private completeCurrentAtBoundary(nextOpen: number | undefined) {
 		const current = this.requireCurrent();
 		this.resolvePendingOpen(current);
-		const range = this.rangeTicks * this.tickSize;
-		const currentRange = current.high - current.low;
+		const highTicks = this.priceToTicks(current.high);
+		const lowTicks = this.priceToTicks(current.low);
+		const currentRange = highTicks - lowTicks;
 
 		if (nextOpen === undefined) {
 			return current;
 		}
 
+		const nextOpenTicks = this.priceToTicks(this.normalizeInputPrice(nextOpen));
+
 		if (currentRange === 0) {
-			if (nextOpen > current.high && current.low + range < nextOpen) {
-				current.high = current.low + range;
-			} else if (nextOpen < current.low && current.high - range > nextOpen) {
-				current.low = current.high - range;
+			if (nextOpenTicks > highTicks && nextOpenTicks - lowTicks > this.rangeTicks) {
+				current.high = this.addTicks(current.low, this.rangeTicks);
+			} else if (nextOpenTicks < lowTicks && highTicks - nextOpenTicks > this.rangeTicks) {
+				current.low = this.addTicks(current.high, -this.rangeTicks);
 			}
-		} else if (currentRange < range) {
-			if (nextOpen < current.low && current.high - range > nextOpen) {
-				current.low = current.high - range;
-			} else if (nextOpen > current.high && current.low + range < nextOpen) {
-				current.high = current.low + range;
+		} else if (currentRange < this.rangeTicks) {
+			if (nextOpenTicks < lowTicks && highTicks - nextOpenTicks > this.rangeTicks) {
+				current.low = this.addTicks(current.high, -this.rangeTicks);
+			} else if (nextOpenTicks > highTicks && nextOpenTicks - lowTicks > this.rangeTicks) {
+				current.high = this.addTicks(current.low, this.rangeTicks);
 			}
 		}
 
-		current.close = this.getAdjustedClose(current, nextOpen);
+		current.close = this.getAdjustedClose(current, nextOpenTicks * this.tickSize);
 
 		return current;
 	}
 
 	private getAdjustedClose(candle: MutableRangeCandle, nextOpen: number) {
-		const distanceToHigh = Math.abs(candle.actualClose - candle.high);
-		const distanceToLow = Math.abs(candle.actualClose - candle.low);
+		const distanceToHigh = this.tickDistance(candle.actualClose, candle.high);
+		const distanceToLow = this.tickDistance(candle.actualClose, candle.low);
 
 		if (distanceToHigh < distanceToLow) return candle.high;
 		if (distanceToLow < distanceToHigh) return candle.low;
 
-		return Math.abs(candle.high - nextOpen) < Math.abs(candle.low - nextOpen)
+		return this.tickDistance(candle.high, nextOpen) < this.tickDistance(candle.low, nextOpen)
 			? candle.high
 			: candle.low;
 	}
 
 	private getNextOpen(completed: MutableRangeCandle, price: number) {
-		if (price > completed.high) return price;
-		if (price < completed.low) return price;
-		if (price >= completed.close) return completed.high + this.tickSize;
+		if (this.isAbove(price, completed.high)) return price;
+		if (this.isBelow(price, completed.low)) return price;
+		if (this.priceToTicks(price) >= this.priceToTicks(completed.close))
+			return this.addTicks(completed.high, 1);
 
-		return completed.low - this.tickSize;
+		return this.addTicks(completed.low, -1);
 	}
 
 	private getPendingOpenRange(price: number) {
 		if (this.previousRange === undefined) return undefined;
-		if (price > this.previousRange.high || price < this.previousRange.low) return undefined;
+		if (this.isAbove(price, this.previousRange.high) || this.isBelow(price, this.previousRange.low))
+			return undefined;
 
-		return this.previousRange;
+		return {
+			...this.previousRange,
+			openSide: this.getNearestRangeSide(price, this.previousRange)
+		};
 	}
 
 	private resolvePendingOpen(candle: MutableRangeCandle) {
 		const range = candle.pendingOpenRange;
 		if (range === undefined) return;
 
-		if (candle.high > range.high) {
-			candle.open = range.high + this.tickSize;
-			candle.high = Math.max(candle.high, candle.open);
-		} else if (candle.low < range.low) {
-			candle.open = range.low - this.tickSize;
-			candle.low = Math.min(candle.low, candle.open);
+		if (this.isAbove(candle.high, range.high)) {
+			this.applyPendingOpen(candle, range, this.getFallbackPendingOpenSide(range));
+		} else if (this.isBelow(candle.low, range.low)) {
+			this.applyPendingOpen(candle, range, this.getFallbackPendingOpenSide(range));
 		} else if (
-			Math.abs(candle.actualClose - range.high) < Math.abs(candle.actualClose - range.low)
+			this.tickDistance(candle.actualClose, range.high) <
+			this.tickDistance(candle.actualClose, range.low)
 		) {
-			candle.open = range.high + this.tickSize;
-			candle.high = Math.max(candle.high, candle.open);
+			this.applyPendingOpen(candle, range, 'high');
 		} else {
-			candle.open = range.low - this.tickSize;
-			candle.low = Math.min(candle.low, candle.open);
+			this.applyPendingOpen(candle, range, 'low');
 		}
 
 		candle.pendingOpenRange = undefined;
 	}
 
+	private resolvePendingOpenForPrice(candle: MutableRangeCandle, price: number) {
+		const range = candle.pendingOpenRange;
+		if (range === undefined) return;
+
+		if (this.isAbove(price, range.high)) {
+			if (this.shouldApplyPendingOpen(range, 'high')) {
+				this.applyPendingOpen(candle, range, 'high');
+			}
+		} else if (this.isBelow(price, range.low)) {
+			if (this.shouldApplyPendingOpen(range, 'low')) {
+				this.applyPendingOpen(candle, range, 'low');
+			}
+		} else {
+			return;
+		}
+
+		candle.pendingOpenRange = undefined;
+	}
+
+	private applyPendingOpen(
+		candle: MutableRangeCandle,
+		range: { high: number; low: number },
+		side: RangeSide
+	) {
+		if (side === 'high') {
+			candle.open = this.addTicks(range.high, 1);
+			candle.high = Math.max(candle.high, candle.open);
+
+			return;
+		}
+
+		candle.open = this.addTicks(range.low, -1);
+		candle.low = Math.min(candle.low, candle.open);
+	}
+
 	private emitCompleted(candle: MutableRangeCandle, emitted: MdCandle[]) {
 		const time = candle.time;
+		const normalized = this.normalizeCandle(candle);
 
 		emitted.push(
 			finalizeMutableCandleWithId(
-				candle,
+				normalized,
 				this.pos,
 				createBarId(time, nextSequence(this.sequence, time))
 			)
 		);
-		this.previousRange = { high: candle.high, low: candle.low };
+		this.previousRange = {
+			close: normalized.close,
+			high: normalized.high,
+			low: normalized.low
+		};
 		this.pos++;
 	}
 
@@ -218,6 +276,84 @@ export class RangeAggregator {
 
 		return this.current;
 	}
+
+	private addTicks(price: number, ticks: number) {
+		return this.normalizePrice(price + ticks * this.tickSize);
+	}
+
+	private normalizeInputPrice(price: number) {
+		return Math.fround(price);
+	}
+
+	private normalizePrice(price: number) {
+		const factor = 10 ** this.tickDecimals;
+
+		return Math.round(Math.fround(price) * factor) / factor;
+	}
+
+	private normalizeCandle(candle: MutableRangeCandle): MutableRangeCandle {
+		return {
+			...candle,
+			close: this.normalizePrice(candle.close),
+			high: this.normalizePrice(candle.high),
+			low: this.normalizePrice(candle.low),
+			open: this.normalizePrice(candle.open)
+		};
+	}
+
+	private priceToTicks(price: number) {
+		return Math.round(price / this.tickSize);
+	}
+
+	private tickDistance(first: number, second: number) {
+		return Math.abs(this.priceToTicks(first) - this.priceToTicks(second));
+	}
+
+	private isAbove(first: number, second: number) {
+		return this.priceToTicks(first) > this.priceToTicks(second);
+	}
+
+	private isBelow(first: number, second: number) {
+		return this.priceToTicks(first) < this.priceToTicks(second);
+	}
+
+	private getNearestRangeSide(
+		price: number,
+		range: { high: number; low: number }
+	): RangeSide | undefined {
+		const distanceToHigh = this.tickDistance(price, range.high);
+		const distanceToLow = this.tickDistance(price, range.low);
+
+		if (distanceToHigh < distanceToLow) return 'high';
+		if (distanceToLow < distanceToHigh) return 'low';
+
+		return undefined;
+	}
+
+	private getCloseRangeSide(range: { close: number; high: number; low: number }): RangeSide {
+		const distanceToHigh = this.tickDistance(range.close, range.high);
+		const distanceToLow = this.tickDistance(range.close, range.low);
+
+		return distanceToHigh <= distanceToLow ? 'high' : 'low';
+	}
+
+	private getFallbackPendingOpenSide(range: PendingOpenRange): RangeSide {
+		return range.openSide ?? this.getCloseRangeSide(range);
+	}
+
+	private shouldApplyPendingOpen(range: PendingOpenRange, breakoutSide: RangeSide) {
+		const width = this.rangeWidthTicks(range);
+
+		if (width !== this.rangeTicks - 1) return true;
+		if (range.openSide === undefined) return true;
+		if (range.openSide === breakoutSide) return true;
+
+		return this.getCloseRangeSide(range) === breakoutSide;
+	}
+
+	private rangeWidthTicks(range: { high: number; low: number }) {
+		return this.priceToTicks(range.high) - this.priceToTicks(range.low);
+	}
 }
 
 function createMutableRangeCandleForValues(
@@ -226,7 +362,7 @@ function createMutableRangeCandleForValues(
 	volume: number,
 	side: TradeSide | undefined = undefined,
 	price = open,
-	pendingOpenRange: { high: number; low: number } | undefined = undefined
+	pendingOpenRange: PendingOpenRange | undefined = undefined
 ): MutableRangeCandle {
 	const candle = createMutableCandleForValues(price, time, volume, side);
 
@@ -264,7 +400,8 @@ export class RangeBuilder implements GenerationBuilder {
 	) {
 		this.aggregator = new RangeAggregator(
 			TIMEFRAME_DEFINITIONS[this.key].size,
-			symbolConfig.tickSize
+			symbolConfig.tickSize,
+			symbolConfig.tickDecimals
 		);
 	}
 

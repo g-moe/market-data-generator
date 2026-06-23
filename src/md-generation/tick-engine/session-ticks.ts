@@ -72,7 +72,6 @@ export function generateSessionTickValuesForStart(
 
 	let randomState = deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex) >>> 0;
 	let priceTicks = Math.round(sessionStartPrice / symbolConfig.tickSize);
-	const tickSize = symbolConfig.tickSize;
 
 	for (let index = 0; index < ticksPerSession; index++) {
 		const activeSecondIndex = Math.floor(index / ticksPerActiveSecond);
@@ -116,10 +115,10 @@ export function generateSessionTickValuesForStart(
 			volume = 1 + Math.floor(randomState * RANDOM_UNIT * 25);
 		}
 
-		onTick(index, time, priceTicks * tickSize, volume, side);
+		onTick(index, time, priceFromTicks(priceTicks, symbolConfig), volume, side);
 	}
 
-	return priceTicks * tickSize;
+	return priceFromTicks(priceTicks, symbolConfig);
 }
 
 function getSessionTickTime(sessionStart: number, ticksPerSession: number, index: number) {
@@ -175,7 +174,11 @@ export function getSessionOpenPrice(
 	symbolConfig: SymbolConfig,
 	sessionIndex: number
 ) {
-	if (sessionIndex === 0) return roundToTick(previousClose, symbolConfig.tickSize);
+	if (sessionIndex === 0)
+		return normalizeGeneratedPrice(
+			roundToTick(previousClose, symbolConfig.tickSize),
+			symbolConfig.tickDecimals
+		);
 
 	const randomState = nextRandomState(
 		deriveSessionSeed(inputs.seed, symbolConfig.symbolId, sessionIndex)
@@ -183,7 +186,10 @@ export function getSessionOpenPrice(
 	const gap =
 		(randomState * RANDOM_UNIT * 2 - 1) * symbolConfig.tickSize * getSessionGapTicks(sessionIndex);
 
-	return roundToTick(previousClose + gap, symbolConfig.tickSize);
+	return normalizeGeneratedPrice(
+		roundToTick(previousClose + gap, symbolConfig.tickSize),
+		symbolConfig.tickDecimals
+	);
 }
 
 export function getFirstSessionTickPrice(
@@ -202,7 +208,7 @@ export function getFirstSessionTickPrice(
 	const moveTicks = Math.round(signedMove * 4 * (randomState * RANDOM_UNIT > 0.7 ? 2 : 1));
 	priceTicks += moveTicks;
 
-	return priceTicks * symbolConfig.tickSize;
+	return priceFromTicks(priceTicks, symbolConfig);
 }
 
 function nextRandomState(state: number) {
@@ -211,6 +217,16 @@ function nextRandomState(state: number) {
 
 function getSessionGapTicks(sessionIndex: number) {
 	return 1 + Math.floor(Math.log2(sessionIndex + 1));
+}
+
+function priceFromTicks(priceTicks: number, symbolConfig: SymbolConfig) {
+	return normalizeGeneratedPrice(priceTicks * symbolConfig.tickSize, symbolConfig.tickDecimals);
+}
+
+function normalizeGeneratedPrice(price: number, tickDecimals: number) {
+	const factor = 10 ** tickDecimals;
+
+	return Math.round(Math.fround(price) * factor) / factor;
 }
 
 function getTicksPerActiveSecond(ticksPerSession: number) {

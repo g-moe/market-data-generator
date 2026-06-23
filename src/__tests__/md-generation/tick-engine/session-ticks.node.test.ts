@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getSymbolConfig } from '../../../contracts/symbols.ts';
+import { getSymbolConfig, type SymbolConfig } from '../../../contracts/symbols.ts';
 import type { GeneratorInputs, MarketTick } from '../../../contracts/types.ts';
 import { normalizeInputs } from '../../../md-generation/inputs.ts';
 import { getSessionStart } from '../../../md-generation/shared/market-time.ts';
@@ -38,6 +38,30 @@ describe('generateSessionTicksForStart', () => {
 				return Number.isInteger(tick.price / symbol.tickSize);
 			})
 		).toBe(true);
+	});
+
+	it('normalizes decimal tick prices to float32 and symbol tick decimals', () => {
+		for (const symbolId of ['6E', 'ZN'] as const) {
+			const inputs = normalizeInputs({
+				sessionCount: 2,
+				symbol: symbolId,
+				ticksPerSession: 20
+			});
+			const symbol = getSymbolConfig(inputs.symbol);
+			const first = collectSessionTicks(inputs, 0);
+			const previousClose = first.at(-1)?.price ?? inputs.startPrice;
+			const sessionOpen = getSessionOpenPrice(previousClose, inputs, symbol, 1);
+			const predictedFirst = getFirstSessionTickPrice(inputs, symbol, 1, sessionOpen);
+			const second = collectSessionTicks(inputs, 1, sessionOpen);
+
+			for (const tick of [...first, ...second]) {
+				expectPriceAlignedToSymbol(tick.price, symbol);
+			}
+
+			expectPriceAlignedToSymbol(sessionOpen, symbol);
+			expectPriceAlignedToSymbol(predictedFirst, symbol);
+			expect(predictedFirst).toBe(second[0].price);
+		}
 	});
 
 	it('clusters generated ticks into deterministic active seconds', () => {
@@ -140,4 +164,12 @@ function collectSessionTicks(
 	);
 
 	return ticks;
+}
+
+function expectPriceAlignedToSymbol(price: number, symbol: SymbolConfig) {
+	const decimalFactor = 10 ** symbol.tickDecimals;
+	const tickIndex = price / symbol.tickSize;
+
+	expect(price).toBe(Math.round(price * decimalFactor) / decimalFactor);
+	expect(Math.abs(tickIndex - Math.round(tickIndex))).toBeLessThan(1e-6);
 }

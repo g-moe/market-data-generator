@@ -1,0 +1,59 @@
+{
+	"indicators": [
+		{
+			"id": "sma",
+			"inputs": {
+				"tf": "same",
+				"source": "close",
+				"length": "200"
+			},
+			"label": "smaClose200",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "vpLines",
+			"inputs": {
+				"tf": "1s",
+				"reset": "daily",
+				"developing": "false",
+				"valueAreaPct": "70.0"
+			},
+			"label": "vpLines",
+			"outputKeys": [
+				"poc",
+				"vah",
+				"val"
+			]
+		},
+		{
+			"id": "priorDayValues",
+			"inputs": {
+				"tf": "same"
+			},
+			"label": "priorDayValues",
+			"outputKeys": [
+				"pdo",
+				"pdh",
+				"pdl",
+				"pdc"
+			]
+		},
+		{
+			"id": "priorWeekValues",
+			"inputs": {
+				"tf": "same"
+			},
+			"label": "priorWeekValues",
+			"outputKeys": [
+				"pwo",
+				"pwh",
+				"pwl",
+				"pwc"
+			]
+		}
+	],
+	"symbol": "6E",
+	"timeframe": "1d"
+}
