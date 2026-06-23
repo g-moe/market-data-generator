@@ -1,4 +1,14 @@
 export const SYMBOL_CONFIG = {
+	'/6E:XCME': {
+		aliases: ['6E'],
+		defaultStartPrice: 1.14195,
+		id: '/6E:XCME',
+		name: 'Euro FX',
+		symbolId: '6E',
+		tickDecimals: 5,
+		tickSize: 0.00005,
+		tickValue: 6.25
+	},
 	'/ES:XCME': {
 		aliases: ['ES'],
 		defaultStartPrice: 6000,
@@ -18,6 +28,16 @@ export const SYMBOL_CONFIG = {
 		tickDecimals: 2,
 		tickSize: 0.25,
 		tickValue: 5
+	},
+	'/ZN:XCBT': {
+		aliases: ['ZN'],
+		defaultStartPrice: 109.015625,
+		id: '/ZN:XCBT',
+		name: '10-Year T-Note',
+		symbolId: 'ZN',
+		tickDecimals: 6,
+		tickSize: 0.015625,
+		tickValue: 15.625
 	}
 } as const;
 
