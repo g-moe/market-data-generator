@@ -1,148 +1,299 @@
 {
 	"indicators": [
 		{
-			"id": "vpLines",
+			"id": "sma",
 			"inputs": {
 				"tf": "same",
-				"reset": "daily",
-				"developing": "true",
-				"valueAreaPct": "70.0"
+				"source": "low",
+				"length": "14"
 			},
-			"label": "vpLinesDeveloping",
+			"label": "smaLow14",
 			"outputKeys": [
-				"poc",
-				"vah",
-				"val"
+				"value"
 			]
 		},
 		{
-			"id": "vpLines",
+			"id": "ema",
 			"inputs": {
 				"tf": "same",
-				"reset": "daily",
-				"developing": "false",
-				"valueAreaPct": "70.0"
+				"source": "open",
+				"length": "21"
 			},
-			"label": "vpLines",
+			"label": "emaOpen21",
 			"outputKeys": [
-				"poc",
-				"vah",
-				"val"
+				"value"
 			]
 		},
 		{
-			"id": "cvd",
+			"id": "vwma",
 			"inputs": {
 				"tf": "same",
-				"resetDaily": "false"
+				"source": "high",
+				"length": "120"
 			},
-			"label": "cvd",
+			"label": "vwmaHigh120",
 			"outputKeys": [
-				"open",
-				"close"
+				"value"
 			]
 		},
 		{
-			"id": "volumeDelta",
+			"id": "wma",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "31"
+			},
+			"label": "wmaLow31",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "rma",
+			"inputs": {
+				"tf": "same",
+				"source": "high",
+				"length": "40"
+			},
+			"label": "rmaHigh40",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "hma",
+			"inputs": {
+				"tf": "same",
+				"source": "open",
+				"length": "150"
+			},
+			"label": "hmaOpen150",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "crossabove",
+			"inputs": {
+				"tf": "same",
+				"series1": "high",
+				"series2": "sma20"
+			},
+			"label": "crossaboveHighSma20",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "crossbelow",
+			"inputs": {
+				"tf": "same",
+				"series1": "high",
+				"series2": "sma20"
+			},
+			"label": "crossbelowHighSma20",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "stdev",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "22"
+			},
+			"label": "stdDevLow22",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "change",
+			"inputs": {
+				"tf": "same",
+				"source": "high",
+				"length": "8"
+			},
+			"label": "changeHigh8",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "truerange",
 			"inputs": {
 				"tf": "same"
 			},
-			"label": "volumeDelta",
-			"outputKeys": [
-				"askVolume",
-				"bidVolume"
-			]
-		},
-		{
-			"id": "timeHighlightRange",
-			"inputs": {
-				"tf": "same",
-				"startTime": "083000",
-				"endTime": "123000",
-				"timezone": "chart"
-			},
-			"label": "timeHighlightRange",
+			"label": "truerange",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "timeHighlight",
+			"id": "linreg",
 			"inputs": {
 				"tf": "same",
-				"startTime": "120000"
+				"source": "high",
+				"length": "35"
 			},
-			"label": "timeHighlight",
+			"label": "linearRegressionHigh35",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "donchian",
+			"id": "pivothigh",
 			"inputs": {
 				"tf": "same",
-				"length": "100"
+				"source": "high",
+				"length": "5"
 			},
-			"label": "donchian",
+			"label": "pivothigh5",
 			"outputKeys": [
-				"highestHigh",
-				"lowestLow",
-				"mid"
+				"value"
 			]
 		},
 		{
-			"id": "keltner",
+			"id": "pivotlow",
 			"inputs": {
 				"tf": "same",
-				"source": "close",
-				"length": "50",
-				"multiplier": "1.6"
+				"source": "low",
+				"length": "5"
 			},
-			"label": "keltner",
+			"label": "pivotlow5",
 			"outputKeys": [
-				"basis",
+				"value"
+			]
+		},
+		{
+			"id": "rateofchange",
+			"inputs": {
+				"tf": "same",
+				"source": "open",
+				"length": "36"
+			},
+			"label": "rateofchangeOpen36",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "sum",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "250"
+			},
+			"label": "sumLow250",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "cumulative",
+			"inputs": {
+				"tf": "same",
+				"source": "low"
+			},
+			"label": "cumulativeLow",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "atr",
+			"inputs": {
+				"tf": "same",
+				"length": "18"
+			},
+			"label": "atr18",
+			"outputKeys": [
+				"value"
+			]
+		},
+		{
+			"id": "bb",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "30",
+				"mult": "1.5"
+			},
+			"label": "bbLow3015",
+			"outputKeys": [
 				"top",
+				"mid",
 				"bot"
 			]
 		},
 		{
-			"id": "supertrend",
+			"id": "macd",
 			"inputs": {
 				"tf": "same",
-				"source": "hl2",
-				"length": "3",
-				"multiplier": "2"
+				"source": "high",
+				"fastLength": "16",
+				"slowLength": "30",
+				"signalLength": "11"
 			},
-			"label": "supertrend",
+			"label": "macdHigh163011",
+			"outputKeys": [
+				"macd",
+				"signal",
+				"hist"
+			]
+		},
+		{
+			"id": "rsi",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"length": "21"
+			},
+			"label": "rsiLow21",
 			"outputKeys": [
 				"value"
 			]
 		},
 		{
-			"id": "heikinAshi",
+			"id": "stochastic",
 			"inputs": {
-				"tf": "same"
+				"tf": "same",
+				"source": "open",
+				"high": "high",
+				"low": "low",
+				"length": "14"
 			},
-			"label": "heikinAshi",
+			"label": "stochasticOpen14",
 			"outputKeys": [
-				"open",
-				"high",
-				"low",
-				"close"
+				"value"
 			]
 		},
 		{
-			"id": "ohlcForTimePeriod",
+			"id": "vwap",
 			"inputs": {
 				"tf": "same",
-				"resetSeconds": "3600"
+				"source": "open",
+				"resetCondition": "daily"
 			},
-			"label": "ohlcForTimePeriod",
+			"label": "vwapOpenDaily",
 			"outputKeys": [
-				"open",
-				"high",
-				"low",
-				"close"
+				"value"
+			]
+		},
+		{
+			"id": "vwapbands",
+			"inputs": {
+				"tf": "same",
+				"source": "low",
+				"resetCondition": "daily",
+				"bandMult1": "1.25"
+			},
+			"label": "vwapBandsLow125",
+			"outputKeys": [
+				"vwap",
+				"top1",
+				"bot1"
 			]
 		}
 	],
